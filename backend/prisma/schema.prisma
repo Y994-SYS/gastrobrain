@@ -1,13 +1,289 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
-  provider = "prisma-client"
-  output   = "../generated/prisma"
+  provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────
+// KULLANICI & YETKİ
+// ─────────────────────────────────────────
+
+model Kullanici {
+  id        Int      @id @default(autoincrement())
+  ad        String
+  email     String   @unique
+  sifre     String
+  rol       Rol      @default(PERSONEL)
+  aktif     Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sube   Sube? @relation(fields: [subeId], references: [id])
+  subeId Int?
+}
+
+enum Rol {
+  SUPER_ADMIN
+  ADMIN
+  MUDUR
+  DEPO
+  KASA
+  PERSONEL
+}
+
+// ─────────────────────────────────────────
+// ŞUBE
+// ─────────────────────────────────────────
+
+model Sube {
+  id        Int      @id @default(autoincrement())
+  ad        String
+  adres     String?
+  telefon   String?
+  aktif     Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  kullanicilar Kullanici[]
+  stokHareketleri StokHareket[]
+  satislar     Satis[]
+  personeller  Personel[]
+}
+
+// ─────────────────────────────────────────
+// STOK
+// ─────────────────────────────────────────
+
+model Kategori {
+  id   Int    @id @default(autoincrement())
+  ad   String @unique
+  renk String?
+
+  stokKartlari StokKart[]
+}
+
+model OlcuBirimi {
+  id        Int    @id @default(autoincrement())
+  ad        String @unique  // kg, lt, adet, porsiyon
+  kisaltma  String @unique  // kg, lt, ad, por
+
+  stokKartlari StokKart[]
+}
+
+model StokKart {
+  id          Int     @id @default(autoincrement())
+  kod         String  @unique
+  ad          String
+  aciklama    String?
+  minStok     Float   @default(0)
+  aktif       Boolean @default(true)
+  createdAt   DateTime @default(now())
+
+  kategori    Kategori   @relation(fields: [kategoriId], references: [id])
+  kategoriId  Int
+  birim       OlcuBirimi @relation(fields: [birimId], references: [id])
+  birimId     Int
+
+  stokHareketleri StokHareket[]
+  receteKalemleri ReceteKalem[]
+  cariHareketKalemleri CariHareketKalem[]
+}
+
+model StokHareket {
+  id         Int              @id @default(autoincrement())
+  tip        StokHareketTip
+  miktar     Float
+  birimFiyat Float?
+  aciklama   String?
+  tarih      DateTime         @default(now())
+  createdAt  DateTime         @default(now())
+
+  stokKart   StokKart @relation(fields: [stokKartId], references: [id])
+  stokKartId Int
+  sube       Sube     @relation(fields: [subeId], references: [id])
+  subeId     Int
+
+  cariHareket   CariHareket? @relation(fields: [cariHareketId], references: [id])
+  cariHareketId Int?
+  satis         Satis?       @relation(fields: [satisId], references: [id])
+  satisId       Int?
+}
+
+enum StokHareketTip {
+  GIRIS_FATURA       // fatura ile giriş
+  IADE_FATURA        // iade faturası ile çıkış
+  SATIS              // satış ile çıkış
+  ZAYI               // zayi gideri
+  TUKETIM            // tüketim gideri
+  AY_SONU_SAYIM      // ay sonu sayım düzeltme
+  SUBE_TRANSFER_IN   // şubeden gelen
+  SUBE_TRANSFER_OUT  // şubeye giden
+}
+
+// ─────────────────────────────────────────
+// REÇETE
+// ─────────────────────────────────────────
+
+model Recete {
+  id          Int      @id @default(autoincrement())
+  ad          String
+  aciklama    String?
+  satisKodu   String?  @unique
+  satisFiyati Float?
+  aktif       Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  kalemler ReceteKalem[]
+  satislar Satis[]
+}
+
+model ReceteKalem {
+  id       Int   @id @default(autoincrement())
+  miktar   Float
+  carpan   Float @default(1)
+  bolen    Float @default(1)
+
+  recete     Recete   @relation(fields: [receteId], references: [id])
+  receteId   Int
+  stokKart   StokKart @relation(fields: [stokKartId], references: [id])
+  stokKartId Int
+}
+
+// ─────────────────────────────────────────
+// SATIŞ
+// ─────────────────────────────────────────
+
+model Satis {
+  id        Int      @id @default(autoincrement())
+  adet      Float
+  birimFiyat Float
+  toplam    Float
+  tarih     DateTime @default(now())
+  aciklama  String?
+  createdAt DateTime @default(now())
+
+  recete   Recete @relation(fields: [receteId], references: [id])
+  receteId Int
+  sube     Sube   @relation(fields: [subeId], references: [id])
+  subeId   Int
+
+  stokHareketleri StokHareket[]
+}
+
+// ─────────────────────────────────────────
+// CARİ HESAP
+// ─────────────────────────────────────────
+
+model CariKart {
+  id          Int      @id @default(autoincrement())
+  kod         String   @unique
+  ad          String
+  vergiNo     String?
+  telefon     String?
+  email       String?
+  adres       String?
+  aktif       Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  hareketler CariHareket[]
+}
+
+model CariHareket {
+  id         Int             @id @default(autoincrement())
+  tip        CariHareketTip
+  tutar      Float
+  aciklama   String?
+  belgeNo    String?
+  tarih      DateTime        @default(now())
+  createdAt  DateTime        @default(now())
+
+  cariKart   CariKart @relation(fields: [cariKartId], references: [id])
+  cariKartId Int
+
+  kalemler        CariHareketKalem[]
+  stokHareketleri StokHareket[]
+}
+
+enum CariHareketTip {
+  BORC          // giriş faturası
+  ALACAK        // iade faturası
+  ODEME         // ödeme yapıldı
+  TAHSILAT      // tahsilat yapıldı
+}
+
+model CariHareketKalem {
+  id         Int   @id @default(autoincrement())
+  miktar     Float
+  birimFiyat Float
+  toplam     Float
+
+  cariHareket   CariHareket @relation(fields: [cariHareketId], references: [id])
+  cariHareketId Int
+  stokKart      StokKart    @relation(fields: [stokKartId], references: [id])
+  stokKartId    Int
+}
+
+// ─────────────────────────────────────────
+// PERSONEL
+// ─────────────────────────────────────────
+
+model Personel {
+  id          Int      @id @default(autoincrement())
+  ad          String
+  soyad       String
+  telefon     String?
+  tcKimlik    String?  @unique
+  baslangicTarihi DateTime
+  maas        Float
+  aktif       Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  sube   Sube @relation(fields: [subeId], references: [id])
+  subeId Int
+
+  maaslar    PersonelMaas[]
+  avanslar   PersonelAvans[]
+  devamlar   PersonelDevam[]
+}
+
+model PersonelMaas {
+  id      Int      @id @default(autoincrement())
+  yil     Int
+  ay      Int
+  tutar   Float
+  odendi  Boolean  @default(false)
+  tarih   DateTime @default(now())
+
+  personel   Personel @relation(fields: [personelId], references: [id])
+  personelId Int
+}
+
+model PersonelAvans {
+  id      Int      @id @default(autoincrement())
+  tutar   Float
+  aciklama String?
+  tarih   DateTime @default(now())
+
+  personel   Personel @relation(fields: [personelId], references: [id])
+  personelId Int
+}
+
+model PersonelDevam {
+  id       Int      @id @default(autoincrement())
+  tarih    DateTime
+  durum    DevamDurum
+  mesai    Float?   // saat cinsinden
+  aciklama String?
+
+  personel   Personel @relation(fields: [personelId], references: [id])
+  personelId Int
+}
+
+enum DevamDurum {
+  CALISTI
+  IZIN
+  RAPOR
+  DEVAMSIZ
 }

@@ -3,9 +3,15 @@ import useAuthStore from '../store/auth.store';
 
 const menuItems = [
     { path: '/', label: 'Dashboard', icon: '📊' },
+    { path: '/stok/durum', label: 'Stok Durumu', icon: '📦' },
+    { path: '/stok/giris-faturasi', label: 'Giriş Faturası', icon: '📥' },
+    { path: '/stok/iade-faturasi', label: 'İade Faturası', icon: '↩️' },
+    { path: '/stok/zayi', label: 'Zayi Gideri', icon: '🗑️' },
+    { path: '/stok/tuketim', label: 'Tüketim Gideri', icon: '🍽️' },
+    { path: '/stok/ay-sonu-sayim', label: 'Ay Sonu Sayım', icon: '📋' },
     { path: '/tanimlamalar/kategoriler', label: 'Kategoriler', icon: '🏷️' },
     { path: '/tanimlamalar/olcu-birimleri', label: 'Ölçü Birimleri', icon: '⚖️' },
-    { path: '/tanimlamalar/stok-kartlari', label: 'Stok Kartları', icon: '📦' },
+    { path: '/tanimlamalar/stok-kartlari', label: 'Stok Kartları', icon: '🗂️' },
     { path: '/tanimlamalar/cari-kartlar', label: 'Cari Kartlar', icon: '🏢' },
 ];
 

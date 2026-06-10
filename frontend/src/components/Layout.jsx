@@ -15,6 +15,7 @@ const menuItems = [
     { path: '/tanimlamalar/cari-kartlar', label: 'Cari Kartlar', icon: '🏢' },
     { path: '/receteler', label: 'Reçeteler', icon: '📝' },
     { path: '/satislar', label: 'Satışlar', icon: '💰' },
+    { path: '/cari-hesap', label: 'Cari Hesap', icon: '🏦' },
 
 ];
 

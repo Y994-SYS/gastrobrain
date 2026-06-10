@@ -17,6 +17,7 @@ import TuketimGideri from './pages/stok/TuketimGideri';
 import AySonuSayim from './pages/stok/AySonuSayim';
 import Receteler from './pages/recete/Receteler';
 import Satislar from './pages/satis/Satislar';
+import CariHesap from './pages/cari/CariHesap';
 
 function PrivateRoute({ children }) {
   const kullanici = useAuthStore((s) => s.kullanici);
@@ -48,6 +49,7 @@ export default function App() {
         <Route path="/tanimlamalar/cari-kartlar" element={<PrivateRoute><CariKartlar /></PrivateRoute>} />
         <Route path="/receteler" element={<PrivateRoute><Receteler /></PrivateRoute>} />
         <Route path="/satislar" element={<PrivateRoute><Satislar /></PrivateRoute>} />
+        <Route path="/cari-hesap" element={<PrivateRoute><CariHesap /></PrivateRoute>} />
 
       </Routes>
     </BrowserRouter>

@@ -11,6 +11,7 @@ const cariKartRoutes = require('./routes/cariKart.routes');
 const stokRoutes = require('./routes/stok.routes');
 const receteRoutes = require('./routes/recete.routes');
 const satisRoutes = require('./routes/satis.routes');
+const cariHareketRoutes = require('./routes/cariHareket.routes');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -28,6 +29,7 @@ app.use('/api/cari-kartlar', cariKartRoutes);
 app.use('/api/stok', stokRoutes);
 app.use('/api/receteler', receteRoutes);
 app.use('/api/satislar', satisRoutes);
+app.use('/api/cari-hareketler', cariHareketRoutes);
 
 // Sağlık kontrolü
 app.get('/', (req, res) => {

@@ -14,6 +14,7 @@ const menuItems = [
     { path: '/tanimlamalar/stok-kartlari', label: 'Stok Kartları', icon: '🗂️' },
     { path: '/tanimlamalar/cari-kartlar', label: 'Cari Kartlar', icon: '🏢' },
     { path: '/receteler', label: 'Reçeteler', icon: '📝' },
+    { path: '/satislar', label: 'Satışlar', icon: '💰' },
 
 ];
 

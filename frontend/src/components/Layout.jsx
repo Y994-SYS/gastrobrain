@@ -13,6 +13,8 @@ const menuItems = [
     { path: '/tanimlamalar/olcu-birimleri', label: 'Ölçü Birimleri', icon: '⚖️' },
     { path: '/tanimlamalar/stok-kartlari', label: 'Stok Kartları', icon: '🗂️' },
     { path: '/tanimlamalar/cari-kartlar', label: 'Cari Kartlar', icon: '🏢' },
+    { path: '/receteler', label: 'Reçeteler', icon: '📝' },
+
 ];
 
 export default function Layout({ children }) {

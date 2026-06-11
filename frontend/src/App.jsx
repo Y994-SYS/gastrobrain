@@ -19,6 +19,7 @@ import Receteler from './pages/recete/Receteler';
 import Satislar from './pages/satis/Satislar';
 import CariHesap from './pages/cari/CariHesap';
 import Personel from './pages/personel/Personel';
+import Dashboard from './pages/Dashboard';
 
 
 function PrivateRoute({ children }) {
@@ -38,7 +39,6 @@ export default function App() {
       <Toaster position="top-right" />
       <Routes>
         <Route path="/giris" element={<Login />} />
-        <Route path="/" element={<PrivateRoute><div className="flex items-center justify-center h-64"><div className="text-center"><h1 className="text-3xl font-black text-white">Gastro<span className="text-lime-400">IQ</span></h1><p className="text-zinc-500 mt-2">Dashboard yakında geliyor...</p></div></div></PrivateRoute>} />
         <Route path="/stok/durum" element={<PrivateRoute><StokDurumu /></PrivateRoute>} />
         <Route path="/stok/giris-faturasi" element={<PrivateRoute><GirisFaturasi /></PrivateRoute>} />
         <Route path="/stok/iade-faturasi" element={<PrivateRoute><IadeFaturasi /></PrivateRoute>} />
@@ -53,6 +53,8 @@ export default function App() {
         <Route path="/satislar" element={<PrivateRoute><Satislar /></PrivateRoute>} />
         <Route path="/cari-hesap" element={<PrivateRoute><CariHesap /></PrivateRoute>} />
         <Route path="/personel" element={<PrivateRoute><Personel /></PrivateRoute>} />
+        <Route path="/" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
+
 
       </Routes>
     </BrowserRouter>

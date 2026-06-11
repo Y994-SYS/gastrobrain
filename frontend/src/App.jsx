@@ -20,6 +20,8 @@ import Satislar from './pages/satis/Satislar';
 import CariHesap from './pages/cari/CariHesap';
 import Personel from './pages/personel/Personel';
 import Dashboard from './pages/Dashboard';
+import Raporlar from './pages/raporlar/Raporlar';
+import Subeler from './pages/tanimlamalar/Subeler';
 
 
 function PrivateRoute({ children }) {
@@ -54,6 +56,8 @@ export default function App() {
         <Route path="/cari-hesap" element={<PrivateRoute><CariHesap /></PrivateRoute>} />
         <Route path="/personel" element={<PrivateRoute><Personel /></PrivateRoute>} />
         <Route path="/" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
+        <Route path="/raporlar" element={<PrivateRoute><Raporlar /></PrivateRoute>} />
+        <Route path="/tanimlamalar/subeler" element={<PrivateRoute><Subeler /></PrivateRoute>} />
 
 
       </Routes>

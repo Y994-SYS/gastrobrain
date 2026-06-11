@@ -47,7 +47,8 @@ const menuGruplari = [
             { path: '/tanimlamalar/olcu-birimleri', label: 'Ölçü Birimleri', icon: '⚖️' },
             { path: '/tanimlamalar/stok-kartlari', label: 'Stok Kartları', icon: '🗂️' },
             { path: '/tanimlamalar/cari-kartlar', label: 'Cari Kartlar', icon: '🏢' },
-            { path: '/tanimlamalar/subeler', label: 'Şubeler', icon: '🏪' }
+            { path: '/tanimlamalar/subeler', label: 'Şubeler', icon: '🏪' },
+            { path: '/tanimlamalar/kullanicilar', label: 'Kullanıcılar', icon: '👤' }
         ]
     },
 ];

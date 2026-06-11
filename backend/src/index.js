@@ -15,6 +15,8 @@ const cariHareketRoutes = require('./routes/cariHareket.routes');
 const personelRoutes = require('./routes/personel.routes');
 const raporRoutes = require('./routes/rapor.routes');
 const subeRoutes = require('./routes/sube.routes');
+const kullaniciRoutes = require('./routes/kullanici.routes');
+
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -36,6 +38,8 @@ app.use('/api/cari-hareketler', cariHareketRoutes);
 app.use('/api/personel', personelRoutes);
 app.use('/api/raporlar', raporRoutes);
 app.use('/api/subeler', subeRoutes);
+app.use('/api/kullanicilar', kullaniciRoutes);
+
 
 // Sağlık kontrolü
 app.get('/', (req, res) => {

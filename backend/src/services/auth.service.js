@@ -37,7 +37,7 @@ const authService = {
         });
         if (!kullanici) throw new Error('Email veya şifre hatalı');
         if (!kullanici.aktif) throw new Error('Hesabınız devre dışı');
-        if (!kullanici.tenant.aktif) throw new Error('Firma hesabı devre dışı');
+        if (!kullanici.tenant.aktif && kullanici.rol !== 'SUPER_ADMIN') throw new Error('Firma hesabı devre dışı');
 
         const sifreDoğru = await bcrypt.compare(sifre, kullanici.sifre);
         if (!sifreDoğru) throw new Error('Email veya şifre hatalı');

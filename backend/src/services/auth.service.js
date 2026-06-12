@@ -109,6 +109,23 @@ const authService = {
         };
     },
 
+    async tenantListesiGetir({ email }) {
+        const kullanicilar = await prisma.kullanici.findMany({
+            where: { email },
+            include: { tenant: { select: { id: true, ad: true, slug: true, aktif: true } } }
+        });
+
+        if (kullanicilar.length === 0) throw new Error('Bu email ile kayıtlı hesap bulunamadı');
+
+        return kullanicilar.map(k => ({
+            tenantId: k.tenantId,
+            tenantAd: k.tenant.ad,
+            tenantSlug: k.tenant.slug,
+            tenantAktif: k.tenant.aktif,
+            rol: k.rol,
+        }));
+    },
+
 };
 
 module.exports = authService;

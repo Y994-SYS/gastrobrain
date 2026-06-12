@@ -33,6 +33,15 @@ const authController = {
         }
     },
 
+    async tenantListesiGetir(req, res) {
+        try {
+            const sonuc = await authService.tenantListesiGetir(req.body);
+            res.json({ basarili: true, data: sonuc });
+        } catch (error) {
+            res.status(404).json({ basarili: false, mesaj: error.message });
+        }
+    },
+
 };
 
 module.exports = authController;

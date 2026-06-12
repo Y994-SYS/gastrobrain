@@ -6,5 +6,6 @@ const { authMiddleware } = require('../middleware/auth.middleware');
 router.post('/kayit', authController.kayitOl);
 router.post('/giris', authController.girisYap);
 router.get('/ben', authMiddleware, authController.beniKontrolEt);
+router.post('/kayit-firma', authController.kayitFirma); // yeni firma kaydı
 
 module.exports = router;

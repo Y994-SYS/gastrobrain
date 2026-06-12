@@ -22,7 +22,16 @@ const authController = {
 
     async beniKontrolEt(req, res) {
         res.json({ basarili: true, data: req.kullanici });
-    }
+    },
+
+    async kayitFirma(req, res) {
+        try {
+            const sonuc = await authService.kayitFirma(req.body);
+            res.status(201).json({ basarili: true, data: sonuc });
+        } catch (error) {
+            res.status(400).json({ basarili: false, mesaj: error.message });
+        }
+    },
 
 };
 

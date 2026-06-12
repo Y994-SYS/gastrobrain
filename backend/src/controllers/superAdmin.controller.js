@@ -12,9 +12,8 @@ const superAdminController = {
                             kullanicilar: true,
                             subeler: true,
                             stokKartlari: true,
-                            satislar: { where: { tarih: { gte: new Date(new Date().setDate(1)) } } }
                         }
-                    }
+                    },
                 },
                 orderBy: { createdAt: 'desc' }
             });
@@ -55,8 +54,8 @@ const superAdminController = {
                         select: { id: true, ad: true, email: true, rol: true, aktif: true, createdAt: true }
                     },
                     _count: {
-                        select: { stokKartlari: true, receteler: true, satislar: true, personeller: true }
-                    }
+                        select: { stokKartlari: true, receteler: true, personeller: true }
+                    },
                 }
             });
             if (!tenant) return res.status(404).json({ basarili: false, mesaj: 'Tenant bulunamadı' });
@@ -110,6 +109,69 @@ const superAdminController = {
             });
 
             res.json({ basarili: true, data: tenant, mesaj: 'Plan güncellendi' });
+        } catch (err) {
+            res.status(500).json({ basarili: false, mesaj: err.message });
+        }
+    },
+
+    async lisansGuncelle(req, res) {
+        try {
+            const id = parseInt(req.params.id);
+            const { lisansBitis, lisansNot } = req.body;
+
+            const tenant = await prisma.tenant.update({
+                where: { id },
+                data: {
+                    lisansBitis: lisansBitis ? new Date(lisansBitis) : null,
+                    lisansNot: lisansNot || null,
+                }
+            });
+
+            res.json({ basarili: true, data: tenant, mesaj: 'Lisans güncellendi' });
+        } catch (err) {
+            res.status(500).json({ basarili: false, mesaj: err.message });
+        }
+    },
+
+    async lisansDurumlari(req, res) {
+        try {
+            const bugun = new Date();
+            const otuzGunSonra = new Date();
+            otuzGunSonra.setDate(otuzGunSonra.getDate() + 30);
+
+            const tenantlar = await prisma.tenant.findMany({
+                where: {
+                    aktif: true,
+                    lisansBitis: { not: null }
+                },
+                select: {
+                    id: true, ad: true, slug: true, email: true,
+                    lisansBitis: true, lisansNot: true, plan: true
+                },
+                orderBy: { lisansBitis: 'asc' }
+            });
+
+            const sonuclar = tenantlar.map(t => {
+                const bitisTarihi = new Date(t.lisansBitis);
+                const kalanGun = Math.ceil((bitisTarihi - bugun) / (1000 * 60 * 60 * 24));
+
+                let durum;
+                if (kalanGun < 0) durum = 'SURESI_DOLDU';
+                else if (kalanGun <= 7) durum = 'KRITIK';
+                else if (kalanGun <= 30) durum = 'UYARI';
+                else durum = 'AKTIF';
+
+                return { ...t, kalanGun, durum };
+            });
+
+            const ozet = {
+                suresiDolan: sonuclar.filter(t => t.durum === 'SURESI_DOLDU').length,
+                kritik: sonuclar.filter(t => t.durum === 'KRITIK').length,
+                uyari: sonuclar.filter(t => t.durum === 'UYARI').length,
+                aktif: sonuclar.filter(t => t.durum === 'AKTIF').length,
+            };
+
+            res.json({ basarili: true, data: { tenantlar: sonuclar, ozet } });
         } catch (err) {
             res.status(500).json({ basarili: false, mesaj: err.message });
         }

@@ -252,6 +252,48 @@ export default function SuperAdmin() {
                                             </div>
                                         </div>
                                     )}
+                                    {/* Lisans Yönetimi */}
+                                    <div className="pt-2 border-t border-zinc-800">
+                                        <p className="text-zinc-500 text-xs mb-2">Lisans Yönetimi</p>
+                                        <div className="space-y-2">
+                                            <div>
+                                                <label className="text-zinc-600 text-xs mb-1 block">Bitiş Tarihi</label>
+                                                <input
+                                                    type="date"
+                                                    defaultValue={secili.lisansBitis ? new Date(secili.lisansBitis).toISOString().split('T')[0] : ''}
+                                                    onChange={(e) => setSecili(s => ({ ...s, lisansBitis: e.target.value }))}
+                                                    className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-3 py-1.5 text-xs outline-none focus:border-lime-400"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="text-zinc-600 text-xs mb-1 block">Not</label>
+                                                <input
+                                                    type="text"
+                                                    defaultValue={secili.lisansNot || ''}
+                                                    onChange={(e) => setSecili(s => ({ ...s, lisansNot: e.target.value }))}
+                                                    placeholder="Ödeme notu..."
+                                                    className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-3 py-1.5 text-xs outline-none focus:border-lime-400"
+                                                />
+                                            </div>
+                                            <button
+                                                onClick={async () => {
+                                                    try {
+                                                        await api.patch(`/api/super-admin/tenantlar/${secili.id}/lisans`, {
+                                                            lisansBitis: secili.lisansBitis || null,
+                                                            lisansNot: secili.lisansNot || null,
+                                                        });
+                                                        toast.success('Lisans güncellendi');
+                                                        veriGetir();
+                                                    } catch {
+                                                        toast.error('Güncelleme başarısız');
+                                                    }
+                                                }}
+                                                className="w-full bg-zinc-700 hover:bg-zinc-600 text-white text-xs font-medium rounded-lg py-1.5 transition-colors"
+                                            >
+                                                Lisansı Kaydet
+                                            </button>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         ) : (

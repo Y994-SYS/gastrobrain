@@ -21,6 +21,8 @@ model Tenant {
   plan      Plan     @default(BASLANGIC)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  lisansBitis  DateTime?
+  lisansNot    String?
 
   kullanicilar Kullanici[]
   subeler      Sube[]

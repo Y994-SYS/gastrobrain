@@ -33,12 +33,16 @@ const authService = {
 
         const kullanici = await prisma.kullanici.findUnique({
             where: { email_tenantId: { email, tenantId: gercekTenantId } },
-            include: { tenant: { select: { id: true, ad: true, aktif: true } } }
+            include: { tenant: { select: { id: true, ad: true, aktif: true, lisansBitis: true } } }
         });
         if (!kullanici) throw new Error('Email veya şifre hatalı');
         if (!kullanici.aktif) throw new Error('Hesabınız devre dışı');
         if (!kullanici.tenant.aktif && kullanici.rol !== 'SUPER_ADMIN') throw new Error('Firma hesabı devre dışı');
-
+        if (kullanici.rol !== 'SUPER_ADMIN' && kullanici.tenant.lisansBitis) {
+            const bugun = new Date();
+            const bitis = new Date(kullanici.tenant.lisansBitis);
+            if (bitis < bugun) throw new Error('Lisans süreniz dolmuştur. Lütfen yöneticinizle iletişime geçin.');
+        }
         const sifreDoğru = await bcrypt.compare(sifre, kullanici.sifre);
         if (!sifreDoğru) throw new Error('Email veya şifre hatalı');
 

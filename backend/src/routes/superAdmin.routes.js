@@ -12,5 +12,7 @@ router.get('/tenantlar/:id', superAdminController.tenantDetay);
 router.patch('/tenantlar/:id/aktif', superAdminController.aktifPasifYap);
 router.patch('/tenantlar/:id/plan', superAdminController.planGuncelle);
 router.get('/istatistikler', superAdminController.istatistikler);
+router.patch('/tenantlar/:id/lisans', superAdminController.lisansGuncelle);
+router.get('/lisans-durumlari', superAdminController.lisansDurumlari);
 
 module.exports = router;

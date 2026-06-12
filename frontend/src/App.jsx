@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import useAuthStore from './store/auth.store';
 import Login from './pages/Login';
+import KayitFirma from './pages/KayitFirma';
 import LoadingSpinner from './components/LoadingSpinner';
 import Layout from './components/Layout';
 import Kategoriler from './pages/tanimlamalar/Kategoriler';
@@ -23,6 +24,8 @@ import Dashboard from './pages/Dashboard';
 import Raporlar from './pages/raporlar/Raporlar';
 import Subeler from './pages/tanimlamalar/Subeler';
 import Kullanicilar from './pages/tanimlamalar/Kullanicilar';
+import SuperAdmin from './pages/SuperAdmin';
+
 
 function PrivateRoute({ children }) {
   const kullanici = useAuthStore((s) => s.kullanici);
@@ -41,6 +44,8 @@ export default function App() {
       <Toaster position="top-right" />
       <Routes>
         <Route path="/giris" element={<Login />} />
+        <Route path="/kayit" element={<KayitFirma />} />
+        <Route path="/" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
         <Route path="/stok/durum" element={<PrivateRoute><StokDurumu /></PrivateRoute>} />
         <Route path="/stok/giris-faturasi" element={<PrivateRoute><GirisFaturasi /></PrivateRoute>} />
         <Route path="/stok/iade-faturasi" element={<PrivateRoute><IadeFaturasi /></PrivateRoute>} />
@@ -55,11 +60,10 @@ export default function App() {
         <Route path="/satislar" element={<PrivateRoute><Satislar /></PrivateRoute>} />
         <Route path="/cari-hesap" element={<PrivateRoute><CariHesap /></PrivateRoute>} />
         <Route path="/personel" element={<PrivateRoute><Personel /></PrivateRoute>} />
-        <Route path="/" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
         <Route path="/raporlar" element={<PrivateRoute><Raporlar /></PrivateRoute>} />
         <Route path="/tanimlamalar/subeler" element={<PrivateRoute><Subeler /></PrivateRoute>} />
         <Route path="/tanimlamalar/kullanicilar" element={<PrivateRoute><Kullanicilar /></PrivateRoute>} />
-
+        <Route path="/super-admin" element={<SuperAdmin />} />
 
       </Routes>
     </BrowserRouter>

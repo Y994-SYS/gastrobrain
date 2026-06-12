@@ -3,13 +3,16 @@ const prisma = new PrismaClient();
 
 const cariKartService = {
 
-    async hepsiniGetir() {
-        return prisma.cariKart.findMany({ orderBy: { ad: 'asc' } });
+    async hepsiniGetir(tenantId) {
+        return prisma.cariKart.findMany({
+            where: { tenantId },
+            orderBy: { ad: 'asc' }
+        });
     },
 
-    async biriniGetir(id) {
-        const cariKart = await prisma.cariKart.findUnique({
-            where: { id },
+    async biriniGetir(id, tenantId) {
+        const cariKart = await prisma.cariKart.findFirst({
+            where: { id, tenantId },
             include: {
                 hareketler: {
                     orderBy: { tarih: 'desc' },
@@ -21,21 +24,23 @@ const cariKartService = {
         return cariKart;
     },
 
-    async olustur(data) {
-        return prisma.cariKart.create({ data });
+    async olustur(data, tenantId) {
+        return prisma.cariKart.create({ data: { ...data, tenantId } });
     },
 
-    async guncelle(id, data) {
-        await this.biriniGetir(id);
+    async guncelle(id, data, tenantId) {
+        await this.biriniGetir(id, tenantId);
         return prisma.cariKart.update({ where: { id }, data });
     },
 
-    async sil(id) {
-        await this.biriniGetir(id);
+    async sil(id, tenantId) {
+        await this.biriniGetir(id, tenantId);
         return prisma.cariKart.delete({ where: { id } });
     },
 
-    async bakiyeGetir(id) {
+    async bakiyeGetir(id, tenantId) {
+        // Önce bu tenant'a ait olduğunu doğrula
+        await this.biriniGetir(id, tenantId);
         const hareketler = await prisma.cariHareket.findMany({
             where: { cariKartId: id }
         });

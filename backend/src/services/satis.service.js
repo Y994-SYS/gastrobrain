@@ -3,8 +3,11 @@ const prisma = new PrismaClient();
 
 const satisService = {
 
-    async hepsiniGetir(subeId, tarihBaslangic, tarihBitis) {
-        const where = { subeId: Number(subeId) };
+    async hepsiniGetir(subeId, tarihBaslangic, tarihBitis, tenantId) {
+        const where = {
+            subeId: Number(subeId),
+            sube: { tenantId }
+        };
         if (tarihBaslangic && tarihBitis) {
             where.tarih = {
                 gte: new Date(tarihBaslangic),
@@ -18,7 +21,7 @@ const satisService = {
         });
     },
 
-    async gunlukToplam(subeId) {
+    async gunlukToplam(subeId, tenantId) {
         const bugun = new Date();
         bugun.setHours(0, 0, 0, 0);
         const yarin = new Date(bugun);
@@ -27,20 +30,28 @@ const satisService = {
         const satislar = await prisma.satis.findMany({
             where: {
                 subeId: Number(subeId),
+                sube: { tenantId },
                 tarih: { gte: bugun, lt: yarin }
             }
         });
         return satislar.reduce((t, s) => t + s.toplam, 0);
     },
 
-    async ekle({ receteId, subeId, adet, birimFiyat, aciklama, tarih }) {
-        const recete = await prisma.recete.findUnique({
-            where: { id: Number(receteId) },
+    async ekle({ receteId, subeId, adet, birimFiyat, aciklama, tarih }, tenantId) {
+        // Reçetenin bu tenant'a ait olduğunu doğrula
+        const recete = await prisma.recete.findFirst({
+            where: { id: Number(receteId), tenantId },
             include: {
                 kalemler: { include: { stokKart: true } }
             }
         });
         if (!recete) throw new Error('Reçete bulunamadı');
+
+        // Şubenin bu tenant'a ait olduğunu doğrula
+        const sube = await prisma.sube.findFirst({
+            where: { id: Number(subeId), tenantId }
+        });
+        if (!sube) throw new Error('Şube bulunamadı');
 
         return prisma.$transaction(async (tx) => {
             const satis = await tx.satis.create({
@@ -55,7 +66,6 @@ const satisService = {
                 }
             });
 
-            // Reçete kalemlerine göre stok düş
             for (const kalem of recete.kalemler) {
                 const gercekMiktar = ((kalem.miktar * kalem.carpan) / kalem.bolen) * Number(adet);
                 await tx.stokHareket.create({
@@ -75,8 +85,10 @@ const satisService = {
         });
     },
 
-    async sil(id) {
-        const satis = await prisma.satis.findUnique({ where: { id } });
+    async sil(id, tenantId) {
+        const satis = await prisma.satis.findFirst({
+            where: { id, sube: { tenantId } }
+        });
         if (!satis) throw new Error('Satış bulunamadı');
         await prisma.stokHareket.deleteMany({ where: { satisId: id } });
         return prisma.satis.delete({ where: { id } });

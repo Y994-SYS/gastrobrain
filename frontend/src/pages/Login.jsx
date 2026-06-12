@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import useAuthStore from '../store/auth.store';
 
 export default function Login() {
+    const [tenantSlug, setTenantSlug] = useState('merkez-restoran');
     const [email, setEmail] = useState('');
     const [sifre, setSifre] = useState('');
     const [hata, setHata] = useState('');
@@ -13,9 +14,10 @@ export default function Login() {
     const handleSubmit = async (e) => {
         e.preventDefault();
         setHata('');
+        if (!tenantSlug.trim()) { setHata('Firma kodu gerekli'); return; }
         setYukleniyor(true);
         try {
-            await girisYap(email, sifre);
+            await girisYap(email, sifre, tenantSlug.trim().toLowerCase());
             navigate('/');
         } catch (err) {
             setHata(err.response?.data?.mesaj || 'Giriş başarısız');
@@ -47,26 +49,44 @@ export default function Login() {
                     )}
 
                     <div className="space-y-4">
+
+                        {/* Firma Kodu */}
                         <div>
-                            <label className="text-zinc-400 text-sm mb-1.5 block">Email</label>
+                            <label className="text-zinc-400 text-sm mb-1.5 block">
+                                Firma Kodu
+                                <span className="text-zinc-600 ml-1 text-xs">(slug)</span>
+                            </label>
                             <input
-                                type="email"
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
-                                placeholder="admin@gastroiq.com"
-                                className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-4 py-2.5 text-sm outline-none focus:border-lime-400 transition-colors"
+                                type="text"
+                                value={tenantSlug}
+                                onChange={(e) => setTenantSlug(e.target.value)}
+                                placeholder="merkez-restoran"
+                                className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-4 py-2.5 text-sm outline-none focus:border-lime-400 transition-colors font-mono"
                             />
                         </div>
 
-                        <div>
-                            <label className="text-zinc-400 text-sm mb-1.5 block">Şifre</label>
-                            <input
-                                type="password"
-                                value={sifre}
-                                onChange={(e) => setSifre(e.target.value)}
-                                placeholder="••••••••"
-                                className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-4 py-2.5 text-sm outline-none focus:border-lime-400 transition-colors"
-                            />
+                        <div className="border-t border-zinc-800 pt-4">
+                            <div>
+                                <label className="text-zinc-400 text-sm mb-1.5 block">Email</label>
+                                <input
+                                    type="email"
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
+                                    placeholder="admin@gastroiq.com"
+                                    className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-4 py-2.5 text-sm outline-none focus:border-lime-400 transition-colors"
+                                />
+                            </div>
+
+                            <div className="mt-4">
+                                <label className="text-zinc-400 text-sm mb-1.5 block">Şifre</label>
+                                <input
+                                    type="password"
+                                    value={sifre}
+                                    onChange={(e) => setSifre(e.target.value)}
+                                    placeholder="••••••••"
+                                    className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-4 py-2.5 text-sm outline-none focus:border-lime-400 transition-colors"
+                                />
+                            </div>
                         </div>
 
                         <button
@@ -79,6 +99,11 @@ export default function Login() {
                         </button>
                     </div>
                 </div>
+
+                {/* Geliştirici notu */}
+                <p className="text-zinc-700 text-xs text-center mt-4">
+                    Test: merkez-restoran / admin@gastroiq.com / 123456
+                </p>
 
             </div>
         </div>

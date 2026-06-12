@@ -6,16 +6,13 @@ const prisma = new PrismaClient();
 const satisRaporu = async (req, res) => {
     try {
         const { baslangic, bitis, receteId } = req.query;
+        const tenantId = req.kullanici.tenantId;
 
-        const where = {};
+        const where = { sube: { tenantId } };
         if (baslangic || bitis) {
             where.tarih = {};
             if (baslangic) where.tarih.gte = new Date(baslangic);
-            if (bitis) {
-                const bitisDate = new Date(bitis);
-                bitisDate.setHours(23, 59, 59, 999);
-                where.tarih.lte = bitisDate;
-            }
+            if (bitis) { const d = new Date(bitis); d.setHours(23, 59, 59, 999); where.tarih.lte = d; }
         }
         if (receteId) where.receteId = parseInt(receteId);
 
@@ -25,11 +22,9 @@ const satisRaporu = async (req, res) => {
             orderBy: { tarih: 'desc' },
         });
 
-        // Özet hesapla
         const toplamCiro = satislar.reduce((t, s) => t + s.toplam, 0);
         const toplamAdet = satislar.reduce((t, s) => t + s.adet, 0);
 
-        // Reçeteye göre gruplama
         const receteGrup = {};
         for (const s of satislar) {
             const key = s.recete.ad;
@@ -41,8 +36,7 @@ const satisRaporu = async (req, res) => {
         res.json({
             satislar,
             ozet: {
-                toplamCiro,
-                toplamAdet,
+                toplamCiro, toplamAdet,
                 satisAdedi: satislar.length,
                 receteGrup: Object.values(receteGrup).sort((a, b) => b.ciro - a.ciro),
             },
@@ -56,50 +50,37 @@ const satisRaporu = async (req, res) => {
 const stokRaporu = async (req, res) => {
     try {
         const { kategoriId, sadecekritik } = req.query;
+        const tenantId = req.kullanici.tenantId;
+
+        const where = { tenantId };
+        if (kategoriId) where.kategoriId = parseInt(kategoriId);
 
         const stokKartlari = await prisma.stokKart.findMany({
-            where: kategoriId ? { kategoriId: parseInt(kategoriId) } : {},
+            where,
             include: {
-                kategori: true,
-                birim: true,
-                stokHareketleri: {
-                    orderBy: { tarih: 'desc' },
-                },
+                kategori: true, birim: true,
+                stokHareketleri: { orderBy: { tarih: 'desc' } },
             },
         });
 
-        // Her stok kartı için mevcut stok hesapla
         const stokDurumlari = stokKartlari.map(kart => {
             let mevcutStok = 0;
             for (const h of kart.stokHareketleri) {
-                if (['GIRIS_FATURA', 'SUBE_TRANSFER_IN', 'AY_SONU_SAYIM'].includes(h.tip)) {
-                    mevcutStok += h.miktar;
-                } else {
-                    mevcutStok -= h.miktar;
-                }
+                if (['GIRIS_FATURA', 'SUBE_TRANSFER_IN', 'AY_SONU_SAYIM'].includes(h.tip)) mevcutStok += h.miktar;
+                else mevcutStok -= h.miktar;
             }
-
-            // Son giriş fiyatı
             const sonGiris = kart.stokHareketleri.find(h => h.tip === 'GIRIS_FATURA');
-
             return {
-                id: kart.id,
-                kod: kart.kod,
-                ad: kart.ad,
-                kategori: kart.kategori.ad,
-                birim: kart.birim.kisaltma,
+                id: kart.id, kod: kart.kod, ad: kart.ad,
+                kategori: kart.kategori.ad, birim: kart.birim.kisaltma,
                 mevcutStok: Math.round(mevcutStok * 1000) / 1000,
-                minStok: kart.minStok,
-                kritikMi: mevcutStok <= kart.minStok,
+                minStok: kart.minStok, kritikMi: mevcutStok <= kart.minStok,
                 sonBirimFiyat: sonGiris?.birimFiyat || 0,
                 stokDegeri: (sonGiris?.birimFiyat || 0) * Math.max(mevcutStok, 0),
             };
         });
 
-        const filtrelenmis = sadecekritik === 'true'
-            ? stokDurumlari.filter(s => s.kritikMi)
-            : stokDurumlari;
-
+        const filtrelenmis = sadecekritik === 'true' ? stokDurumlari.filter(s => s.kritikMi) : stokDurumlari;
         const toplamDeger = filtrelenmis.reduce((t, s) => t + s.stokDegeri, 0);
         const kritikSayisi = stokDurumlari.filter(s => s.kritikMi).length;
 
@@ -116,17 +97,14 @@ const stokRaporu = async (req, res) => {
 const cariRaporu = async (req, res) => {
     try {
         const { cariKartId, baslangic, bitis } = req.query;
+        const tenantId = req.kullanici.tenantId;
 
-        const where = {};
+        const where = { cariKart: { tenantId } };
         if (cariKartId) where.cariKartId = parseInt(cariKartId);
         if (baslangic || bitis) {
             where.tarih = {};
             if (baslangic) where.tarih.gte = new Date(baslangic);
-            if (bitis) {
-                const bitisDate = new Date(bitis);
-                bitisDate.setHours(23, 59, 59, 999);
-                where.tarih.lte = bitisDate;
-            }
+            if (bitis) { const d = new Date(bitis); d.setHours(23, 59, 59, 999); where.tarih.lte = d; }
         }
 
         const hareketler = await prisma.cariHareket.findMany({
@@ -135,11 +113,9 @@ const cariRaporu = async (req, res) => {
             orderBy: { tarih: 'desc' },
         });
 
-        // Cari kart bazlı bakiye özeti
         const cariKartlar = await prisma.cariKart.findMany({
-            include: {
-                hareketler: true,
-            },
+            where: { tenantId },
+            include: { hareketler: true },
         });
 
         const bakiyeler = cariKartlar.map(kart => {
@@ -149,10 +125,7 @@ const cariRaporu = async (req, res) => {
                 else if (['ALACAK', 'ODEME'].includes(h.tip)) bakiye += h.tutar;
             }
             return {
-                id: kart.id,
-                kod: kart.kod,
-                ad: kart.ad,
-                telefon: kart.telefon,
+                id: kart.id, kod: kart.kod, ad: kart.ad, telefon: kart.telefon,
                 bakiye: Math.round(bakiye * 100) / 100,
                 hareketSayisi: kart.hareketler.length,
             };
@@ -174,49 +147,47 @@ const cariRaporu = async (req, res) => {
 // ─── MALİYET RAPORU ────────────────────────────────────────────
 const maliyetRaporu = async (req, res) => {
     try {
+        const tenantId = req.kullanici.tenantId;
+
         const receteler = await prisma.recete.findMany({
+            where: { tenantId },
             include: {
                 kalemler: {
                     include: {
                         stokKart: {
-                            include: { stokHareketleri: { where: { tip: 'GIRIS_FATURA' }, orderBy: { tarih: 'desc' }, take: 1 } },
-                        },
-                    },
+                            include: {
+                                stokHareketleri: {
+                                    where: { tip: 'GIRIS_FATURA' },
+                                    orderBy: { tarih: 'desc' },
+                                    take: 1
+                                }
+                            }
+                        }
+                    }
                 },
                 satislar: true,
             },
         });
 
         const maliyetler = receteler.map(recete => {
-            // Güncel fiyatlarla maliyet hesapla
             let toplamMaliyet = 0;
             const kalemDetay = recete.kalemler.map(kalem => {
                 const sonFiyat = kalem.stokKart.stokHareketleri[0]?.birimFiyat || 0;
                 const kalemMaliyet = sonFiyat * kalem.miktar;
                 toplamMaliyet += kalemMaliyet;
-                return {
-                    stokAd: kalem.stokKart.ad,
-                    miktar: kalem.miktar,
-                    birimFiyat: sonFiyat,
-                    maliyet: kalemMaliyet,
-                };
+                return { stokAd: kalem.stokKart.ad, miktar: kalem.miktar, birimFiyat: sonFiyat, maliyet: kalemMaliyet };
             });
 
             const satisFiyati = recete.satisFiyati || 0;
             const karMarji = satisFiyati > 0 ? ((satisFiyati - toplamMaliyet) / satisFiyati) * 100 : 0;
-            const toplamSatis = recete.satislar.reduce((t, s) => t + s.adet, 0);
-            const toplamCiro = recete.satislar.reduce((t, s) => t + s.toplam, 0);
 
             return {
-                id: recete.id,
-                ad: recete.ad,
-                satisKodu: recete.satisKodu,
-                satisFiyati,
+                id: recete.id, ad: recete.ad, satisKodu: recete.satisKodu, satisFiyati,
                 toplamMaliyet: Math.round(toplamMaliyet * 100) / 100,
                 karMiktari: Math.round((satisFiyati - toplamMaliyet) * 100) / 100,
                 karMarji: Math.round(karMarji * 100) / 100,
-                toplamSatis,
-                toplamCiro,
+                toplamSatis: recete.satislar.reduce((t, s) => t + s.adet, 0),
+                toplamCiro: recete.satislar.reduce((t, s) => t + s.toplam, 0),
                 kalemDetay,
             };
         });
@@ -239,10 +210,11 @@ const maliyetRaporu = async (req, res) => {
 const excelExport = async (req, res) => {
     try {
         const { tip, baslangic, bitis } = req.query;
+        const tenantId = req.kullanici.tenantId;
         const wb = XLSX.utils.book_new();
 
         if (tip === 'satis') {
-            const where = {};
+            const where = { sube: { tenantId } };
             if (baslangic || bitis) {
                 where.tarih = {};
                 if (baslangic) where.tarih.gte = new Date(baslangic);
@@ -251,16 +223,14 @@ const excelExport = async (req, res) => {
             const satislar = await prisma.satis.findMany({ where, include: { recete: true }, orderBy: { tarih: 'desc' } });
             const data = satislar.map(s => ({
                 'Tarih': new Date(s.tarih).toLocaleDateString('tr-TR'),
-                'Reçete': s.recete.ad,
-                'Adet': s.adet,
-                'Birim Fiyat': s.birimFiyat,
-                'Toplam': s.toplam,
-                'Açıklama': s.aciklama || '',
+                'Reçete': s.recete.ad, 'Adet': s.adet,
+                'Birim Fiyat': s.birimFiyat, 'Toplam': s.toplam, 'Açıklama': s.aciklama || '',
             }));
             XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data), 'Satışlar');
 
         } else if (tip === 'stok') {
             const stokKartlari = await prisma.stokKart.findMany({
+                where: { tenantId },
                 include: { kategori: true, birim: true, stokHareketleri: { orderBy: { tarih: 'desc' } } },
             });
             const data = stokKartlari.map(kart => {
@@ -280,7 +250,10 @@ const excelExport = async (req, res) => {
             XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data), 'Stok Durumu');
 
         } else if (tip === 'cari') {
-            const cariKartlar = await prisma.cariKart.findMany({ include: { hareketler: true } });
+            const cariKartlar = await prisma.cariKart.findMany({
+                where: { tenantId },
+                include: { hareketler: true }
+            });
             const data = cariKartlar.map(kart => {
                 let bakiye = 0;
                 for (const h of kart.hareketler) {
@@ -297,8 +270,15 @@ const excelExport = async (req, res) => {
 
         } else if (tip === 'maliyet') {
             const receteler = await prisma.recete.findMany({
+                where: { tenantId },
                 include: {
-                    kalemler: { include: { stokKart: { include: { stokHareketleri: { where: { tip: 'GIRIS_FATURA' }, orderBy: { tarih: 'desc' }, take: 1 } } } } },
+                    kalemler: {
+                        include: {
+                            stokKart: {
+                                include: { stokHareketleri: { where: { tip: 'GIRIS_FATURA' }, orderBy: { tarih: 'desc' }, take: 1 } }
+                            }
+                        }
+                    },
                     satislar: true,
                 },
             });

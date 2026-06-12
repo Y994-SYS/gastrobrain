@@ -3,14 +3,25 @@ const prisma = new PrismaClient();
 
 const cariHareketService = {
 
-    async hareketleriGetir(cariKartId) {
+    async hareketleriGetir(cariKartId, tenantId) {
+        // Önce cari kartın bu tenant'a ait olduğunu doğrula
+        const cariKart = await prisma.cariKart.findFirst({
+            where: { id: Number(cariKartId), tenantId }
+        });
+        if (!cariKart) throw new Error('Cari kart bulunamadı');
+
         return prisma.cariHareket.findMany({
             where: { cariKartId: Number(cariKartId) },
             orderBy: { tarih: 'desc' }
         });
     },
 
-    async bakiyeGetir(cariKartId) {
+    async bakiyeGetir(cariKartId, tenantId) {
+        const cariKart = await prisma.cariKart.findFirst({
+            where: { id: Number(cariKartId), tenantId }
+        });
+        if (!cariKart) throw new Error('Cari kart bulunamadı');
+
         const hareketler = await prisma.cariHareket.findMany({
             where: { cariKartId: Number(cariKartId) }
         });
@@ -21,21 +32,26 @@ const cariHareketService = {
         }, 0);
     },
 
-    async tumCarilerinBakiyeleriGetir() {
+    async tumCarilerinBakiyeleriGetir(tenantId) {
         const cariKartlar = await prisma.cariKart.findMany({
-            where: { aktif: true },
+            where: { aktif: true, tenantId },
             orderBy: { ad: 'asc' }
         });
         const sonuc = await Promise.all(
             cariKartlar.map(async (kart) => {
-                const bakiye = await this.bakiyeGetir(kart.id);
+                const bakiye = await this.bakiyeGetir(kart.id, tenantId);
                 return { ...kart, bakiye };
             })
         );
         return sonuc;
     },
 
-    async odemeEkle({ cariKartId, tutar, aciklama, belgeNo, tarih }) {
+    async odemeEkle({ cariKartId, tutar, aciklama, belgeNo, tarih }, tenantId) {
+        const cariKart = await prisma.cariKart.findFirst({
+            where: { id: Number(cariKartId), tenantId }
+        });
+        if (!cariKart) throw new Error('Cari kart bulunamadı');
+
         return prisma.cariHareket.create({
             data: {
                 tip: 'ODEME',
@@ -48,7 +64,12 @@ const cariHareketService = {
         });
     },
 
-    async manuelHareketEkle({ cariKartId, tip, tutar, aciklama, belgeNo, tarih }) {
+    async manuelHareketEkle({ cariKartId, tip, tutar, aciklama, belgeNo, tarih }, tenantId) {
+        const cariKart = await prisma.cariKart.findFirst({
+            where: { id: Number(cariKartId), tenantId }
+        });
+        if (!cariKart) throw new Error('Cari kart bulunamadı');
+
         return prisma.cariHareket.create({
             data: {
                 tip,

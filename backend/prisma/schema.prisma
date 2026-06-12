@@ -8,25 +8,62 @@ datasource db {
 }
 
 // ─────────────────────────────────────────
+// TENANT (FİRMA)
+// ─────────────────────────────────────────
+
+model Tenant {
+  id        Int      @id @default(autoincrement())
+  ad        String
+  slug      String   @unique  // URL-safe isim: "pizza-palace"
+  email     String   @unique  // firma iletişim emaili
+  telefon   String?
+  aktif     Boolean  @default(true)
+  plan      Plan     @default(BASLANGIC)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  kullanicilar Kullanici[]
+  subeler      Sube[]
+  kategoriler  Kategori[]
+  olcuBirimleri OlcuBirimi[]
+  stokKartlari StokKart[]
+  receteler    Recete[]
+  cariKartlar  CariKart[]
+  personeller  Personel[]
+}
+
+enum Plan {
+  BASLANGIC
+  PROFESYONEL
+  KURUMSAL
+}
+
+// ─────────────────────────────────────────
 // KULLANICI & YETKİ
 // ─────────────────────────────────────────
 
 model Kullanici {
   id        Int      @id @default(autoincrement())
   ad        String
-  email     String   @unique
+  email     String
   sifre     String
   rol       Rol      @default(PERSONEL)
   aktif     Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+  tenantId Int
+
   sube   Sube? @relation(fields: [subeId], references: [id])
   subeId Int?
+
+  @@unique([email, tenantId])
 }
 
 enum Rol {
-  SUPER_ADMIN
+  SUPER_ADMIN   // sistem geneli (Anthropic/GastroIQ ekibi)
+  TENANT_ADMIN  // firma sahibi/yöneticisi
   ADMIN
   MUDUR
   DEPO
@@ -46,10 +83,13 @@ model Sube {
   aktif     Boolean  @default(true)
   createdAt DateTime @default(now())
 
-  kullanicilar Kullanici[]
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+  tenantId Int
+
+  kullanicilar    Kullanici[]
   stokHareketleri StokHareket[]
-  satislar     Satis[]
-  personeller  Personel[]
+  satislar        Satis[]
+  personeller     Personel[]
 }
 
 // ─────────────────────────────────────────
@@ -58,47 +98,63 @@ model Sube {
 
 model Kategori {
   id   Int    @id @default(autoincrement())
-  ad   String @unique
+  ad   String
   renk String?
 
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+  tenantId Int
+
   stokKartlari StokKart[]
+
+  @@unique([ad, tenantId])
 }
 
 model OlcuBirimi {
-  id        Int    @id @default(autoincrement())
-  ad        String @unique  // kg, lt, adet, porsiyon
-  kisaltma  String @unique  // kg, lt, ad, por
+  id       Int    @id @default(autoincrement())
+  ad       String
+  kisaltma String
+
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+  tenantId Int
 
   stokKartlari StokKart[]
+
+  @@unique([ad, tenantId])
+  @@unique([kisaltma, tenantId])
 }
 
 model StokKart {
-  id          Int     @id @default(autoincrement())
-  kod         String  @unique
-  ad          String
-  aciklama    String?
-  minStok     Float   @default(0)
-  aktif       Boolean @default(true)
-  createdAt   DateTime @default(now())
+  id        Int      @id @default(autoincrement())
+  kod       String
+  ad        String
+  aciklama  String?
+  minStok   Float    @default(0)
+  aktif     Boolean  @default(true)
+  createdAt DateTime @default(now())
 
-  kategori    Kategori   @relation(fields: [kategoriId], references: [id])
-  kategoriId  Int
-  birim       OlcuBirimi @relation(fields: [birimId], references: [id])
-  birimId     Int
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+  tenantId Int
 
-  stokHareketleri StokHareket[]
-  receteKalemleri ReceteKalem[]
+  kategori   Kategori   @relation(fields: [kategoriId], references: [id])
+  kategoriId Int
+  birim      OlcuBirimi @relation(fields: [birimId], references: [id])
+  birimId    Int
+
+  stokHareketleri      StokHareket[]
+  receteKalemleri      ReceteKalem[]
   cariHareketKalemleri CariHareketKalem[]
+
+  @@unique([kod, tenantId])
 }
 
 model StokHareket {
-  id         Int              @id @default(autoincrement())
+  id         Int            @id @default(autoincrement())
   tip        StokHareketTip
   miktar     Float
   birimFiyat Float?
   aciklama   String?
-  tarih      DateTime         @default(now())
-  createdAt  DateTime         @default(now())
+  tarih      DateTime       @default(now())
+  createdAt  DateTime       @default(now())
 
   stokKart   StokKart @relation(fields: [stokKartId], references: [id])
   stokKartId Int
@@ -112,14 +168,14 @@ model StokHareket {
 }
 
 enum StokHareketTip {
-  GIRIS_FATURA       // fatura ile giriş
-  IADE_FATURA        // iade faturası ile çıkış
-  SATIS              // satış ile çıkış
-  ZAYI               // zayi gideri
-  TUKETIM            // tüketim gideri
-  AY_SONU_SAYIM      // ay sonu sayım düzeltme
-  SUBE_TRANSFER_IN   // şubeden gelen
-  SUBE_TRANSFER_OUT  // şubeye giden
+  GIRIS_FATURA
+  IADE_FATURA
+  SATIS
+  ZAYI
+  TUKETIM
+  AY_SONU_SAYIM
+  SUBE_TRANSFER_IN
+  SUBE_TRANSFER_OUT
 }
 
 // ─────────────────────────────────────────
@@ -130,20 +186,25 @@ model Recete {
   id          Int      @id @default(autoincrement())
   ad          String
   aciklama    String?
-  satisKodu   String?  @unique
+  satisKodu   String?
   satisFiyati Float?
   aktif       Boolean  @default(true)
   createdAt   DateTime @default(now())
 
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+  tenantId Int
+
   kalemler ReceteKalem[]
   satislar Satis[]
+
+  @@unique([satisKodu, tenantId])
 }
 
 model ReceteKalem {
-  id       Int   @id @default(autoincrement())
-  miktar   Float
-  carpan   Float @default(1)
-  bolen    Float @default(1)
+  id     Int   @id @default(autoincrement())
+  miktar Float
+  carpan Float @default(1)
+  bolen  Float @default(1)
 
   recete     Recete   @relation(fields: [receteId], references: [id])
   receteId   Int
@@ -156,13 +217,13 @@ model ReceteKalem {
 // ─────────────────────────────────────────
 
 model Satis {
-  id        Int      @id @default(autoincrement())
-  adet      Float
+  id         Int      @id @default(autoincrement())
+  adet       Float
   birimFiyat Float
-  toplam    Float
-  tarih     DateTime @default(now())
-  aciklama  String?
-  createdAt DateTime @default(now())
+  toplam     Float
+  tarih      DateTime @default(now())
+  aciklama   String?
+  createdAt  DateTime @default(now())
 
   recete   Recete @relation(fields: [receteId], references: [id])
   receteId Int
@@ -177,27 +238,32 @@ model Satis {
 // ─────────────────────────────────────────
 
 model CariKart {
-  id          Int      @id @default(autoincrement())
-  kod         String   @unique
-  ad          String
-  vergiNo     String?
-  telefon     String?
-  email       String?
-  adres       String?
-  aktif       Boolean  @default(true)
-  createdAt   DateTime @default(now())
+  id       Int     @id @default(autoincrement())
+  kod      String
+  ad       String
+  vergiNo  String?
+  telefon  String?
+  email    String?
+  adres    String?
+  aktif    Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+  tenantId Int
 
   hareketler CariHareket[]
+
+  @@unique([kod, tenantId])
 }
 
 model CariHareket {
-  id         Int             @id @default(autoincrement())
-  tip        CariHareketTip
-  tutar      Float
-  aciklama   String?
-  belgeNo    String?
-  tarih      DateTime        @default(now())
-  createdAt  DateTime        @default(now())
+  id        Int            @id @default(autoincrement())
+  tip       CariHareketTip
+  tutar     Float
+  aciklama  String?
+  belgeNo   String?
+  tarih     DateTime       @default(now())
+  createdAt DateTime       @default(now())
 
   cariKart   CariKart @relation(fields: [cariKartId], references: [id])
   cariKartId Int
@@ -207,10 +273,10 @@ model CariHareket {
 }
 
 enum CariHareketTip {
-  BORC          // giriş faturası
-  ALACAK        // iade faturası
-  ODEME         // ödeme yapıldı
-  TAHSILAT      // tahsilat yapıldı
+  BORC
+  ALACAK
+  ODEME
+  TAHSILAT
 }
 
 model CariHareketKalem {
@@ -230,51 +296,56 @@ model CariHareketKalem {
 // ─────────────────────────────────────────
 
 model Personel {
-  id          Int      @id @default(autoincrement())
-  ad          String
-  soyad       String
-  telefon     String?
-  tcKimlik    String?  @unique
+  id              Int      @id @default(autoincrement())
+  ad              String
+  soyad           String
+  telefon         String?
+  tcKimlik        String?
   baslangicTarihi DateTime
-  maas        Float
-  aktif       Boolean  @default(true)
-  createdAt   DateTime @default(now())
+  maas            Float
+  aktif           Boolean  @default(true)
+  createdAt       DateTime @default(now())
+
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+  tenantId Int
 
   sube   Sube @relation(fields: [subeId], references: [id])
   subeId Int
 
-  maaslar    PersonelMaas[]
-  avanslar   PersonelAvans[]
-  devamlar   PersonelDevam[]
+  maaslar  PersonelMaas[]
+  avanslar PersonelAvans[]
+  devamlar PersonelDevam[]
+
+  @@unique([tcKimlik, tenantId])
 }
 
 model PersonelMaas {
-  id      Int      @id @default(autoincrement())
-  yil     Int
-  ay      Int
-  tutar   Float
-  odendi  Boolean  @default(false)
-  tarih   DateTime @default(now())
+  id     Int      @id @default(autoincrement())
+  yil    Int
+  ay     Int
+  tutar  Float
+  odendi Boolean  @default(false)
+  tarih  DateTime @default(now())
 
   personel   Personel @relation(fields: [personelId], references: [id])
   personelId Int
 }
 
 model PersonelAvans {
-  id      Int      @id @default(autoincrement())
-  tutar   Float
+  id       Int      @id @default(autoincrement())
+  tutar    Float
   aciklama String?
-  tarih   DateTime @default(now())
+  tarih    DateTime @default(now())
 
   personel   Personel @relation(fields: [personelId], references: [id])
   personelId Int
 }
 
 model PersonelDevam {
-  id       Int      @id @default(autoincrement())
+  id       Int        @id @default(autoincrement())
   tarih    DateTime
   durum    DevamDurum
-  mesai    Float?   // saat cinsinden
+  mesai    Float?
   aciklama String?
 
   personel   Personel @relation(fields: [personelId], references: [id])

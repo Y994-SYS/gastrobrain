@@ -3,31 +3,32 @@ const prisma = new PrismaClient();
 
 const stokKartService = {
 
-    async hepsiniGetir() {
+    async hepsiniGetir(tenantId) {
         return prisma.stokKart.findMany({
+            where: { tenantId },
             include: { kategori: true, birim: true },
             orderBy: { ad: 'asc' }
         });
     },
 
-    async biriniGetir(id) {
-        const stokKart = await prisma.stokKart.findUnique({
-            where: { id },
+    async biriniGetir(id, tenantId) {
+        const stokKart = await prisma.stokKart.findFirst({
+            where: { id, tenantId },
             include: { kategori: true, birim: true }
         });
         if (!stokKart) throw new Error('Stok kartı bulunamadı');
         return stokKart;
     },
 
-    async olustur(data) {
+    async olustur(data, tenantId) {
         return prisma.stokKart.create({
-            data,
+            data: { ...data, tenantId },
             include: { kategori: true, birim: true }
         });
     },
 
-    async guncelle(id, data) {
-        await this.biriniGetir(id);
+    async guncelle(id, data, tenantId) {
+        await this.biriniGetir(id, tenantId);
         return prisma.stokKart.update({
             where: { id },
             data,
@@ -35,8 +36,8 @@ const stokKartService = {
         });
     },
 
-    async sil(id) {
-        await this.biriniGetir(id);
+    async sil(id, tenantId) {
+        await this.biriniGetir(id, tenantId);
         return prisma.stokKart.delete({ where: { id } });
     }
 

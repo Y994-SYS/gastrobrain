@@ -3,8 +3,9 @@ const prisma = new PrismaClient();
 
 const receteService = {
 
-    async hepsiniGetir() {
+    async hepsiniGetir(tenantId) {
         return prisma.recete.findMany({
+            where: { tenantId },
             include: {
                 kalemler: {
                     include: { stokKart: { include: { birim: true } } }
@@ -14,9 +15,9 @@ const receteService = {
         });
     },
 
-    async biriniGetir(id) {
-        const recete = await prisma.recete.findUnique({
-            where: { id },
+    async biriniGetir(id, tenantId) {
+        const recete = await prisma.recete.findFirst({
+            where: { id, tenantId },
             include: {
                 kalemler: {
                     include: { stokKart: { include: { birim: true } } }
@@ -27,15 +28,16 @@ const receteService = {
         return recete;
     },
 
-    async maliyetHesapla(receteId, subeId = 1) {
-        const recete = await this.biriniGetir(receteId);
+    async maliyetHesapla(receteId, tenantId) {
+        const recete = await this.biriniGetir(receteId, tenantId);
         const kalemMaliyetleri = await Promise.all(
             recete.kalemler.map(async (kalem) => {
                 const sonHareket = await prisma.stokHareket.findFirst({
                     where: {
                         stokKartId: kalem.stokKartId,
                         tip: 'GIRIS_FATURA',
-                        birimFiyat: { not: null }
+                        birimFiyat: { not: null },
+                        stokKart: { tenantId }
                     },
                     orderBy: { tarih: 'desc' }
                 });
@@ -54,10 +56,12 @@ const receteService = {
         return { recete, kalemMaliyetleri, toplamMaliyet };
     },
 
-    async olustur({ ad, aciklama, satisKodu, satisFiyati, kalemler }) {
+    async olustur({ ad, aciklama, satisKodu, satisFiyati, kalemler }, tenantId) {
         return prisma.recete.create({
             data: {
-                ad, aciklama, satisKodu, satisFiyati: satisFiyati ? Number(satisFiyati) : null,
+                ad, aciklama, satisKodu,
+                satisFiyati: satisFiyati ? Number(satisFiyati) : null,
+                tenantId,
                 kalemler: {
                     create: kalemler.map(k => ({
                         stokKartId: Number(k.stokKartId),
@@ -73,13 +77,14 @@ const receteService = {
         });
     },
 
-    async guncelle(id, { ad, aciklama, satisKodu, satisFiyati, kalemler }) {
-        await this.biriniGetir(id);
+    async guncelle(id, { ad, aciklama, satisKodu, satisFiyati, kalemler }, tenantId) {
+        await this.biriniGetir(id, tenantId);
         await prisma.receteKalem.deleteMany({ where: { receteId: id } });
         return prisma.recete.update({
             where: { id },
             data: {
-                ad, aciklama, satisKodu, satisFiyati: satisFiyati ? Number(satisFiyati) : null,
+                ad, aciklama, satisKodu,
+                satisFiyati: satisFiyati ? Number(satisFiyati) : null,
                 kalemler: {
                     create: kalemler.map(k => ({
                         stokKartId: Number(k.stokKartId),
@@ -95,8 +100,8 @@ const receteService = {
         });
     },
 
-    async sil(id) {
-        await this.biriniGetir(id);
+    async sil(id, tenantId) {
+        await this.biriniGetir(id, tenantId);
         await prisma.receteKalem.deleteMany({ where: { receteId: id } });
         return prisma.recete.delete({ where: { id } });
     }

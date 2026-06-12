@@ -5,8 +5,8 @@ const useAuthStore = create((set) => ({
     kullanici: null,
     yukleniyor: true,
 
-    girisYap: async (email, sifre) => {
-        const kullanici = await authService.girisYap(email, sifre);
+    girisYap: async (email, sifre, tenantSlug) => {
+        const kullanici = await authService.girisYap(email, sifre, tenantSlug);
         set({ kullanici });
         return kullanici;
     },

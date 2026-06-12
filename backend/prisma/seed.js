@@ -1,34 +1,112 @@
 const { PrismaClient } = require('@prisma/client');
+const bcrypt = require('bcryptjs');
 const prisma = new PrismaClient();
 
 async function main() {
     console.log('🌱 Seed başlıyor...');
 
+    // ─── TENANT ────────────────────────────────────────────────
+    const tenant = await prisma.tenant.upsert({
+        where: { slug: 'merkez-restoran' },
+        update: {},
+        create: {
+            ad: 'Merkez Restoran',
+            slug: 'merkez-restoran',
+            email: 'info@merkezrestoran.com',
+            telefon: '02121234567',
+            plan: 'PROFESYONEL',
+        },
+    });
+    console.log(`✅ Tenant: ${tenant.ad} (id:${tenant.id})`);
+
+    // ─── ŞUBE ──────────────────────────────────────────────────
+    const sube = await prisma.sube.upsert({
+        where: { id: 1 },
+        update: {},
+        create: {
+            ad: 'Merkez Şube',
+            adres: 'İstanbul, Kadıköy',
+            telefon: '02161234567',
+            tenantId: tenant.id,
+        },
+    });
+    console.log(`✅ Şube: ${sube.ad} (id:${sube.id})`);
+
+    // ─── KULLANICILAR ──────────────────────────────────────────
+    const adminSifre = await bcrypt.hash('123456', 10);
+
+    await prisma.kullanici.upsert({
+        where: { email_tenantId: { email: 'admin@gastroiq.com', tenantId: tenant.id } },
+        update: {},
+        create: {
+            ad: 'Admin Kullanıcı',
+            email: 'admin@gastroiq.com',
+            sifre: adminSifre,
+            rol: 'TENANT_ADMIN',
+            tenantId: tenant.id,
+            subeId: sube.id,
+        },
+    });
+
+    await prisma.kullanici.upsert({
+        where: { email_tenantId: { email: 'test@gastroiq.com', tenantId: tenant.id } },
+        update: {},
+        create: {
+            ad: 'Test Kullanıcı',
+            email: 'test@gastroiq.com',
+            sifre: adminSifre,
+            rol: 'MUDUR',
+            tenantId: tenant.id,
+            subeId: sube.id,
+        },
+    });
+    console.log('✅ Kullanıcılar tamam (şifre: 123456)');
+
     // ─── KATEGORİLER ───────────────────────────────────────────
-    const kategoriler = await Promise.all([
-        prisma.kategori.upsert({ where: { ad: 'Kuru Gıda' }, update: {}, create: { ad: 'Kuru Gıda' } }),
-        prisma.kategori.upsert({ where: { ad: 'Et & Tavuk' }, update: {}, create: { ad: 'Et & Tavuk' } }),
-        prisma.kategori.upsert({ where: { ad: 'Sebze & Meyve' }, update: {}, create: { ad: 'Sebze & Meyve' } }),
-        prisma.kategori.upsert({ where: { ad: 'Süt Ürünleri' }, update: {}, create: { ad: 'Süt Ürünleri' } }),
-        prisma.kategori.upsert({ where: { ad: 'İçecek' }, update: {}, create: { ad: 'İçecek' } }),
-    ]);
+    const kategoriListesi = [
+        { ad: 'Kuru Gıda' },
+        { ad: 'Et & Tavuk' },
+        { ad: 'Sebze & Meyve' },
+        { ad: 'Süt Ürünleri' },
+        { ad: 'İçecek' },
+    ];
+
+    const kategoriler = [];
+    for (const k of kategoriListesi) {
+        const kat = await prisma.kategori.upsert({
+            where: { ad_tenantId: { ad: k.ad, tenantId: tenant.id } },
+            update: {},
+            create: { ad: k.ad, tenantId: tenant.id },
+        });
+        kategoriler.push(kat);
+    }
     console.log('✅ Kategoriler tamam');
 
     // ─── ÖLÇÜ BİRİMLERİ ────────────────────────────────────────
-    const birimler = await Promise.all([
-        prisma.olcuBirimi.upsert({ where: { ad: 'Kilogram' }, update: {}, create: { ad: 'Kilogram', kisaltma: 'kg' } }),
-        prisma.olcuBirimi.upsert({ where: { ad: 'Gram' }, update: {}, create: { ad: 'Gram', kisaltma: 'gr' } }),
-        prisma.olcuBirimi.upsert({ where: { ad: 'Litre' }, update: {}, create: { ad: 'Litre', kisaltma: 'lt' } }),
-        prisma.olcuBirimi.upsert({ where: { ad: 'Mililitre' }, update: {}, create: { ad: 'Mililitre', kisaltma: 'ml' } }),
-        prisma.olcuBirimi.upsert({ where: { ad: 'Adet' }, update: {}, create: { ad: 'Adet', kisaltma: 'ad' } }),
-    ]);
+    const birimListesi = [
+        { ad: 'Kilogram', kisaltma: 'kg' },
+        { ad: 'Gram', kisaltma: 'gr' },
+        { ad: 'Litre', kisaltma: 'lt' },
+        { ad: 'Mililitre', kisaltma: 'ml' },
+        { ad: 'Adet', kisaltma: 'ad' },
+    ];
+
+    const birimler = [];
+    for (const b of birimListesi) {
+        const birim = await prisma.olcuBirimi.upsert({
+            where: { ad_tenantId: { ad: b.ad, tenantId: tenant.id } },
+            update: {},
+            create: { ad: b.ad, kisaltma: b.kisaltma, tenantId: tenant.id },
+        });
+        birimler.push(birim);
+    }
     console.log('✅ Ölçü birimleri tamam');
 
     const katMap = Object.fromEntries(kategoriler.map(k => [k.ad, k.id]));
     const birMap = Object.fromEntries(birimler.map(b => [b.kisaltma, b.id]));
 
     // ─── STOK KARTLARI ─────────────────────────────────────────
-    const stoklar = [
+    const stokListesi = [
         { kod: 'STK001', ad: 'Un (Buğday)', kategoriId: katMap['Kuru Gıda'], birimId: birMap['kg'], minStok: 50 },
         { kod: 'STK002', ad: 'Ayçiçek Yağı', kategoriId: katMap['Kuru Gıda'], birimId: birMap['lt'], minStok: 20 },
         { kod: 'STK003', ad: 'Tuz', kategoriId: katMap['Kuru Gıda'], birimId: birMap['kg'], minStok: 10 },
@@ -50,11 +128,11 @@ async function main() {
     ];
 
     const stokKartlari = [];
-    for (const s of stoklar) {
+    for (const s of stokListesi) {
         const kart = await prisma.stokKart.upsert({
-            where: { kod: s.kod },
+            where: { kod_tenantId: { kod: s.kod, tenantId: tenant.id } },
             update: { ad: s.ad },
-            create: s,
+            create: { ...s, tenantId: tenant.id },
         });
         stokKartlari.push(kart);
     }
@@ -63,7 +141,7 @@ async function main() {
     const stokMap = Object.fromEntries(stokKartlari.map(s => [s.ad, s.id]));
 
     // ─── CARİ KARTLAR ──────────────────────────────────────────
-    const cariler = [
+    const cariListesi = [
         { kod: 'CAR001', ad: 'Merkez Gıda A.Ş.', telefon: '02125550101', adres: 'İstanbul, Bağcılar' },
         { kod: 'CAR002', ad: 'Güven Et Pazarı', telefon: '02164440202', adres: 'İstanbul, Ümraniye' },
         { kod: 'CAR003', ad: 'Taze Sebze Kooperatif', telefon: '02623330303', adres: 'Kocaeli, Gebze' },
@@ -71,21 +149,19 @@ async function main() {
         { kod: 'CAR005', ad: 'Efes İçecek Dağıtım', telefon: '02121110505', adres: 'İstanbul, Esenyurt' },
     ];
 
-    for (const c of cariler) {
+    for (const c of cariListesi) {
         await prisma.cariKart.upsert({
-            where: { kod: c.kod },
+            where: { kod_tenantId: { kod: c.kod, tenantId: tenant.id } },
             update: {},
-            create: c,
+            create: { ...c, tenantId: tenant.id },
         });
     }
     console.log('✅ Cari kartlar tamam');
 
     // ─── REÇETELER ─────────────────────────────────────────────
-    const receteler = [
+    const receteListesi = [
         {
-            ad: 'Köfte Porsiyon',
-            satisKodu: 'REC001',
-            satisFiyati: 180.00,
+            ad: 'Köfte Porsiyon', satisKodu: 'REC001', satisFiyati: 180.00,
             kalemler: [
                 { stokAd: 'Dana Kıyma', miktar: 0.200 },
                 { stokAd: 'Soğan', miktar: 0.050 },
@@ -94,9 +170,7 @@ async function main() {
             ],
         },
         {
-            ad: 'Tavuk Şiş Porsiyon',
-            satisKodu: 'REC002',
-            satisFiyati: 150.00,
+            ad: 'Tavuk Şiş Porsiyon', satisKodu: 'REC002', satisFiyati: 150.00,
             kalemler: [
                 { stokAd: 'Tavuk Göğsü', miktar: 0.250 },
                 { stokAd: 'Biber (Yeşil)', miktar: 0.050 },
@@ -106,9 +180,7 @@ async function main() {
             ],
         },
         {
-            ad: 'Patates Kızartması',
-            satisKodu: 'REC003',
-            satisFiyati: 65.00,
+            ad: 'Patates Kızartması', satisKodu: 'REC003', satisFiyati: 65.00,
             kalemler: [
                 { stokAd: 'Patates', miktar: 0.300 },
                 { stokAd: 'Ayçiçek Yağı', miktar: 0.100 },
@@ -116,9 +188,7 @@ async function main() {
             ],
         },
         {
-            ad: 'Dana Güveç',
-            satisKodu: 'REC004',
-            satisFiyati: 280.00,
+            ad: 'Dana Güveç', satisKodu: 'REC004', satisFiyati: 280.00,
             kalemler: [
                 { stokAd: 'Dana Kuşbaşı', miktar: 0.200 },
                 { stokAd: 'Domates', miktar: 0.100 },
@@ -131,14 +201,15 @@ async function main() {
         },
     ];
 
-    for (const r of receteler) {
+    for (const r of receteListesi) {
         const recete = await prisma.recete.upsert({
-            where: { satisKodu: r.satisKodu },
+            where: { satisKodu_tenantId: { satisKodu: r.satisKodu, tenantId: tenant.id } },
             update: { satisFiyati: r.satisFiyati },
             create: {
                 ad: r.ad,
                 satisKodu: r.satisKodu,
                 satisFiyati: r.satisFiyati,
+                tenantId: tenant.id,
             },
         });
 
@@ -151,11 +222,14 @@ async function main() {
             })),
         });
     }
-    console.log(`✅ ${receteler.length} reçete tamam`);
+    console.log(`✅ ${receteListesi.length} reçete tamam`);
 
     console.log('\n🎉 Seed tamamlandı!');
+    console.log(`   🏢 Tenant: ${tenant.ad} (id:${tenant.id})`);
+    console.log('   🏪 1 şube');
+    console.log('   👤 2 kullanıcı (admin@gastroiq.com / test@gastroiq.com, şifre: 123456)');
     console.log('   📦 18 stok kartı');
-    console.log('   🏢 5 cari kart');
+    console.log('   🤝 5 cari kart');
     console.log('   🍽️  4 reçete');
 }
 

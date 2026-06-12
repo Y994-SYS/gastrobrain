@@ -4,7 +4,7 @@ const cariHareketController = {
 
     async hareketleriGetir(req, res) {
         try {
-            const data = await cariHareketService.hareketleriGetir(req.params.cariKartId);
+            const data = await cariHareketService.hareketleriGetir(req.params.cariKartId, req.kullanici.tenantId);
             res.json({ basarili: true, data });
         } catch (error) {
             res.status(500).json({ basarili: false, mesaj: error.message });
@@ -13,7 +13,7 @@ const cariHareketController = {
 
     async bakiyeGetir(req, res) {
         try {
-            const bakiye = await cariHareketService.bakiyeGetir(req.params.cariKartId);
+            const bakiye = await cariHareketService.bakiyeGetir(req.params.cariKartId, req.kullanici.tenantId);
             res.json({ basarili: true, data: { bakiye } });
         } catch (error) {
             res.status(500).json({ basarili: false, mesaj: error.message });
@@ -22,7 +22,7 @@ const cariHareketController = {
 
     async tumCarilerinBakiyeleriGetir(req, res) {
         try {
-            const data = await cariHareketService.tumCarilerinBakiyeleriGetir();
+            const data = await cariHareketService.tumCarilerinBakiyeleriGetir(req.kullanici.tenantId);
             res.json({ basarili: true, data });
         } catch (error) {
             res.status(500).json({ basarili: false, mesaj: error.message });
@@ -31,7 +31,7 @@ const cariHareketController = {
 
     async odemeEkle(req, res) {
         try {
-            const data = await cariHareketService.odemeEkle(req.body);
+            const data = await cariHareketService.odemeEkle(req.body, req.kullanici.tenantId);
             res.status(201).json({ basarili: true, data });
         } catch (error) {
             res.status(400).json({ basarili: false, mesaj: error.message });
@@ -40,7 +40,7 @@ const cariHareketController = {
 
     async manuelHareketEkle(req, res) {
         try {
-            const data = await cariHareketService.manuelHareketEkle(req.body);
+            const data = await cariHareketService.manuelHareketEkle(req.body, req.kullanici.tenantId);
             res.status(201).json({ basarili: true, data });
         } catch (error) {
             res.status(400).json({ basarili: false, mesaj: error.message });

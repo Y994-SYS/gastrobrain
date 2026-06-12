@@ -3,20 +3,24 @@ const prisma = new PrismaClient();
 
 const stokService = {
 
-    async hareketleriGetir(stokKartId) {
+    async hareketleriGetir(stokKartId, tenantId) {
         return prisma.stokHareket.findMany({
-            where: stokKartId ? { stokKartId: Number(stokKartId) } : {},
+            where: {
+                ...(stokKartId ? { stokKartId: Number(stokKartId) } : {}),
+                stokKart: { tenantId }
+            },
             include: { stokKart: { include: { birim: true } }, sube: true },
             orderBy: { tarih: 'desc' },
             take: 100
         });
     },
 
-    async mevcutStokGetir(stokKartId, subeId) {
+    async mevcutStokGetir(stokKartId, subeId, tenantId) {
         const hareketler = await prisma.stokHareket.findMany({
             where: {
                 stokKartId: Number(stokKartId),
-                subeId: Number(subeId)
+                subeId: Number(subeId),
+                stokKart: { tenantId }
             }
         });
         return hareketler.reduce((toplam, h) => {
@@ -28,20 +32,31 @@ const stokService = {
         }, 0);
     },
 
-    async tumStokDurumu(subeId) {
+    async tumStokDurumu(subeId, tenantId) {
         const stokKartlari = await prisma.stokKart.findMany({
+            where: { tenantId },
             include: { birim: true, kategori: true }
         });
         const sonuc = await Promise.all(
             stokKartlari.map(async (kart) => {
-                const miktar = await this.mevcutStokGetir(kart.id, subeId);
+                const miktar = await this.mevcutStokGetir(kart.id, subeId, tenantId);
                 return { ...kart, mevcutStok: miktar, kritik: miktar <= kart.minStok };
             })
         );
         return sonuc;
     },
 
-    async girisFaturasiEkle({ stokKartId, subeId, miktar, birimFiyat, aciklama, tarih, cariKartId }) {
+    async girisFaturasiEkle({ stokKartId, subeId, miktar, birimFiyat, aciklama, tarih, cariKartId }, tenantId) {
+        // Stok kartı ve şubenin bu tenant'a ait olduğunu doğrula
+        const stokKart = await prisma.stokKart.findFirst({ where: { id: Number(stokKartId), tenantId } });
+        if (!stokKart) throw new Error('Stok kartı bulunamadı');
+        const sube = await prisma.sube.findFirst({ where: { id: Number(subeId), tenantId } });
+        if (!sube) throw new Error('Şube bulunamadı');
+        if (cariKartId) {
+            const cari = await prisma.cariKart.findFirst({ where: { id: Number(cariKartId), tenantId } });
+            if (!cari) throw new Error('Cari kart bulunamadı');
+        }
+
         return prisma.$transaction(async (tx) => {
             const hareket = await tx.stokHareket.create({
                 data: {
@@ -71,7 +86,12 @@ const stokService = {
         });
     },
 
-    async iadeFaturasiEkle({ stokKartId, subeId, miktar, birimFiyat, aciklama, tarih, cariKartId }) {
+    async iadeFaturasiEkle({ stokKartId, subeId, miktar, birimFiyat, aciklama, tarih, cariKartId }, tenantId) {
+        const stokKart = await prisma.stokKart.findFirst({ where: { id: Number(stokKartId), tenantId } });
+        if (!stokKart) throw new Error('Stok kartı bulunamadı');
+        const sube = await prisma.sube.findFirst({ where: { id: Number(subeId), tenantId } });
+        if (!sube) throw new Error('Şube bulunamadı');
+
         return prisma.$transaction(async (tx) => {
             const hareket = await tx.stokHareket.create({
                 data: {
@@ -101,7 +121,10 @@ const stokService = {
         });
     },
 
-    async zayiEkle({ stokKartId, subeId, miktar, aciklama, tarih }) {
+    async zayiEkle({ stokKartId, subeId, miktar, aciklama, tarih }, tenantId) {
+        const stokKart = await prisma.stokKart.findFirst({ where: { id: Number(stokKartId), tenantId } });
+        if (!stokKart) throw new Error('Stok kartı bulunamadı');
+
         return prisma.stokHareket.create({
             data: {
                 tip: 'ZAYI',
@@ -114,7 +137,10 @@ const stokService = {
         });
     },
 
-    async tuketimEkle({ stokKartId, subeId, miktar, aciklama, tarih }) {
+    async tuketimEkle({ stokKartId, subeId, miktar, aciklama, tarih }, tenantId) {
+        const stokKart = await prisma.stokKart.findFirst({ where: { id: Number(stokKartId), tenantId } });
+        if (!stokKart) throw new Error('Stok kartı bulunamadı');
+
         return prisma.stokHareket.create({
             data: {
                 tip: 'TUKETIM',
@@ -127,9 +153,12 @@ const stokService = {
         });
     },
 
-    async aySonuSayimEkle({ stokKartId, subeId, sayimMiktari, aciklama }) {
+    async aySonuSayimEkle({ stokKartId, subeId, sayimMiktari, aciklama }, tenantId) {
+        const stokKart = await prisma.stokKart.findFirst({ where: { id: Number(stokKartId), tenantId } });
+        if (!stokKart) throw new Error('Stok kartı bulunamadı');
+
         return prisma.$transaction(async (tx) => {
-            const mevcutStok = await this.mevcutStokGetir(stokKartId, subeId);
+            const mevcutStok = await this.mevcutStokGetir(stokKartId, subeId, tenantId);
             const fark = Number(sayimMiktari) - mevcutStok;
 
             const hareket = await tx.stokHareket.create({

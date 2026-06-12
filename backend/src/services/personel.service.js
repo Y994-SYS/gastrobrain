@@ -3,16 +3,17 @@ const prisma = new PrismaClient();
 
 const personelService = {
 
-    async hepsiniGetir() {
+    async hepsiniGetir(tenantId) {
         return prisma.personel.findMany({
+            where: { tenantId },
             include: { sube: true },
             orderBy: { ad: 'asc' }
         });
     },
 
-    async biriniGetir(id) {
-        const personel = await prisma.personel.findUnique({
-            where: { id },
+    async biriniGetir(id, tenantId) {
+        const personel = await prisma.personel.findFirst({
+            where: { id, tenantId },
             include: {
                 sube: true,
                 maaslar: { orderBy: { tarih: 'desc' }, take: 12 },
@@ -24,10 +25,11 @@ const personelService = {
         return personel;
     },
 
-    async olustur(data) {
+    async olustur(data, tenantId) {
         return prisma.personel.create({
             data: {
                 ...data,
+                tenantId,
                 subeId: Number(data.subeId),
                 maas: Number(data.maas),
                 baslangicTarihi: new Date(data.baslangicTarihi),
@@ -36,8 +38,8 @@ const personelService = {
         });
     },
 
-    async guncelle(id, data) {
-        await this.biriniGetir(id);
+    async guncelle(id, data, tenantId) {
+        await this.biriniGetir(id, tenantId);
         return prisma.personel.update({
             where: { id },
             data: {
@@ -50,12 +52,14 @@ const personelService = {
         });
     },
 
-    async sil(id) {
-        await this.biriniGetir(id);
+    async sil(id, tenantId) {
+        await this.biriniGetir(id, tenantId);
         return prisma.personel.delete({ where: { id } });
     },
 
-    async maasEkle({ personelId, yil, ay, tutar, odendi, tarih }) {
+    async maasEkle({ personelId, yil, ay, tutar, odendi, tarih }, tenantId) {
+        // Personelin bu tenant'a ait olduğunu doğrula
+        await this.biriniGetir(Number(personelId), tenantId);
         return prisma.personelMaas.create({
             data: {
                 personelId: Number(personelId),
@@ -68,14 +72,21 @@ const personelService = {
         });
     },
 
-    async maasOdendi(id) {
+    async maasOdendi(id, tenantId) {
+        // Maaş kaydının tenant'a ait personele ait olduğunu doğrula
+        const maas = await prisma.personelMaas.findFirst({
+            where: { id },
+            include: { personel: true }
+        });
+        if (!maas || maas.personel.tenantId !== tenantId) throw new Error('Maaş kaydı bulunamadı');
         return prisma.personelMaas.update({
             where: { id },
             data: { odendi: true }
         });
     },
 
-    async avansEkle({ personelId, tutar, aciklama, tarih }) {
+    async avansEkle({ personelId, tutar, aciklama, tarih }, tenantId) {
+        await this.biriniGetir(Number(personelId), tenantId);
         return prisma.personelAvans.create({
             data: {
                 personelId: Number(personelId),
@@ -86,7 +97,8 @@ const personelService = {
         });
     },
 
-    async devamEkle({ personelId, tarih, durum, mesai, aciklama }) {
+    async devamEkle({ personelId, tarih, durum, mesai, aciklama }, tenantId) {
+        await this.biriniGetir(Number(personelId), tenantId);
         return prisma.personelDevam.create({
             data: {
                 personelId: Number(personelId),

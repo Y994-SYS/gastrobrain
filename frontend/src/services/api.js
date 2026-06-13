@@ -1,4 +1,5 @@
 import axios from 'axios';
+import toast from 'react-hot-toast';
 
 const api = axios.create({
     baseURL: import.meta.env.VITE_API_URL,
@@ -12,14 +13,31 @@ api.interceptors.request.use((config) => {
     return config;
 });
 
-// 401 gelirse çıkış yap
+// Hata yakalama
 api.interceptors.response.use(
     (response) => response,
     (error) => {
-        if (error.response?.status === 401) {
+        const status = error.response?.status;
+
+        // 401 — oturum süresi doldu
+        if (status === 401) {
             localStorage.removeItem('gastroiq_token');
+            localStorage.removeItem('gastroiq_tenant');
             window.location.href = '/giris';
+            return Promise.reject(error);
         }
+
+        // 429 — rate limit aşıldı
+        if (status === 429) {
+            const retryAfter = error.response?.data?.retryAfter;
+            const dakika = retryAfter ? Math.ceil(retryAfter / 60) : 15;
+            toast.error(`Çok fazla istek gönderildi. Lütfen ${dakika} dakika bekleyin.`, {
+                duration: 6000,
+                icon: '⏳',
+            });
+            return Promise.reject(error);
+        }
+
         return Promise.reject(error);
     }
 );

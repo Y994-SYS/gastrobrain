@@ -3,8 +3,9 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
-const rateLimit = require('express-rate-limit');
 const hpp = require('hpp');
+
+const { girisLimit, kayitLimit, genelLimit, kritikLimit } = require('./middleware/rateLimit.middleware');
 
 const authRoutes = require('./routes/auth.routes');
 const kategoriRoutes = require('./routes/kategori.routes');
@@ -52,34 +53,11 @@ app.use((req, res, next) => {
     next();
 });
 
-// Rate limiting
-const genelLimit = rateLimit({
-    windowMs: 15 * 60 * 1000,
-    max: 500,
-    message: { basarili: false, mesaj: 'Çok fazla istek gönderdiniz. 15 dakika sonra tekrar deneyin.' },
-    standardHeaders: true,
-    legacyHeaders: false,
-});
-
-const girisLimit = rateLimit({
-    windowMs: 15 * 60 * 1000,
-    max: 10,
-    message: { basarili: false, mesaj: 'Çok fazla giriş denemesi. 15 dakika sonra tekrar deneyin.' },
-    standardHeaders: true,
-    legacyHeaders: false,
-});
-
-const kayitLimit = rateLimit({
-    windowMs: 60 * 60 * 1000,
-    max: 5,
-    message: { basarili: false, mesaj: 'Çok fazla kayıt denemesi. 1 saat sonra tekrar deneyin.' },
-    standardHeaders: true,
-    legacyHeaders: false,
-});
-
-app.use('/api', genelLimit);
+// Rate limiting — auth route'ları sıkı IP bazlı
 app.use('/api/auth/giris', girisLimit);
+app.use('/api/auth/tenant-listesi', girisLimit);
 app.use('/api/auth/kayit-firma', kayitLimit);
+app.use('/api/auth/kayit', kayitLimit);
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -96,6 +74,11 @@ app.use('/api/raporlar', raporRoutes);
 app.use('/api/subeler', subeRoutes);
 app.use('/api/kullanicilar', kullaniciRoutes);
 app.use('/api/super-admin', superAdminRoutes);
+
+// Genel & kritik rate limit — tenant+user bazlı (route'lardan sonra değil önce)
+app.use('/api/stok', kritikLimit);
+app.use('/api/satislar', kritikLimit);
+app.use('/api', genelLimit);
 
 // Sağlık kontrolü
 app.get('/', (req, res) => {

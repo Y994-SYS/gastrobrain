@@ -17,6 +17,7 @@ const raporRoutes = require('./routes/rapor.routes');
 const subeRoutes = require('./routes/sube.routes');
 const kullaniciRoutes = require('./routes/kullanici.routes');
 const superAdminRoutes = require('./routes/superAdmin.routes');
+const rateLimit = require('express-rate-limit');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -25,6 +26,36 @@ app.use(helmet());
 app.use(cors());
 app.use(express.json());
 
+// Genel rate limit — tüm API'ler
+const genelLimit = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 dakika
+    max: 500,
+    message: { basarili: false, mesaj: 'Çok fazla istek gönderdiniz. 15 dakika sonra tekrar deneyin.' },
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+
+// Giriş endpoint'i için sıkı limit — brute force önleme
+const girisLimit = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 dakika
+    max: 10,
+    message: { basarili: false, mesaj: 'Çok fazla giriş denemesi. 15 dakika sonra tekrar deneyin.' },
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+
+// Kayıt endpoint'i için limit
+const kayitLimit = rateLimit({
+    windowMs: 60 * 60 * 1000, // 1 saat
+    max: 5,
+    message: { basarili: false, mesaj: 'Çok fazla kayıt denemesi. 1 saat sonra tekrar deneyin.' },
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+
+app.use('/api', genelLimit);
+app.use('/api/auth/giris', girisLimit);
+app.use('/api/auth/kayit-firma', kayitLimit);
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/kategoriler', kategoriRoutes);

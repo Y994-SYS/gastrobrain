@@ -1,7 +1,10 @@
+require('dotenv').config();
+
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
-require('dotenv').config();
+const rateLimit = require('express-rate-limit');
+const hpp = require('hpp');
 
 const authRoutes = require('./routes/auth.routes');
 const kategoriRoutes = require('./routes/kategori.routes');
@@ -17,52 +20,17 @@ const raporRoutes = require('./routes/rapor.routes');
 const subeRoutes = require('./routes/sube.routes');
 const kullaniciRoutes = require('./routes/kullanici.routes');
 const superAdminRoutes = require('./routes/superAdmin.routes');
-const rateLimit = require('express-rate-limit');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// Güvenlik
 app.use(helmet());
 app.use(cors());
 app.use(express.json());
-
-// Genel rate limit — tüm API'ler
-const genelLimit = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 dakika
-    max: 500,
-    message: { basarili: false, mesaj: 'Çok fazla istek gönderdiniz. 15 dakika sonra tekrar deneyin.' },
-    standardHeaders: true,
-    legacyHeaders: false,
-});
-
-// Giriş endpoint'i için sıkı limit — brute force önleme
-const girisLimit = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 dakika
-    max: 10,
-    message: { basarili: false, mesaj: 'Çok fazla giriş denemesi. 15 dakika sonra tekrar deneyin.' },
-    standardHeaders: true,
-    legacyHeaders: false,
-});
-
-// Kayıt endpoint'i için limit
-const kayitLimit = rateLimit({
-    windowMs: 60 * 60 * 1000, // 1 saat
-    max: 5,
-    message: { basarili: false, mesaj: 'Çok fazla kayıt denemesi. 1 saat sonra tekrar deneyin.' },
-    standardHeaders: true,
-    legacyHeaders: false,
-});
-
-const mongoSanitize = require('express-mongo-sanitize');
-const hpp = require('hpp');
-
-// NoSQL injection koruması
-app.use(mongoSanitize());
-
-// HTTP Parameter Pollution koruması
 app.use(hpp());
 
-// XSS koruması — input temizleme
+// XSS koruması
 app.use((req, res, next) => {
     if (req.body) {
         const temizle = (obj) => {
@@ -83,9 +51,36 @@ app.use((req, res, next) => {
     }
     next();
 });
+
+// Rate limiting
+const genelLimit = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 500,
+    message: { basarili: false, mesaj: 'Çok fazla istek gönderdiniz. 15 dakika sonra tekrar deneyin.' },
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+
+const girisLimit = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 10,
+    message: { basarili: false, mesaj: 'Çok fazla giriş denemesi. 15 dakika sonra tekrar deneyin.' },
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+
+const kayitLimit = rateLimit({
+    windowMs: 60 * 60 * 1000,
+    max: 5,
+    message: { basarili: false, mesaj: 'Çok fazla kayıt denemesi. 1 saat sonra tekrar deneyin.' },
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+
 app.use('/api', genelLimit);
 app.use('/api/auth/giris', girisLimit);
 app.use('/api/auth/kayit-firma', kayitLimit);
+
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/kategoriler', kategoriRoutes);

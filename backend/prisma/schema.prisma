@@ -12,26 +12,26 @@ datasource db {
 // ─────────────────────────────────────────
 
 model Tenant {
-  id        Int      @id @default(autoincrement())
-  ad        String
-  slug      String   @unique  // URL-safe isim: "pizza-palace"
-  email     String   @unique  // firma iletişim emaili
-  telefon   String?
-  aktif     Boolean  @default(true)
-  plan      Plan     @default(BASLANGIC)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  lisansBitis  DateTime?
-  lisansNot    String?
+  id          Int       @id @default(autoincrement())
+  ad          String
+  slug        String    @unique
+  email       String    @unique
+  telefon     String?
+  aktif       Boolean   @default(true)
+  plan        Plan      @default(BASLANGIC)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  lisansBitis DateTime?
+  lisansNot   String?
 
-  kullanicilar Kullanici[]
-  subeler      Sube[]
-  kategoriler  Kategori[]
+  kullanicilar  Kullanici[]
+  subeler       Sube[]
+  kategoriler   Kategori[]
   olcuBirimleri OlcuBirimi[]
-  stokKartlari StokKart[]
-  receteler    Recete[]
-  cariKartlar  CariKart[]
-  personeller  Personel[]
+  stokKartlari  StokKart[]
+  receteler     Recete[]
+  cariKartlar   CariKart[]
+  personeller   Personel[]
 }
 
 enum Plan {
@@ -61,11 +61,12 @@ model Kullanici {
   subeId Int?
 
   @@unique([email, tenantId])
+  @@index([tenantId])
 }
 
 enum Rol {
-  SUPER_ADMIN   // sistem geneli (Anthropic/GastroIQ ekibi)
-  TENANT_ADMIN  // firma sahibi/yöneticisi
+  SUPER_ADMIN
+  TENANT_ADMIN
   ADMIN
   MUDUR
   DEPO
@@ -92,6 +93,8 @@ model Sube {
   stokHareketleri StokHareket[]
   satislar        Satis[]
   personeller     Personel[]
+
+  @@index([tenantId])
 }
 
 // ─────────────────────────────────────────
@@ -99,7 +102,7 @@ model Sube {
 // ─────────────────────────────────────────
 
 model Kategori {
-  id   Int    @id @default(autoincrement())
+  id   Int     @id @default(autoincrement())
   ad   String
   renk String?
 
@@ -109,6 +112,7 @@ model Kategori {
   stokKartlari StokKart[]
 
   @@unique([ad, tenantId])
+  @@index([tenantId])
 }
 
 model OlcuBirimi {
@@ -123,6 +127,7 @@ model OlcuBirimi {
 
   @@unique([ad, tenantId])
   @@unique([kisaltma, tenantId])
+  @@index([tenantId])
 }
 
 model StokKart {
@@ -147,6 +152,8 @@ model StokKart {
   cariHareketKalemleri CariHareketKalem[]
 
   @@unique([kod, tenantId])
+  @@index([tenantId])
+  @@index([kategoriId])
 }
 
 model StokHareket {
@@ -167,6 +174,11 @@ model StokHareket {
   cariHareketId Int?
   satis         Satis?       @relation(fields: [satisId], references: [id])
   satisId       Int?
+
+  @@index([stokKartId])
+  @@index([subeId])
+  @@index([tarih])
+  @@index([tip])
 }
 
 enum StokHareketTip {
@@ -200,6 +212,7 @@ model Recete {
   satislar Satis[]
 
   @@unique([satisKodu, tenantId])
+  @@index([tenantId])
 }
 
 model ReceteKalem {
@@ -212,6 +225,9 @@ model ReceteKalem {
   receteId   Int
   stokKart   StokKart @relation(fields: [stokKartId], references: [id])
   stokKartId Int
+
+  @@index([receteId])
+  @@index([stokKartId])
 }
 
 // ─────────────────────────────────────────
@@ -233,6 +249,10 @@ model Satis {
   subeId   Int
 
   stokHareketleri StokHareket[]
+
+  @@index([subeId])
+  @@index([tarih])
+  @@index([receteId])
 }
 
 // ─────────────────────────────────────────
@@ -240,14 +260,14 @@ model Satis {
 // ─────────────────────────────────────────
 
 model CariKart {
-  id       Int     @id @default(autoincrement())
-  kod      String
-  ad       String
-  vergiNo  String?
-  telefon  String?
-  email    String?
-  adres    String?
-  aktif    Boolean  @default(true)
+  id        Int      @id @default(autoincrement())
+  kod       String
+  ad        String
+  vergiNo   String?
+  telefon   String?
+  email     String?
+  adres     String?
+  aktif     Boolean  @default(true)
   createdAt DateTime @default(now())
 
   tenant   Tenant @relation(fields: [tenantId], references: [id])
@@ -256,6 +276,7 @@ model CariKart {
   hareketler CariHareket[]
 
   @@unique([kod, tenantId])
+  @@index([tenantId])
 }
 
 model CariHareket {
@@ -272,6 +293,9 @@ model CariHareket {
 
   kalemler        CariHareketKalem[]
   stokHareketleri StokHareket[]
+
+  @@index([cariKartId])
+  @@index([tarih])
 }
 
 enum CariHareketTip {
@@ -291,6 +315,8 @@ model CariHareketKalem {
   cariHareketId Int
   stokKart      StokKart    @relation(fields: [stokKartId], references: [id])
   stokKartId    Int
+
+  @@index([cariHareketId])
 }
 
 // ─────────────────────────────────────────
@@ -319,6 +345,8 @@ model Personel {
   devamlar PersonelDevam[]
 
   @@unique([tcKimlik, tenantId])
+  @@index([tenantId])
+  @@index([subeId])
 }
 
 model PersonelMaas {
@@ -331,6 +359,8 @@ model PersonelMaas {
 
   personel   Personel @relation(fields: [personelId], references: [id])
   personelId Int
+
+  @@index([personelId])
 }
 
 model PersonelAvans {
@@ -341,6 +371,8 @@ model PersonelAvans {
 
   personel   Personel @relation(fields: [personelId], references: [id])
   personelId Int
+
+  @@index([personelId])
 }
 
 model PersonelDevam {
@@ -352,6 +384,9 @@ model PersonelDevam {
 
   personel   Personel @relation(fields: [personelId], references: [id])
   personelId Int
+
+  @@index([personelId])
+  @@index([tarih])
 }
 
 enum DevamDurum {

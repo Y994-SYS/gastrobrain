@@ -53,6 +53,36 @@ const kayitLimit = rateLimit({
     legacyHeaders: false,
 });
 
+const mongoSanitize = require('express-mongo-sanitize');
+const hpp = require('hpp');
+
+// NoSQL injection koruması
+app.use(mongoSanitize());
+
+// HTTP Parameter Pollution koruması
+app.use(hpp());
+
+// XSS koruması — input temizleme
+app.use((req, res, next) => {
+    if (req.body) {
+        const temizle = (obj) => {
+            for (const key in obj) {
+                if (typeof obj[key] === 'string') {
+                    obj[key] = obj[key]
+                        .replace(/</g, '&lt;')
+                        .replace(/>/g, '&gt;')
+                        .replace(/"/g, '&quot;')
+                        .replace(/'/g, '&#x27;')
+                        .replace(/\//g, '&#x2F;');
+                } else if (typeof obj[key] === 'object') {
+                    temizle(obj[key]);
+                }
+            }
+        };
+        temizle(req.body);
+    }
+    next();
+});
 app.use('/api', genelLimit);
 app.use('/api/auth/giris', girisLimit);
 app.use('/api/auth/kayit-firma', kayitLimit);

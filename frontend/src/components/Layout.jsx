@@ -51,11 +51,17 @@ const menuGruplari = [
             { path: '/tanimlamalar/kullanicilar', label: 'Kullanıcılar', icon: '👤' }
         ]
     },
+    {
+        baslik: 'Yardım',
+        items: [
+            { path: '/yardim', label: 'Yardım', icon: '❓' }
+        ]
+    }
 ];
 
 export default function Layout({ children }) {
     const { kullanici, cikisYap } = useAuthStore();
-    const [kapali, setKapali] = useState({});
+    const [kapali, setKapali] = useState({})
 
     const toggleGrup = (baslik) => {
         setKapali(prev => ({ ...prev, [baslik]: !prev[baslik] }));
@@ -68,7 +74,7 @@ export default function Layout({ children }) {
                 {/* Logo */}
                 <div className="p-5 border-b border-zinc-800 flex-shrink-0">
                     <h1 className="text-xl font-black text-white">
-                        Gastro<span className="text-lime-400">IQ</span>
+                        Gastro<span className="text-lime-400">BRAIN</span>
                     </h1>
                     <p className="text-zinc-500 text-xs mt-0.5">{kullanici?.ad}</p>
                 </div>

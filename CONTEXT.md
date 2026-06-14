@@ -91,13 +91,199 @@
 - Tenant modeline lisansBitis ve lisansNot alanları eklendi
 - Lisans süresi kontrolü giriş sırasında yapılıyor
 
-## DEVAM EDEN FAZ
 ### Faz 4 — Production Ready ✅
 - [x] Güvenlik testleri — XSS, HPP koruması eklendi
-- [x] Rate limiting — brute force önleme (express-rate-limit)
+- [x] Rate limiting — tenant+user bazlı akıllı rate limiting
+  - Giriş/kayıt: IP bazlı sıkı limit (brute-force koruması)
+  - Genel API: tenant+user bazlı (restoran içi çakışma yok)
+  - Kritik işlemler (stok, satış): ayrı limit katmanı
+  - 429 hatası retryAfter ile frontend'e toast bildirimi
 - [x] Performans optimizasyonu — DB index'leri eklendi
 - [ ] Otomatik yedekleme — deploy aşamasında yapılacak
 - [ ] Hata izleme (Sentry) — deploy aşamasında eklenecek
-
 ## SIRADAKI FAZ
+gastroiq/
+
+├── backend/
+
+│   ├── src/
+
+│   │   ├── controllers/
+
+│   │   │   ├── auth.controller.js
+
+│   │   │   ├── cariHareket.controller.js
+
+│   │   │   ├── cariKart.controller.js
+
+│   │   │   ├── kategori.controller.js
+
+│   │   │   ├── kullanici.controller.js
+
+│   │   │   ├── olcuBirimi.controller.js
+
+│   │   │   ├── personel.controller.js
+
+│   │   │   ├── rapor.controller.js
+
+│   │   │   ├── recete.controller.js
+
+│   │   │   ├── satis.controller.js
+
+│   │   │   ├── stok.controller.js
+
+│   │   │   ├── stokKart.controller.js
+
+│   │   │   ├── sube.controller.js
+
+│   │   │   └── superAdmin.controller.js
+
+│   │   ├── middleware/
+
+│   │   │   └── auth.middleware.js
+
+│   │   ├── routes/
+
+│   │   │   ├── auth.routes.js
+
+│   │   │   ├── cariHareket.routes.js
+
+│   │   │   ├── cariKart.routes.js
+
+│   │   │   ├── kategori.routes.js
+
+│   │   │   ├── kullanici.routes.js
+
+│   │   │   ├── olcuBirimi.routes.js
+
+│   │   │   ├── personel.routes.js
+
+│   │   │   ├── rapor.routes.js
+
+│   │   │   ├── recete.routes.js
+
+│   │   │   ├── satis.routes.js
+
+│   │   │   ├── stok.routes.js
+
+│   │   │   ├── stokKart.routes.js
+
+│   │   │   ├── sube.routes.js
+
+│   │   │   └── superAdmin.routes.js
+
+│   │   ├── services/
+
+│   │   │   ├── auth.service.js
+
+│   │   │   ├── cariHareket.service.js
+
+│   │   │   ├── cariKart.service.js
+
+│   │   │   ├── kategori.service.js
+
+│   │   │   ├── olcuBirimi.service.js
+
+│   │   │   ├── personel.service.js
+
+│   │   │   ├── recete.service.js
+
+│   │   │   ├── satis.service.js
+
+│   │   │   ├── stok.service.js
+
+│   │   │   └── stokKart.service.js
+
+│   │   └── index.js
+
+│   ├── prisma/
+
+│   │   ├── schema.prisma
+
+│   │   └── seed.js
+
+│   └── .env
+
+├── frontend/
+
+│   ├── src/
+
+│   │   ├── components/
+
+│   │   │   ├── Layout.jsx
+
+│   │   │   ├── LoadingSpinner.jsx
+
+│   │   │   ├── Modal.jsx
+
+│   │   │   └── Table.jsx
+
+│   │   ├── pages/
+
+│   │   │   ├── Dashboard.jsx
+
+│   │   │   ├── KayitFirma.jsx
+
+│   │   │   ├── Login.jsx
+
+│   │   │   ├── SuperAdmin.jsx
+
+│   │   │   ├── cari/CariHesap.jsx
+
+│   │   │   ├── personel/Personel.jsx
+
+│   │   │   ├── raporlar/Raporlar.jsx
+
+│   │   │   ├── recete/Receteler.jsx
+
+│   │   │   ├── satis/Satislar.jsx
+
+│   │   │   ├── stok/
+
+│   │   │   │   ├── AySonuSayim.jsx
+
+│   │   │   │   ├── GirisFaturasi.jsx
+
+│   │   │   │   ├── IadeFaturasi.jsx
+
+│   │   │   │   ├── StokDurumu.jsx
+
+│   │   │   │   ├── TuketimGideri.jsx
+
+│   │   │   │   └── ZayiGideri.jsx
+
+│   │   │   └── tanimlamalar/
+
+│   │   │       ├── CariKartlar.jsx
+
+│   │   │       ├── Kategoriler.jsx
+
+│   │   │       ├── Kullanicilar.jsx
+
+│   │   │       ├── OlcuBirimleri.jsx
+
+│   │   │       ├── StokKartlari.jsx
+
+│   │   │       └── Subeler.jsx
+
+│   │   ├── services/
+
+│   │   │   ├── api.js
+
+│   │   │   └── auth.service.js
+
+│   │   ├── store/
+
+│   │   │   └── auth.store.js
+
+│   │   └── App.jsx
+
+│   └── .env
+
+└── CONTEXT.md
+## YARDIMCI DOSYALAR (backend klasöründe)
+- create-tenant2.js — test tenant oluşturma
+- create-super-admin.js — süper admin oluşturma
+- fix-tenant.js — tenant aktif etme
+- fix-super-admin.js — süper admin şifre sıfırlama
 ## DOSYA YAPISI

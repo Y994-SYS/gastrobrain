@@ -1,7 +1,7 @@
 const { PrismaClient } = require('@prisma/client');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-
+const { demoBilgileriOlustur } = require('./demoSeed.service');
 const prisma = new PrismaClient();
 
 const authService = {
@@ -94,9 +94,10 @@ const authService = {
             const kullanici = await tx.kullanici.create({
                 data: { ad: adminAd, email: adminEmail, sifre: hashedSifre, rol: 'TENANT_ADMIN', tenantId: tenant.id, subeId: sube.id }
             });
+
             return { tenant, sube, kullanici };
         });
-
+        demoBilgileriOlustur(sonuc.tenant.id, sonuc.sube.id);
         const token = jwt.sign(
             { id: sonuc.kullanici.id, email: sonuc.kullanici.email, rol: sonuc.kullanici.rol, tenantId: sonuc.tenant.id },
             process.env.JWT_SECRET,

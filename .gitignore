@@ -1,7 +1,31 @@
+# Dependencies
 node_modules/
+.pnp
+.pnp.js
+
+# Environment
 .env
-*.env.local
+.env.local
+.env.production
+
+# Next.js
+landing/.next/
+landing/out/
+
+# Build
 dist/
 build/
-.DS_Store
+
+# Logs
 *.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Prisma
+backend/prisma/migrations/
+
+# VS Code
+.vscode/

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import useAuthStore from '../store/auth.store';
+import FeedbackModal from './FeedbackModal';
 
 const menuGruplari = [
     {
@@ -114,6 +115,9 @@ export default function Layout({ children }) {
                         </div>
                     ))}
                 </nav>
+
+                {/* Geri Bildirim */}
+                <FeedbackModal />
 
                 {/* Çıkış */}
                 <div className="p-2 border-t border-zinc-800 flex-shrink-0">

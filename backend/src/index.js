@@ -21,6 +21,7 @@ const raporRoutes = require('./routes/rapor.routes');
 const subeRoutes = require('./routes/sube.routes');
 const kullaniciRoutes = require('./routes/kullanici.routes');
 const superAdminRoutes = require('./routes/superAdmin.routes');
+const feedbackRoutes = require('./routes/feedback.routes');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -74,6 +75,7 @@ app.use('/api/raporlar', raporRoutes);
 app.use('/api/subeler', subeRoutes);
 app.use('/api/kullanicilar', kullaniciRoutes);
 app.use('/api/super-admin', superAdminRoutes);
+app.use('/api/feedback', feedbackRoutes);
 
 // Genel & kritik rate limit — tenant+user bazlı (route'lardan sonra değil önce)
 app.use('/api/stok', kritikLimit);

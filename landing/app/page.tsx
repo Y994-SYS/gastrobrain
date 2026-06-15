@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 import Image from 'next/image';
 
-const APP_URL = 'https://app.gastrobrain.com/kayit';
+const APP_URL = 'https://gastrobrain-frontend.onrender.com/kayit';
 
 const ozellikler = [
   {

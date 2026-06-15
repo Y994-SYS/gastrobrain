@@ -54,7 +54,7 @@ export default function KayitFirma() {
 
                 <div className="text-center mb-8">
                     <h1 className="text-3xl font-black text-white tracking-tight">
-                        Gastro<span className="text-lime-400">IQ</span>
+                        Gastro<span className="text-lime-400">BRAIN</span>
                     </h1>
                     <p className="text-zinc-500 text-sm mt-2">Yeni firma kaydı</p>
                 </div>

@@ -90,7 +90,7 @@ export default function SuperAdmin() {
                 <div className="flex items-center justify-between mb-8">
                     <div>
                         <h1 className="text-2xl font-black">
-                            Gastro<span className="text-lime-400">IQ</span>
+                            Gastro<span className="text-lime-400">BRAIN</span>
                             <span className="text-zinc-500 font-normal ml-3 text-lg">Süper Admin</span>
                         </h1>
                         <p className="text-zinc-500 text-sm mt-1">Tüm firma hesaplarını yönet</p>

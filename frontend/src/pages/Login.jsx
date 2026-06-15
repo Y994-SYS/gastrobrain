@@ -57,7 +57,7 @@ export default function Login() {
 
                 <div className="text-center mb-8">
                     <h1 className="text-3xl font-black text-white tracking-tight">
-                        Gastro<span className="text-lime-400">IQ</span>
+                        Gastro<span className="text-lime-400">BRAIN</span>
                     </h1>
                     <p className="text-zinc-500 text-sm mt-2">Restoran yönetim sistemi</p>
                 </div>
@@ -122,8 +122,8 @@ export default function Login() {
                                                 type="button"
                                                 onClick={() => setSeciliTenant(t)}
                                                 className={`w-full text-left px-3 py-2.5 rounded-lg border text-sm transition-colors ${seciliTenant?.tenantId === t.tenantId
-                                                        ? 'border-lime-400 bg-lime-400/10 text-white'
-                                                        : 'border-zinc-700 bg-zinc-800 text-zinc-300 hover:border-zinc-500'
+                                                    ? 'border-lime-400 bg-lime-400/10 text-white'
+                                                    : 'border-zinc-700 bg-zinc-800 text-zinc-300 hover:border-zinc-500'
                                                     } ${!t.tenantAktif ? 'opacity-40 cursor-not-allowed' : ''}`}
                                                 disabled={!t.tenantAktif}
                                             >

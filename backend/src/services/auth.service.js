@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { demoBilgileriOlustur } = require('./demoSeed.service');
 const prisma = new PrismaClient();
+const { hosgeldinMailGonder } = require('./mail.service');
 
 const authService = {
 
@@ -84,8 +85,18 @@ const authService = {
         if (mevcutEmail) throw new Error('Bu firma emaili zaten kayıtlı');
 
         const sonuc = await prisma.$transaction(async (tx) => {
+            const lisansBitis = new Date();
+            lisansBitis.setDate(lisansBitis.getDate() + 30);
+
             const tenant = await tx.tenant.create({
-                data: { ad: firmaAd, slug: slugTemiz, email: firmaEmail, telefon: firmaTelefon || null, plan: 'BASLANGIC' }
+                data: {
+                    ad: firmaAd,
+                    slug: slugTemiz,
+                    email: firmaEmail,
+                    telefon: firmaTelefon || null,
+                    plan: 'BASLANGIC',
+                    lisansBitis: lisansBitis
+                }
             });
             const sube = await tx.sube.create({
                 data: { ad: `${firmaAd} - Merkez`, tenantId: tenant.id }
@@ -98,6 +109,12 @@ const authService = {
             return { tenant, sube, kullanici };
         });
         demoBilgileriOlustur(sonuc.tenant.id, sonuc.sube.id);
+        try {
+            await hosgeldinMailGonder(firmaEmail, firmaAd, adminAd, sonuc.tenant.lisansBitis);
+        } catch (e) {
+            console.error('Mail gönderilemedi:', e.message);
+        }
+
         const token = jwt.sign(
             { id: sonuc.kullanici.id, email: sonuc.kullanici.email, rol: sonuc.kullanici.rol, tenantId: sonuc.tenant.id },
             process.env.JWT_SECRET,

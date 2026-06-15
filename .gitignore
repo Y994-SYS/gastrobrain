@@ -29,3 +29,5 @@ backend/prisma/migrations/
 
 # VS Code
 .vscode/
+
+landing/node_modules/

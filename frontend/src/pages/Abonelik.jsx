@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useAuthStore } from '../store/auth.store';
+import useAuthStore from '../store/auth.store';
 import api from '../services/api';
 import toast from 'react-hot-toast';
 
@@ -61,8 +61,8 @@ export default function Abonelik() {
                         key={plan.id}
                         onClick={() => setSecilenPlan(plan.id)}
                         className={`relative border rounded-xl p-6 cursor-pointer transition-all ${secilenPlan === plan.id
-                                ? 'border-lime-400 bg-lime-400/5'
-                                : 'border-zinc-800 bg-zinc-900 hover:border-zinc-600'
+                            ? 'border-lime-400 bg-lime-400/5'
+                            : 'border-zinc-800 bg-zinc-900 hover:border-zinc-600'
                             }`}
                     >
                         {plan.indirim && (

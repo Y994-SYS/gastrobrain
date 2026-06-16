@@ -1,4 +1,6 @@
 const authService = require('../services/auth.service');
+const { PrismaClient } = require('@prisma/client');
+const prisma = new PrismaClient();
 
 const authController = {
 
@@ -42,6 +44,21 @@ const authController = {
         }
     },
 
+    async lisansDurum(req, res) {
+        try {
+            const tenant = await prisma.tenant.findUnique({
+                where: { id: req.kullanici.tenantId },
+                select: { lisansBitis: true }
+            });
+            if (!tenant?.lisansBitis) return res.json({ basarili: true, data: { kalanGun: 999 } });
+            const bugun = new Date();
+            const bitis = new Date(tenant.lisansBitis);
+            const kalanGun = Math.ceil((bitis - bugun) / (1000 * 60 * 60 * 24));
+            res.json({ basarili: true, data: { kalanGun } });
+        } catch (e) {
+            res.status(500).json({ basarili: false, mesaj: e.message });
+        }
+    },
 };
 
 module.exports = authController;

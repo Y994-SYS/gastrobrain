@@ -46,7 +46,6 @@ const olustur = async (req, res) => {
 
 const guncelle = async (req, res) => {
     try {
-        // Bu tenant'a ait olduğunu doğrula
         const mevcut = await prisma.kullanici.findFirst({
             where: { id: parseInt(req.params.id), tenantId: req.kullanici.tenantId }
         });
@@ -72,7 +71,6 @@ const sil = async (req, res) => {
         const id = parseInt(req.params.id);
         if (req.kullanici.id === id) return res.status(400).json({ hata: 'Kendinizi silemezsiniz' });
 
-        // Bu tenant'a ait olduğunu doğrula
         const mevcut = await prisma.kullanici.findFirst({
             where: { id, tenantId: req.kullanici.tenantId }
         });
@@ -85,4 +83,37 @@ const sil = async (req, res) => {
     }
 };
 
-module.exports = { hepsiniGetir, olustur, guncelle, sil };
+const profilGuncelle = async (req, res) => {
+    try {
+        const { ad } = req.body;
+        if (!ad?.trim()) return res.status(400).json({ basarili: false, mesaj: 'Ad boş olamaz' });
+        const kullanici = await prisma.kullanici.update({
+            where: { id: req.kullanici.id },
+            data: { ad },
+            select: { id: true, ad: true, email: true, rol: true }
+        });
+        res.json({ basarili: true, data: kullanici });
+    } catch (e) {
+        res.status(500).json({ basarili: false, mesaj: e.message });
+    }
+};
+
+const sifreDegistir = async (req, res) => {
+    try {
+        const { mevcutSifre, yeniSifre } = req.body;
+        if (!mevcutSifre || !yeniSifre) return res.status(400).json({ basarili: false, mesaj: 'Tüm alanları doldurun' });
+        if (yeniSifre.length < 6) return res.status(400).json({ basarili: false, mesaj: 'Şifre en az 6 karakter olmalı' });
+
+        const kullanici = await prisma.kullanici.findUnique({ where: { id: req.kullanici.id } });
+        const dogru = await bcrypt.compare(mevcutSifre, kullanici.sifre);
+        if (!dogru) return res.status(400).json({ basarili: false, mesaj: 'Mevcut şifre hatalı' });
+
+        const hash = await bcrypt.hash(yeniSifre, 10);
+        await prisma.kullanici.update({ where: { id: req.kullanici.id }, data: { sifre: hash } });
+        res.json({ basarili: true, mesaj: 'Şifre güncellendi' });
+    } catch (e) {
+        res.status(500).json({ basarili: false, mesaj: e.message });
+    }
+};
+
+module.exports = { hepsiniGetir, olustur, guncelle, sil, profilGuncelle, sifreDegistir };

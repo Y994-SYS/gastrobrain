@@ -8,5 +8,6 @@ router.post('/giris', authController.girisYap);
 router.get('/ben', authMiddleware, authController.beniKontrolEt);
 router.post('/kayit-firma', authController.kayitFirma); // yeni firma kaydı
 router.post('/tenant-listesi', authController.tenantListesiGetir);
+router.get('/lisans-durum', authenticate, authController.lisansDurum);
 
 module.exports = router;

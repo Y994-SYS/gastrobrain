@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import useAuthStore from '../store/auth.store';
 import FeedbackModal from './FeedbackModal';
+import LisansBanner from './LisansBanner';
 
 const menuGruplari = [
     {
@@ -56,7 +57,9 @@ const menuGruplari = [
         baslik: 'Yardım',
         items: [
             { path: '/abonelik', label: 'Abonelik', icon: '💳' },
-            { path: '/yardim', label: 'Yardım', icon: '❓' }
+            { path: '/yardim', label: 'Yardım', icon: '❓' },
+            { path: '/profil', label: 'Profil', icon: '🙍' },
+
         ]
     }
 ];

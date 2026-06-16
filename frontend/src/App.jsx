@@ -27,6 +27,7 @@ import Kullanicilar from './pages/tanimlamalar/Kullanicilar';
 import SuperAdmin from './pages/SuperAdmin';
 import Yardim from './pages/Yardim';
 import Abonelik from './pages/Abonelik'
+import Profil from './pages/Profil'
 
 function PrivateRoute({ children }) {
   const kullanici = useAuthStore((s) => s.kullanici);
@@ -67,6 +68,7 @@ export default function App() {
         <Route path="/super-admin" element={<SuperAdmin />} />
         <Route path="/yardim" element={<PrivateRoute><Yardim /></PrivateRoute>} />
         <Route path="/abonelik" element={<PrivateRoute><Abonelik /></PrivateRoute>} />
+        <Route path="/profil" element={<PrivateRoute><Profil /></PrivateRoute>} />
 
       </Routes>
     </BrowserRouter>

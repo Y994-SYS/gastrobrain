@@ -33,7 +33,7 @@ const PLANLAR = [
     }
 ];
 
-const IBAN = 'TR00 0000 0000 0000 0000 0000 00';
+const IBAN = 'TR64 0006 2001 2620 0006 6629 79';
 
 export default function Abonelik() {
     const { kullanici } = useAuthStore();
@@ -110,7 +110,7 @@ export default function Abonelik() {
 
                         <div className="bg-zinc-800 rounded-lg p-4">
                             <p className="text-xs text-zinc-400 mb-1">Alıcı</p>
-                            <p className="text-zinc-100">GastroBrain Yazılım</p>
+                            <p className="text-zinc-100">Yasin ALKAN</p>
                         </div>
 
                         <div className="bg-zinc-800 rounded-lg p-4">
@@ -134,7 +134,7 @@ export default function Abonelik() {
                         <div className="bg-lime-400/10 border border-lime-400/20 rounded-lg p-4">
                             <p className="text-sm text-zinc-300">
                                 💡 Havale/EFT yaptıktan sonra
-                                <a href={`mailto:${process.env.VITE_DESTEK_EMAIL || 'destek@gastrobrain.com'}`}
+                                <a href={`mailto:${process.env.VITE_DESTEK_EMAIL || 'alkan.yazilim.dev@gmail.com'}`}
                                     className="text-lime-400 mx-1">
                                     destek@gastrobrain.com
                                 </a>

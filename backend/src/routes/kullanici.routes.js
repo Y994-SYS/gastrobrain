@@ -9,7 +9,7 @@ router.get('/', hepsiniGetir);
 router.post('/', olustur);
 router.put('/:id', guncelle);
 router.delete('/:id', sil);
-router.put('/profil', authenticate, profilGuncelle);
-router.put('/sifre-degistir', authenticate, sifreDegistir);
+router.put('/profil', profilGuncelle);
+router.put('/sifre-degistir', sifreDegistir);
 
 module.exports = router;

@@ -55,6 +55,7 @@ const menuGruplari = [
     {
         baslik: 'Yardım',
         items: [
+            { path: '/abonelik', label: 'Abonelik', icon: '💳' },
             { path: '/yardim', label: 'Yardım', icon: '❓' }
         ]
     }

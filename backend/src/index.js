@@ -98,6 +98,18 @@ app.use((err, req, res, next) => {
     res.status(500).json({ basarili: false, mesaj: 'Sunucu hatası' });
 });
 
+// Lisans uyarı cron job
+const lisansUyariService = require('./services/lisansUyari.service');
+const { CronJob } = require('cron');
+new CronJob('0 9 * * *', async () => {
+    console.log('🔔 Lisans uyarı kontrolü başladı...');
+    await lisansUyariService.kontrol();
+}, null, true, 'Europe/Istanbul');
+
+app.listen(PORT, () => {
+    console.log(`✅ Server http://localhost:${PORT} adresinde çalışıyor`);
+});
+
 app.listen(PORT, () => {
     console.log(`✅ Server http://localhost:${PORT} adresinde çalışıyor`);
 });

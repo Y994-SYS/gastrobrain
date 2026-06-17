@@ -1,13 +1,16 @@
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import api from '../../services/api';
-
-const bos = {
-    stokKartId: '', subeId: '1', miktar: '', birimFiyat: '',
-    aciklama: '', tarih: new Date().toISOString().split('T')[0], cariKartId: ''
-};
+import { useAuthStore } from '../../store/auth.store';
 
 export default function GirisFaturasi() {
+    const { kullanici } = useAuthStore();
+
+    const bos = {
+        stokKartId: '', subeId: kullanici?.subeId || '', miktar: '', birimFiyat: '',
+        aciklama: '', tarih: new Date().toISOString().split('T')[0], cariKartId: ''
+    };
+
     const [form, setForm] = useState(bos);
     const [stokKartlari, setStokKartlari] = useState([]);
     const [cariKartlar, setCariKartlar] = useState([]);
@@ -129,7 +132,6 @@ export default function GirisFaturasi() {
                     </div>
                 </div>
 
-                {/* Toplam */}
                 <div className="bg-zinc-800 rounded-xl p-4 flex justify-between items-center">
                     <span className="text-zinc-400 text-sm">Toplam Tutar</span>
                     <span className="text-white font-bold text-lg">₺{toplam}</span>

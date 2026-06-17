@@ -2,13 +2,16 @@ import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import api from '../../services/api';
 import Modal from '../../components/Modal';
-
-const bos = {
-    receteId: '', subeId: '1', adet: '1', birimFiyat: '',
-    aciklama: '', tarih: new Date().toISOString().split('T')[0]
-};
+import useAuthStore from '../../store/auth.store';
 
 export default function Satislar() {
+    const { kullanici } = useAuthStore();
+
+    const bos = {
+        receteId: '', subeId: kullanici?.subeId || '', adet: '1', birimFiyat: '',
+        aciklama: '', tarih: new Date().toISOString().split('T')[0]
+    };
+
     const [veri, setVeri] = useState([]);
     const [receteler, setReceteler] = useState([]);
     const [modal, setModal] = useState(false);
@@ -17,10 +20,11 @@ export default function Satislar() {
     const [gunlukToplam, setGunlukToplam] = useState(0);
 
     const getir = async () => {
+        const subeId = kullanici?.subeId || '';
         const [satisRes, receteRes, gunlukRes] = await Promise.all([
-            api.get('/api/satislar?subeId=1'),
+            api.get(`/api/satislar?subeId=${subeId}`),
             api.get('/api/receteler'),
-            api.get('/api/satislar/gunluk-toplam?subeId=1'),
+            api.get(`/api/satislar/gunluk-toplam?subeId=${subeId}`),
         ]);
         setVeri(satisRes.data.data);
         setReceteler(receteRes.data.data);
@@ -114,10 +118,7 @@ export default function Satislar() {
                                     {new Date(s.tarih).toLocaleDateString('tr-TR')}
                                 </td>
                                 <td className="py-3 px-4 text-right">
-                                    <button
-                                        onClick={() => sil(s.id)}
-                                        className="text-xs text-zinc-400 hover:text-red-400 transition-colors"
-                                    >
+                                    <button onClick={() => sil(s.id)} className="text-xs text-zinc-400 hover:text-red-400 transition-colors">
                                         Sil
                                     </button>
                                 </td>
@@ -150,42 +151,31 @@ export default function Satislar() {
                         <div className="grid grid-cols-2 gap-3">
                             <div>
                                 <label className="text-zinc-400 text-sm mb-1.5 block">Adet *</label>
-                                <input
-                                    type="number"
-                                    value={form.adet}
+                                <input type="number" value={form.adet}
                                     onChange={(e) => setForm({ ...form, adet: e.target.value })}
-                                    className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-4 py-2.5 text-sm outline-none focus:border-lime-400 transition-colors"
-                                />
+                                    className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-4 py-2.5 text-sm outline-none focus:border-lime-400 transition-colors" />
                             </div>
                             <div>
                                 <label className="text-zinc-400 text-sm mb-1.5 block">Birim Fiyat (₺) *</label>
-                                <input
-                                    type="number"
-                                    value={form.birimFiyat}
+                                <input type="number" value={form.birimFiyat}
                                     onChange={(e) => setForm({ ...form, birimFiyat: e.target.value })}
-                                    className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-4 py-2.5 text-sm outline-none focus:border-lime-400 transition-colors"
-                                />
+                                    className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-4 py-2.5 text-sm outline-none focus:border-lime-400 transition-colors" />
                             </div>
                         </div>
 
                         <div className="grid grid-cols-2 gap-3">
                             <div>
                                 <label className="text-zinc-400 text-sm mb-1.5 block">Tarih</label>
-                                <input
-                                    type="date"
-                                    value={form.tarih}
+                                <input type="date" value={form.tarih}
                                     onChange={(e) => setForm({ ...form, tarih: e.target.value })}
-                                    className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-4 py-2.5 text-sm outline-none focus:border-lime-400 transition-colors"
-                                />
+                                    className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-4 py-2.5 text-sm outline-none focus:border-lime-400 transition-colors" />
                             </div>
                             <div>
                                 <label className="text-zinc-400 text-sm mb-1.5 block">Açıklama</label>
-                                <input
-                                    value={form.aciklama}
+                                <input value={form.aciklama}
                                     onChange={(e) => setForm({ ...form, aciklama: e.target.value })}
                                     placeholder="İsteğe bağlı"
-                                    className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-4 py-2.5 text-sm outline-none focus:border-lime-400 transition-colors"
-                                />
+                                    className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-4 py-2.5 text-sm outline-none focus:border-lime-400 transition-colors" />
                             </div>
                         </div>
 
@@ -194,11 +184,8 @@ export default function Satislar() {
                             <span className="text-lime-400 font-bold text-lg">₺{toplam}</span>
                         </div>
 
-                        <button
-                            onClick={kaydet}
-                            disabled={yukleniyor}
-                            className="w-full bg-lime-400 hover:bg-lime-300 disabled:opacity-50 text-black font-bold rounded-lg py-2.5 text-sm transition-colors"
-                        >
+                        <button onClick={kaydet} disabled={yukleniyor}
+                            className="w-full bg-lime-400 hover:bg-lime-300 disabled:opacity-50 text-black font-bold rounded-lg py-2.5 text-sm transition-colors">
                             {yukleniyor ? 'Kaydediliyor...' : 'Satışı Kaydet'}
                         </button>
                     </div>

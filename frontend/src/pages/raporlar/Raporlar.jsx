@@ -26,7 +26,8 @@ export default function Raporlar() {
             const params = new URLSearchParams();
             if (baslangic) params.append('baslangic', baslangic);
             if (bitis) params.append('bitis', bitis);
-            const res = await api.get(`/raporlar/${aktifTab}?${params}`);
+            const res = await api.get(`/api/raporlar/${aktifTab}?${params}`);
+
             setVeri(res.data);
         } catch (e) {
             setHata(e.response?.data?.hata || 'Rapor alınamadı');
@@ -36,7 +37,7 @@ export default function Raporlar() {
     };
 
     const excelIndir = () => {
-        const token = localStorage.getItem('token');
+        const token = localStorage.getItem('gastroiq_token');
         const params = new URLSearchParams({ tip: aktifTab });
         if (baslangic) params.append('baslangic', baslangic);
         if (bitis) params.append('bitis', bitis);
@@ -62,8 +63,8 @@ export default function Raporlar() {
                         key={t.key}
                         onClick={() => { setAktifTab(t.key); setVeri(null); }}
                         className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${aktifTab === t.key
-                                ? 'bg-lime-400 text-zinc-900'
-                                : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'
+                            ? 'bg-lime-400 text-zinc-900'
+                            : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'
                             }`}
                     >
                         {t.label}
@@ -316,8 +317,8 @@ export default function Raporlar() {
                                             <td className="text-right text-green-400">₺{fmt(m.karMiktari)}</td>
                                             <td className="text-right">
                                                 <span className={`px-2 py-0.5 rounded text-xs font-medium ${m.karMarji >= 60 ? 'bg-green-900/50 text-green-400' :
-                                                        m.karMarji >= 40 ? 'bg-yellow-900/50 text-yellow-400' :
-                                                            'bg-red-900/50 text-red-400'
+                                                    m.karMarji >= 40 ? 'bg-yellow-900/50 text-yellow-400' :
+                                                        'bg-red-900/50 text-red-400'
                                                     }`}>
                                                     %{m.karMarji}
                                                 </span>

@@ -5,7 +5,7 @@ import toast from 'react-hot-toast';
 
 export default function Profil() {
     const kullanici = useAuthStore(s => s.kullanici);
-    const setKullanici = useAuthStore(s => s.setKullanici);
+    const setKullanici = useAuthStore(s => s.setKullanici) || (() => { });
 
     const [ad, setAd] = useState(kullanici?.ad || '');
     const [mevcutSifre, setMevcutSifre] = useState('');

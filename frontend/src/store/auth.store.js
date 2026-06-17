@@ -16,6 +16,7 @@ const useAuthStore = create((set) => ({
         set({ kullanici: null });
     },
 
+    setKullanici: (kullanici) => set({ kullanici }),
     baslat: async () => {
         try {
             const token = localStorage.getItem('gastroiq_token');

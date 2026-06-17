@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import api from '../../services/api';
-import { useAuthStore } from '../../store/auth.store';
+import useAuthStore from '../../store/auth.store';
 
 export default function GirisFaturasi() {
     const { kullanici } = useAuthStore();

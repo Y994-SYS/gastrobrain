@@ -1,16 +1,19 @@
 import { useState, useEffect } from 'react';
 import api from '../../services/api';
+import useAuthStore from '../../store/auth.store';
 
 export default function StokDurumu() {
+    const { kullanici } = useAuthStore();
     const [veri, setVeri] = useState([]);
     const [aramaText, setAramaText] = useState('');
 
     const getir = async () => {
-        const res = await api.get('/api/stok/durum?subeId=1');
+        const res = await api.get(`/api/stok/durum?subeId=${kullanici?.subeId || ''}`);
         setVeri(res.data.data);
     };
 
     useEffect(() => { getir(); }, []);
+    // geri kalanı aynı...
 
     const filtrelenmis = veri.filter((s) =>
         s.ad.toLowerCase().includes(aramaText.toLowerCase()) ||

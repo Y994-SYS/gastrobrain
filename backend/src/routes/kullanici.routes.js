@@ -7,9 +7,9 @@ router.use(authMiddleware);
 
 router.get('/', hepsiniGetir);
 router.post('/', olustur);
-router.put('/:id', guncelle);
-router.delete('/:id', sil);
 router.put('/profil', profilGuncelle);
 router.put('/sifre-degistir', sifreDegistir);
+router.put('/:id', guncelle);
+router.delete('/:id', sil);
 
 module.exports = router;

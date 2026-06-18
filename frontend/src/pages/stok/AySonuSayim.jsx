@@ -44,7 +44,7 @@ export default function AySonuSayim() {
 
     return (
         <div>
-            <div className="flex items-center justify-between mb-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-3">
                 <div>
                     <h1 className="text-xl font-bold text-white">Ay Sonu Sayım</h1>
                     <p className="text-zinc-500 text-sm mt-0.5">Sayım sonuçlarını gir, sistem farkı hesaplayıp stoğu günceller</p>
@@ -54,50 +54,54 @@ export default function AySonuSayim() {
                     {yukleniyor ? 'Kaydediliyor...' : `${girilmisAdet} Kalemi Kaydet`}
                 </button>
             </div>
+
             <div className="bg-blue-500/5 border border-blue-500/20 rounded-xl p-4 mb-6">
                 <p className="text-blue-400 text-sm">📋 Saydığın miktarı gir. Boş bıraktığın kalemler işlenmez.</p>
             </div>
+
             <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
-                <table className="w-full">
-                    <thead>
-                        <tr className="border-b border-zinc-800">
-                            <th className="text-left text-xs text-zinc-500 font-semibold uppercase tracking-wider py-3 px-4">Stok</th>
-                            <th className="text-right text-xs text-zinc-500 font-semibold uppercase tracking-wider py-3 px-4">Sistemdeki</th>
-                            <th className="text-right text-xs text-zinc-500 font-semibold uppercase tracking-wider py-3 px-4">Sayılan</th>
-                            <th className="text-right text-xs text-zinc-500 font-semibold uppercase tracking-wider py-3 px-4">Fark</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {stoklar.map((s) => {
-                            const sayilan = sayimlar[s.id];
-                            const fark = sayilan !== undefined && sayilan !== ''
-                                ? (Number(sayilan) - s.mevcutStok).toFixed(2) : null;
-                            return (
-                                <tr key={s.id} className="border-b border-zinc-800/50 hover:bg-zinc-800/20 transition-colors">
-                                    <td className="py-3 px-4">
-                                        <div className="text-sm text-white">{s.ad}</div>
-                                        <div className="text-xs text-zinc-500">{s.kod}</div>
-                                    </td>
-                                    <td className="py-3 px-4 text-right text-sm font-mono text-zinc-300">
-                                        {s.mevcutStok.toFixed(2)} <span className="text-zinc-500">{s.birim?.kisaltma}</span>
-                                    </td>
-                                    <td className="py-3 px-4 text-right">
-                                        <input type="number" value={sayimlar[s.id] || ''}
-                                            onChange={(e) => setSayimlar({ ...sayimlar, [s.id]: e.target.value })}
-                                            placeholder="-"
-                                            className="w-24 bg-zinc-800 border border-zinc-700 text-white rounded-lg px-3 py-1.5 text-sm text-right outline-none focus:border-lime-400 transition-colors" />
-                                    </td>
-                                    <td className="py-3 px-4 text-right text-sm font-mono">
-                                        {fark !== null
-                                            ? <span className={Number(fark) >= 0 ? 'text-lime-400' : 'text-red-400'}>{Number(fark) >= 0 ? '+' : ''}{fark}</span>
-                                            : <span className="text-zinc-600">—</span>
-                                        }
-                                    </td>
-                                </tr>
-                            );
-                        })}
-                    </tbody>
-                </table>
+                <div className="overflow-x-auto">
+                    <table className="w-full">
+                        <thead>
+                            <tr className="border-b border-zinc-800">
+                                <th className="text-left text-xs text-zinc-500 font-semibold uppercase tracking-wider py-3 px-4">Stok</th>
+                                <th className="text-right text-xs text-zinc-500 font-semibold uppercase tracking-wider py-3 px-4 hidden sm:table-cell">Sistemdeki</th>
+                                <th className="text-right text-xs text-zinc-500 font-semibold uppercase tracking-wider py-3 px-4">Sayılan</th>
+                                <th className="text-right text-xs text-zinc-500 font-semibold uppercase tracking-wider py-3 px-4">Fark</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {stoklar.map((s) => {
+                                const sayilan = sayimlar[s.id];
+                                const fark = sayilan !== undefined && sayilan !== ''
+                                    ? (Number(sayilan) - s.mevcutStok).toFixed(2) : null;
+                                return (
+                                    <tr key={s.id} className="border-b border-zinc-800/50 hover:bg-zinc-800/20 transition-colors">
+                                        <td className="py-3 px-4">
+                                            <div className="text-sm text-white">{s.ad}</div>
+                                            <div className="text-xs text-zinc-500">{s.kod}</div>
+                                        </td>
+                                        <td className="py-3 px-4 text-right text-sm font-mono text-zinc-300 hidden sm:table-cell">
+                                            {s.mevcutStok.toFixed(2)} <span className="text-zinc-500">{s.birim?.kisaltma}</span>
+                                        </td>
+                                        <td className="py-3 px-4 text-right">
+                                            <input type="number" value={sayimlar[s.id] || ''}
+                                                onChange={(e) => setSayimlar({ ...sayimlar, [s.id]: e.target.value })}
+                                                placeholder="-"
+                                                className="w-20 bg-zinc-800 border border-zinc-700 text-white rounded-lg px-2 py-1.5 text-sm text-right outline-none focus:border-lime-400 transition-colors" />
+                                        </td>
+                                        <td className="py-3 px-4 text-right text-sm font-mono">
+                                            {fark !== null
+                                                ? <span className={Number(fark) >= 0 ? 'text-lime-400' : 'text-red-400'}>{Number(fark) >= 0 ? '+' : ''}{fark}</span>
+                                                : <span className="text-zinc-600">—</span>
+                                            }
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     );

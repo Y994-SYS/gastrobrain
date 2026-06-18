@@ -44,7 +44,7 @@ export default function Dashboard() {
             </div>
 
             {/* Özet Kartlar */}
-            <div className="grid grid-cols-4 gap-4 mb-6">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                 <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
                     <div className="text-xs text-zinc-500 mb-1">Günlük Satış</div>
                     <div className="text-2xl font-black text-lime-400">₺{gunlukToplam.toFixed(2)}</div>
@@ -67,7 +67,7 @@ export default function Dashboard() {
                 </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Kritik Stoklar */}
                 <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
                     <div className="p-4 border-b border-zinc-800 flex justify-between items-center">

@@ -66,15 +66,16 @@ export default function CariKartlar() {
         }
     };
 
+    // kolonlar — gizlenecekler
     const kolonlar = [
         {
-            key: 'kod', baslik: 'Kod', render: (r) => (
+            key: 'kod', baslik: 'Kod', gizle: true, render: (r) => (
                 <span className="bg-zinc-800 text-zinc-300 px-2 py-0.5 rounded text-xs font-mono">{r.kod}</span>
             )
         },
         { key: 'ad', baslik: 'Firma Adı' },
-        { key: 'telefon', baslik: 'Telefon', render: (r) => r.telefon || '-' },
-        { key: 'vergiNo', baslik: 'Vergi No', render: (r) => r.vergiNo || '-' },
+        { key: 'telefon', baslik: 'Telefon', gizle: true, render: (r) => r.telefon || '-' },
+        { key: 'vergiNo', baslik: 'Vergi No', gizle: true, render: (r) => r.vergiNo || '-' },
         {
             key: 'aktif', baslik: 'Durum', render: (r) => (
                 <span className={`text-xs px-2 py-0.5 rounded-full ${r.aktif ? 'bg-lime-400/10 text-lime-400' : 'bg-red-400/10 text-red-400'}`}>
@@ -86,7 +87,7 @@ export default function CariKartlar() {
 
     return (
         <div>
-            <div className="flex items-center justify-between mb-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-3">
                 <div>
                     <h1 className="text-xl font-bold text-white">Cari Kartlar</h1>
                     <p className="text-zinc-500 text-sm mt-0.5">{veri.length} kayıt</p>

@@ -145,7 +145,7 @@ export default function Personel() {
 
     return (
         <div>
-            <div className="flex items-center justify-between mb-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-3">
                 <div>
                     <h1 className="text-xl font-bold text-white">Personel</h1>
                     <p className="text-zinc-500 text-sm mt-0.5">{veri.length} personel</p>
@@ -158,7 +158,8 @@ export default function Personel() {
                 </button>
             </div>
 
-            <div className="grid grid-cols-3 gap-4">
+            {/* Mobilde alt alta, masaüstünde yan yana */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {/* Personel Listesi */}
                 <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
                     <div className="p-4 border-b border-zinc-800">
@@ -189,21 +190,20 @@ export default function Personel() {
                 </div>
 
                 {/* Detay */}
-                <div className="col-span-2">
+                <div className="md:col-span-2">
                     {secili ? (
                         <div className="space-y-4">
-                            {/* Başlık */}
                             <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
-                                <div className="flex justify-between items-start">
+                                <div className="flex flex-col sm:flex-row justify-between gap-3">
                                     <div>
                                         <h2 className="text-white font-bold text-lg">{secili.ad} {secili.soyad}</h2>
-                                        <div className="flex gap-4 mt-2 text-sm text-zinc-400">
+                                        <div className="flex flex-wrap gap-3 mt-2 text-sm text-zinc-400">
                                             {secili.telefon && <span>📞 {secili.telefon}</span>}
                                             <span>💰 ₺{secili.maas} / ay</span>
                                             <span>📅 {new Date(secili.baslangicTarihi).toLocaleDateString('tr-TR')}'den beri</span>
                                         </div>
                                     </div>
-                                    <div className="flex gap-2">
+                                    <div className="flex flex-wrap gap-2">
                                         <button onClick={() => setMaasModal(true)} className="text-xs border border-zinc-700 text-zinc-400 hover:text-lime-400 hover:border-lime-400 px-3 py-1.5 rounded-lg transition-colors">💰 Maaş</button>
                                         <button onClick={() => setAvansModal(true)} className="text-xs border border-zinc-700 text-zinc-400 hover:text-orange-400 hover:border-orange-400 px-3 py-1.5 rounded-lg transition-colors">💳 Avans</button>
                                         <button onClick={() => setDevamModal(true)} className="text-xs border border-zinc-700 text-zinc-400 hover:text-blue-400 hover:border-blue-400 px-3 py-1.5 rounded-lg transition-colors">📋 Devam</button>
@@ -211,7 +211,6 @@ export default function Personel() {
                                 </div>
                             </div>
 
-                            {/* Maaşlar */}
                             <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
                                 <div className="p-4 border-b border-zinc-800">
                                     <h3 className="text-sm font-bold text-white">Maaş Geçmişi</h3>
@@ -233,7 +232,6 @@ export default function Personel() {
                                 </div>
                             </div>
 
-                            {/* Avanslar */}
                             <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
                                 <div className="p-4 border-b border-zinc-800">
                                     <h3 className="text-sm font-bold text-white">Avans Geçmişi</h3>
@@ -253,7 +251,6 @@ export default function Personel() {
                                 </div>
                             </div>
 
-                            {/* Devam */}
                             <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
                                 <div className="p-4 border-b border-zinc-800">
                                     <h3 className="text-sm font-bold text-white">Devam Durumu</h3>
@@ -281,7 +278,6 @@ export default function Personel() {
                 </div>
             </div>
 
-            {/* Personel Modal */}
             {personelModal && (
                 <Modal baslik={duzenleId ? 'Personel Düzenle' : 'Yeni Personel'} onKapat={() => setPersonelModal(false)}>
                     <div className="space-y-4">
@@ -318,7 +314,6 @@ export default function Personel() {
                 </Modal>
             )}
 
-            {/* Maaş Modal */}
             {maasModal && (
                 <Modal baslik="Maaş Kaydı" onKapat={() => setMaasModal(false)}>
                     <div className="space-y-4">
@@ -349,7 +344,6 @@ export default function Personel() {
                 </Modal>
             )}
 
-            {/* Avans Modal */}
             {avansModal && (
                 <Modal baslik="Avans Kaydı" onKapat={() => setAvansModal(false)}>
                     <div className="space-y-4">
@@ -372,7 +366,6 @@ export default function Personel() {
                 </Modal>
             )}
 
-            {/* Devam Modal */}
             {devamModal && (
                 <Modal baslik="Devam Kaydı" onKapat={() => setDevamModal(false)}>
                     <div className="space-y-4">

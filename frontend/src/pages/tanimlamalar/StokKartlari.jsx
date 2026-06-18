@@ -84,21 +84,21 @@ export default function StokKartlari() {
 
     const kolonlar = [
         {
-            key: 'kod', baslik: 'Kod', render: (r) => (
+            key: 'kod', baslik: 'Kod', gizle: true, render: (r) => (
                 <span className="bg-zinc-800 text-zinc-300 px-2 py-0.5 rounded text-xs font-mono">{r.kod}</span>
             )
         },
-        { key: 'ad', baslik: 'Stok Adı' },
+        { key: 'ad', baslik: 'Stok Adı' },                          // görünür
         {
-            key: 'kategori', baslik: 'Kategori', render: (r) => (
+            key: 'kategori', baslik: 'Kategori', gizle: true, render: (r) => (
                 <div className="flex items-center gap-2">
                     <div className="w-2 h-2 rounded-full" style={{ background: r.kategori?.renk }}></div>
                     <span>{r.kategori?.ad}</span>
                 </div>
             )
         },
-        { key: 'birim', baslik: 'Birim', render: (r) => r.birim?.kisaltma },
-        { key: 'minStok', baslik: 'Min. Stok' },
+        { key: 'birim', baslik: 'Birim', render: (r) => r.birim?.kisaltma },  // görünür
+        { key: 'minStok', baslik: 'Min. Stok', gizle: true },       // gizli
     ];
 
     return (

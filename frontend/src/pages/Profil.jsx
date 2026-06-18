@@ -46,9 +46,8 @@ export default function Profil() {
     };
 
     return (
-        <div className="max-w-lg mx-auto p-6">
-            <h1 className="text-2xl font-semibold text-zinc-100 mb-8">Profil</h1>
-
+        <div className="max-w-lg mx-auto">
+            <h1 className="text-xl font-semibold text-zinc-100 mb-8">Profil</h1>
             {/* Bilgi kartı */}
             <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 mb-4">
                 <div className="flex items-center gap-4 mb-6">

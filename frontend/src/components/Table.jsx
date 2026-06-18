@@ -13,7 +13,10 @@ export default function Table({ kolonlar, veri, onDüzenle, onSil }) {
                 <thead>
                     <tr className="border-b border-zinc-800">
                         {kolonlar.map((k) => (
-                            <th key={k.key} className="text-left text-xs text-zinc-500 font-semibold uppercase tracking-wider py-3 px-4">
+                            <th
+                                key={k.key}
+                                className={`text-left text-xs text-zinc-500 font-semibold uppercase tracking-wider py-3 px-4 ${k.gizle ? 'hidden sm:table-cell' : ''}`}
+                            >
                                 {k.baslik}
                             </th>
                         ))}
@@ -26,7 +29,10 @@ export default function Table({ kolonlar, veri, onDüzenle, onSil }) {
                     {veri.map((satir) => (
                         <tr key={satir.id} className="border-b border-zinc-800/50 hover:bg-zinc-800/30 transition-colors">
                             {kolonlar.map((k) => (
-                                <td key={k.key} className="py-3 px-4 text-sm text-zinc-300">
+                                <td
+                                    key={k.key}
+                                    className={`py-3 px-4 text-sm text-zinc-300 ${k.gizle ? 'hidden sm:table-cell' : ''}`}
+                                >
                                     {k.render ? k.render(satir) : satir[k.key]}
                                 </td>
                             ))}

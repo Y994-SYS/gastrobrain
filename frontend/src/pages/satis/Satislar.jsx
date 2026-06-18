@@ -70,7 +70,7 @@ export default function Satislar() {
 
     return (
         <div>
-            <div className="flex items-center justify-between mb-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-3">
                 <div>
                     <h1 className="text-xl font-bold text-white">Satışlar</h1>
                     <p className="text-zinc-500 text-sm mt-0.5">{veri.length} kayıt</p>
@@ -90,42 +90,44 @@ export default function Satislar() {
             </div>
 
             <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
-                <table className="w-full">
-                    <thead>
-                        <tr className="border-b border-zinc-800">
-                            <th className="text-left text-xs text-zinc-500 font-semibold uppercase tracking-wider py-3 px-4">Reçete</th>
-                            <th className="text-right text-xs text-zinc-500 font-semibold uppercase tracking-wider py-3 px-4">Adet</th>
-                            <th className="text-right text-xs text-zinc-500 font-semibold uppercase tracking-wider py-3 px-4">Birim Fiyat</th>
-                            <th className="text-right text-xs text-zinc-500 font-semibold uppercase tracking-wider py-3 px-4">Toplam</th>
-                            <th className="text-left text-xs text-zinc-500 font-semibold uppercase tracking-wider py-3 px-4">Tarih</th>
-                            <th className="text-right text-xs text-zinc-500 font-semibold uppercase tracking-wider py-3 px-4">İşlem</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {veri.length === 0 ? (
-                            <tr>
-                                <td colSpan={6} className="text-center py-16 text-zinc-500 text-sm">
-                                    Henüz satış kaydı yok
-                                </td>
+                <div className="overflow-x-auto">
+                    <table className="w-full">
+                        <thead>
+                            <tr className="border-b border-zinc-800">
+                                <th className="text-left text-xs text-zinc-500 font-semibold uppercase tracking-wider py-3 px-4">Reçete</th>
+                                <th className="text-right text-xs text-zinc-500 font-semibold uppercase tracking-wider py-3 px-4 hidden sm:table-cell">Adet</th>
+                                <th className="text-right text-xs text-zinc-500 font-semibold uppercase tracking-wider py-3 px-4 hidden sm:table-cell">Birim Fiyat</th>
+                                <th className="text-right text-xs text-zinc-500 font-semibold uppercase tracking-wider py-3 px-4">Toplam</th>
+                                <th className="text-left text-xs text-zinc-500 font-semibold uppercase tracking-wider py-3 px-4 hidden sm:table-cell">Tarih</th>
+                                <th className="text-right text-xs text-zinc-500 font-semibold uppercase tracking-wider py-3 px-4">İşlem</th>
                             </tr>
-                        ) : veri.map((s) => (
-                            <tr key={s.id} className="border-b border-zinc-800/50 hover:bg-zinc-800/30 transition-colors">
-                                <td className="py-3 px-4 text-sm text-white">{s.recete?.ad}</td>
-                                <td className="py-3 px-4 text-right text-sm font-mono text-zinc-300">{s.adet}</td>
-                                <td className="py-3 px-4 text-right text-sm font-mono text-zinc-300">₺{s.birimFiyat}</td>
-                                <td className="py-3 px-4 text-right text-sm font-mono font-bold text-lime-400">₺{s.toplam}</td>
-                                <td className="py-3 px-4 text-sm text-zinc-400">
-                                    {new Date(s.tarih).toLocaleDateString('tr-TR')}
-                                </td>
-                                <td className="py-3 px-4 text-right">
-                                    <button onClick={() => sil(s.id)} className="text-xs text-zinc-400 hover:text-red-400 transition-colors">
-                                        Sil
-                                    </button>
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody>
+                            {veri.length === 0 ? (
+                                <tr>
+                                    <td colSpan={6} className="text-center py-16 text-zinc-500 text-sm">
+                                        Henüz satış kaydı yok
+                                    </td>
+                                </tr>
+                            ) : veri.map((s) => (
+                                <tr key={s.id} className="border-b border-zinc-800/50 hover:bg-zinc-800/30 transition-colors">
+                                    <td className="py-3 px-4 text-sm text-white">{s.recete?.ad}</td>
+                                    <td className="py-3 px-4 text-right text-sm font-mono text-zinc-300 hidden sm:table-cell">{s.adet}</td>
+                                    <td className="py-3 px-4 text-right text-sm font-mono text-zinc-300 hidden sm:table-cell">₺{s.birimFiyat}</td>
+                                    <td className="py-3 px-4 text-right text-sm font-mono font-bold text-lime-400">₺{s.toplam}</td>
+                                    <td className="py-3 px-4 text-sm text-zinc-400 hidden sm:table-cell">
+                                        {new Date(s.tarih).toLocaleDateString('tr-TR')}
+                                    </td>
+                                    <td className="py-3 px-4 text-right">
+                                        <button onClick={() => sil(s.id)} className="text-xs text-zinc-400 hover:text-red-400 transition-colors">
+                                            Sil
+                                        </button>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
             </div>
 
             {modal && (

@@ -53,9 +53,8 @@ export default function Raporlar() {
     };
 
     return (
-        <div className="p-6 space-y-6">
-            <h1 className="text-2xl font-bold text-white">Raporlar</h1>
-
+        <div className="space-y-6">
+            <h1 className="text-xl font-bold text-white">Raporlar</h1>
             {/* Tab Menü */}
             <div className="flex gap-2 flex-wrap">
                 {TABS.map(t => (

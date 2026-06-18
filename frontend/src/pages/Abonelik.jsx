@@ -79,7 +79,7 @@ export default function Abonelik() {
     };
 
     return (
-        <div className="max-w-5xl mx-auto p-6">
+        <div className="max-w-5xl mx-auto ">
             <div className="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
                 <div>
                     <h1 className="text-2xl font-semibold text-zinc-100 mb-2">Abonelik Yönetimi</h1>

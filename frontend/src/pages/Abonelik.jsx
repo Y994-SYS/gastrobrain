@@ -145,7 +145,8 @@ export default function Abonelik() {
                                 <ul className="space-y-2.5 mb-6">
                                     {plan.ozellikler.map((o, i) => (
                                         <li key={i} className="flex items-start gap-2 text-sm text-zinc-300 leading-tight">
-                                            <span className="text-lime-400 font-bold shrink-0">✓</span> 
+
+                                            <span className="text-lime-400 font-bold shrink-0">✓</span>
                                             <span>{o}</span>
                                         </li>
                                     ))}
@@ -227,7 +228,7 @@ export default function Abonelik() {
 
                                 <div className="bg-lime-400/5 border border-lime-400/20 rounded-lg p-4">
                                     <p className="text-sm text-zinc-300 leading-relaxed">
-                                        💡 Havale/EFT işlemini tamamladıktan sonra, sistem tanımlamanızın hızlandırılması için 
+                                        💡 Havale/EFT işlemini tamamladıktan sonra, sistem tanımlamanızın hızlandırılması için
                                         <a href={`mailto:${DESTEK_EMAIL}`} className="text-lime-400 underline mx-1 hover:text-lime-300">
                                             {DESTEK_EMAIL}
                                         </a>

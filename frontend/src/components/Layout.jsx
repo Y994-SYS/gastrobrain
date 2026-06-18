@@ -59,85 +59,139 @@ const menuGruplari = [
             { path: '/abonelik', label: 'Abonelik', icon: '💳' },
             { path: '/yardim', label: 'Yardım', icon: '❓' },
             { path: '/profil', label: 'Profil', icon: '🙍' },
-
         ]
     }
 ];
 
 export default function Layout({ children }) {
     const { kullanici, cikisYap } = useAuthStore();
-    const [kapali, setKapali] = useState({})
+    const [kapali, setKapali] = useState({});
+    const [sidebarAcik, setSidebarAcik] = useState(false);
 
     const toggleGrup = (baslik) => {
         setKapali(prev => ({ ...prev, [baslik]: !prev[baslik] }));
     };
 
-    return (
-        <div className="min-h-screen bg-zinc-950 flex">
-            {/* Sidebar */}
-            <aside className="w-56 bg-zinc-900 border-r border-zinc-800 flex flex-col fixed h-full">
-                {/* Logo */}
-                <div className="p-5 border-b border-zinc-800 flex-shrink-0">
+    const sidebarKapat = () => setSidebarAcik(false);
+
+    const SidebarIcerik = () => (
+        <>
+            {/* Logo */}
+            <div className="p-5 border-b border-zinc-800 flex-shrink-0 flex items-center justify-between">
+                <div>
                     <h1 className="text-xl font-black text-white">
                         Gastro<span className="text-lime-400">BRAIN</span>
                     </h1>
                     <p className="text-zinc-500 text-xs mt-0.5">{kullanici?.ad}</p>
                 </div>
+                {/* Mobilde kapat butonu */}
+                <button
+                    onClick={sidebarKapat}
+                    className="md:hidden text-zinc-400 hover:text-white p-1"
+                >
+                    ✕
+                </button>
+            </div>
 
-                {/* Menu */}
-                <nav className="flex-1 overflow-y-auto p-2 space-y-1 scrollbar-thin">
-                    {menuGruplari.map((grup) => (
-                        <div key={grup.baslik}>
-                            <button
-                                onClick={() => toggleGrup(grup.baslik)}
-                                className="w-full flex items-center justify-between px-3 py-1.5 text-xs font-bold text-zinc-500 uppercase tracking-wider hover:text-zinc-300 transition-colors"
-                            >
-                                <span>{grup.baslik}</span>
-                                <span className="text-zinc-600">{kapali[grup.baslik] ? '›' : '⌄'}</span>
-                            </button>
+            {/* Menu */}
+            <nav className="flex-1 overflow-y-auto p-2 space-y-1 scrollbar-thin">
+                {menuGruplari.map((grup) => (
+                    <div key={grup.baslik}>
+                        <button
+                            onClick={() => toggleGrup(grup.baslik)}
+                            className="w-full flex items-center justify-between px-3 py-1.5 text-xs font-bold text-zinc-500 uppercase tracking-wider hover:text-zinc-300 transition-colors"
+                        >
+                            <span>{grup.baslik}</span>
+                            <span className="text-zinc-600">{kapali[grup.baslik] ? '›' : '⌄'}</span>
+                        </button>
 
-                            {!kapali[grup.baslik] && (
-                                <div className="space-y-0.5 mb-1">
-                                    {grup.items.map((item) => (
-                                        <NavLink
-                                            key={item.path}
-                                            to={item.path}
-                                            end={item.path === '/'}
-                                            className={({ isActive }) =>
-                                                `flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors ${isActive
-                                                    ? 'bg-lime-400/10 text-lime-400 font-semibold'
-                                                    : 'text-zinc-400 hover:text-white hover:bg-zinc-800'
-                                                }`
-                                            }
-                                        >
-                                            <span className="text-base">{item.icon}</span>
-                                            <span className="truncate">{item.label}</span>
-                                        </NavLink>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                    ))}
-                </nav>
+                        {!kapali[grup.baslik] && (
+                            <div className="space-y-0.5 mb-1">
+                                {grup.items.map((item) => (
+                                    <NavLink
+                                        key={item.path}
+                                        to={item.path}
+                                        end={item.path === '/'}
+                                        onClick={sidebarKapat}
+                                        className={({ isActive }) =>
+                                            `flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors ${isActive
+                                                ? 'bg-lime-400/10 text-lime-400 font-semibold'
+                                                : 'text-zinc-400 hover:text-white hover:bg-zinc-800'
+                                            }`
+                                        }
+                                    >
+                                        <span className="text-base">{item.icon}</span>
+                                        <span className="truncate">{item.label}</span>
+                                    </NavLink>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                ))}
+            </nav>
 
-                {/* Geri Bildirim */}
-                <FeedbackModal />
+            {/* Geri Bildirim */}
+            <FeedbackModal />
 
-                {/* Çıkış */}
-                <div className="p-2 border-t border-zinc-800 flex-shrink-0">
-                    <button
-                        onClick={cikisYap}
-                        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-zinc-400 hover:text-red-400 hover:bg-zinc-800 transition-colors"
-                    >
-                        <span>🚪</span>
-                        <span>Çıkış Yap</span>
-                    </button>
-                </div>
+            {/* Çıkış */}
+            <div className="p-2 border-t border-zinc-800 flex-shrink-0">
+                <button
+                    onClick={cikisYap}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-zinc-400 hover:text-red-400 hover:bg-zinc-800 transition-colors"
+                >
+                    <span>🚪</span>
+                    <span>Çıkış Yap</span>
+                </button>
+            </div>
+        </>
+    );
+
+    return (
+        <div className="min-h-screen bg-zinc-950 flex">
+
+            {/* Masaüstü Sidebar */}
+            <aside className="hidden md:flex w-56 bg-zinc-900 border-r border-zinc-800 flex-col fixed h-full z-30">
+                <SidebarIcerik />
+            </aside>
+
+            {/* Mobil Overlay */}
+            {sidebarAcik && (
+                <div
+                    className="fixed inset-0 bg-black/60 z-40 md:hidden"
+                    onClick={sidebarKapat}
+                />
+            )}
+
+            {/* Mobil Sidebar */}
+            <aside className={`
+                fixed top-0 left-0 h-full w-64 bg-zinc-900 border-r border-zinc-800
+                flex flex-col z-50 transform transition-transform duration-300 md:hidden
+                ${sidebarAcik ? 'translate-x-0' : '-translate-x-full'}
+            `}>
+                <SidebarIcerik />
             </aside>
 
             {/* Main */}
-            <main className="flex-1 ml-56 p-6">
-                {children}
+            <main className="flex-1 md:ml-56 flex flex-col min-h-screen">
+
+                {/* Mobil Header */}
+                <div className="md:hidden flex items-center justify-between px-4 py-3 bg-zinc-900 border-b border-zinc-800 sticky top-0 z-20">
+                    <button
+                        onClick={() => setSidebarAcik(true)}
+                        className="text-zinc-400 hover:text-white p-1"
+                    >
+                        <span className="text-2xl">☰</span>
+                    </button>
+                    <h1 className="text-lg font-black text-white">
+                        Gastro<span className="text-lime-400">BRAIN</span>
+                    </h1>
+                    <div className="w-8" /> {/* sağ boşluk için */}
+                </div>
+
+                <div className="flex-1 p-4 md:p-6">
+                    <LisansBanner />
+                    {children}
+                </div>
             </main>
         </div>
     );

@@ -1,5 +1,6 @@
 const { PrismaClient } = require('@prisma/client');
 const bcrypt = require('bcryptjs');
+const auditLog = require('../services/auditLog.service');
 const prisma = new PrismaClient();
 
 const hepsiniGetir = async (req, res) => {
@@ -38,6 +39,15 @@ const olustur = async (req, res) => {
             },
             select: { id: true, ad: true, email: true, rol: true, aktif: true, createdAt: true },
         });
+
+        await auditLog.kaydet({
+            eylem: 'KULLANICI_EKLE',
+            detay: { ad, email, rol: rol || 'PERSONEL' },
+            kullaniciId: req.kullanici.id,
+            tenantId: req.kullanici.tenantId,
+            ip: req.ip
+        });
+
         res.status(201).json(kullanici);
     } catch (err) {
         res.status(500).json({ hata: err.message });
@@ -60,6 +70,15 @@ const guncelle = async (req, res) => {
             data,
             select: { id: true, ad: true, email: true, rol: true, aktif: true, createdAt: true },
         });
+
+        await auditLog.kaydet({
+            eylem: 'KULLANICI_GUNCELLE',
+            detay: { kullaniciId: parseInt(req.params.id), ad, rol, aktif },
+            kullaniciId: req.kullanici.id,
+            tenantId: req.kullanici.tenantId,
+            ip: req.ip
+        });
+
         res.json(kullanici);
     } catch (err) {
         res.status(500).json({ hata: err.message });
@@ -77,6 +96,15 @@ const sil = async (req, res) => {
         if (!mevcut) return res.status(404).json({ hata: 'Kullanıcı bulunamadı' });
 
         await prisma.kullanici.delete({ where: { id } });
+
+        await auditLog.kaydet({
+            eylem: 'KULLANICI_SIL',
+            detay: { silinen: { id: mevcut.id, ad: mevcut.ad, email: mevcut.email } },
+            kullaniciId: req.kullanici.id,
+            tenantId: req.kullanici.tenantId,
+            ip: req.ip
+        });
+
         res.json({ mesaj: 'Kullanıcı silindi' });
     } catch (err) {
         res.status(500).json({ hata: err.message });
@@ -110,6 +138,15 @@ const sifreDegistir = async (req, res) => {
 
         const hash = await bcrypt.hash(yeniSifre, 10);
         await prisma.kullanici.update({ where: { id: req.kullanici.id }, data: { sifre: hash } });
+
+        await auditLog.kaydet({
+            eylem: 'SIFRE_DEGISTIR',
+            detay: null,
+            kullaniciId: req.kullanici.id,
+            tenantId: req.kullanici.tenantId,
+            ip: req.ip
+        });
+
         res.json({ basarili: true, mesaj: 'Şifre güncellendi' });
     } catch (e) {
         res.status(500).json({ basarili: false, mesaj: e.message });

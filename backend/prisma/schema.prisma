@@ -33,6 +33,7 @@ model Tenant {
   receteler     Recete[]
   cariKartlar   CariKart[]
   personeller   Personel[]
+  auditLoglar AuditLog[]
 }
 
 enum Plan {
@@ -63,6 +64,8 @@ model Kullanici {
 
   @@unique([email, tenantId])
   @@index([tenantId])
+
+  auditLoglar AuditLog[]
 }
 
 enum Rol {
@@ -395,4 +398,26 @@ enum DevamDurum {
   IZIN
   RAPOR
   DEVAMSIZ
+}
+
+// ─────────────────────────────────────────
+// AUDİT LOG
+// ─────────────────────────────────────────
+
+model AuditLog {
+  id        Int      @id @default(autoincrement())
+  eylem     String   // SATIS_EKLE, STOK_GIRIS, KULLANICI_SIL vs.
+  detay     String?  // JSON string — ne değişti
+  ip        String?
+  createdAt DateTime @default(now())
+
+  kullanici   Kullanici? @relation(fields: [kullaniciId], references: [id])
+  kullaniciId Int?
+
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+  tenantId Int
+
+  @@index([tenantId])
+  @@index([kullaniciId])
+  @@index([createdAt])
 }

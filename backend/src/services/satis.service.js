@@ -1,5 +1,6 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
+const auditLog = require('./auditLog.service');
 
 const satisService = {
 
@@ -14,6 +15,12 @@ const satisService = {
                 lte: new Date(tarihBitis)
             };
         }
+        await auditLog.kaydet({
+            eylem: 'SATIS_EKLE',
+            detay: { receteId, adet, toplam: Number(adet) * Number(birimFiyat) },
+            kullaniciId: null, // controller'dan gelecek
+            tenantId,
+        });
         return prisma.satis.findMany({
             where,
             include: { recete: true, sube: true },

@@ -103,12 +103,12 @@ export default function Kullanicilar() {
                         <table className="w-full text-sm">
                             <thead>
                                 <tr className="text-zinc-400 border-b border-zinc-800 bg-zinc-800/50">
-                                    <th className="text-left px-4 py-3">Ad</th>                                          // görünür
-                                    <th className="text-left px-4 py-3 hidden sm:table-cell">Email</th>                  // gizli
-                                    <th className="text-left px-4 py-3">Rol</th>                                         // görünür
-                                    <th className="text-left px-4 py-3 hidden sm:table-cell">Şube</th>                   // gizli
-                                    <th className="text-left px-4 py-3 hidden sm:table-cell">Durum</th>                  // gizli
-                                    <th className="text-left px-4 py-3 hidden sm:table-cell">Kayıt Tarihi</th>           // gizli
+                                    <th className="text-left px-4 py-3">Ad</th>
+                                    <th className="text-left px-4 py-3 hidden sm:table-cell">Email</th>
+                                    <th className="text-left px-4 py-3">Rol</th>
+                                    <th className="text-left px-4 py-3 hidden sm:table-cell">Şube</th>
+                                    <th className="text-left px-4 py-3 hidden sm:table-cell">Durum</th>
+                                    <th className="text-left px-4 py-3 hidden sm:table-cell">Kayıt Tarihi</th>
                                     <th className="text-right px-4 py-3">İşlem</th>
                                 </tr>
                             </thead>

@@ -1,15 +1,17 @@
 const express = require('express');
 const router = express.Router();
-const cariKartController = require('../controllers/cariKart.controller');
-const { authMiddleware } = require('../middleware/auth.middleware');
+const olcuBirimiController = require('../controllers/olcuBirimi.controller');
+const { authMiddleware, rolKontrol } = require('../middleware/auth.middleware');
 
 router.use(authMiddleware);
 
-router.get('/', cariKartController.hepsiniGetir);
-router.get('/:id', cariKartController.biriniGetir);
-router.get('/:id/bakiye', cariKartController.bakiyeGetir);
-router.post('/', cariKartController.olustur);
-router.put('/:id', cariKartController.guncelle);
-router.delete('/:id', cariKartController.sil);
+// Ölçü birimi tanımları: DEPO + MUDUR + ADMIN
+const stokRol = rolKontrol('SUPER_ADMIN', 'TENANT_ADMIN', 'MUDUR', 'DEPO');
+
+router.get('/', stokRol, olcuBirimiController.hepsiniGetir);
+router.get('/:id', stokRol, olcuBirimiController.biriniGetir);
+router.post('/', stokRol, olcuBirimiController.olustur);
+router.put('/:id', stokRol, olcuBirimiController.guncelle);
+router.delete('/:id', stokRol, olcuBirimiController.sil);
 
 module.exports = router;

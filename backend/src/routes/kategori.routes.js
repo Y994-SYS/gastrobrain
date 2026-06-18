@@ -1,14 +1,17 @@
 const express = require('express');
 const router = express.Router();
-const kategoriController = require('../controllers/kategori.controller');
-const { authMiddleware } = require('../middleware/auth.middleware');
+const stokKartController = require('../controllers/stokKart.controller');
+const { authMiddleware, rolKontrol } = require('../middleware/auth.middleware');
 
 router.use(authMiddleware);
 
-router.get('/', kategoriController.hepsiniGetir);
-router.get('/:id', kategoriController.biriniGetir);
-router.post('/', kategoriController.olustur);
-router.put('/:id', kategoriController.guncelle);
-router.delete('/:id', kategoriController.sil);
+// Stok kartı tanımları: DEPO + MUDUR + ADMIN
+const stokRol = rolKontrol('SUPER_ADMIN', 'TENANT_ADMIN', 'MUDUR', 'DEPO');
+
+router.get('/', stokRol, stokKartController.hepsiniGetir);
+router.get('/:id', stokRol, stokKartController.biriniGetir);
+router.post('/', stokRol, stokKartController.olustur);
+router.put('/:id', stokRol, stokKartController.guncelle);
+router.delete('/:id', stokRol, stokKartController.sil);
 
 module.exports = router;

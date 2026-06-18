@@ -1,4 +1,5 @@
 const satisService = require('../services/satis.service');
+const auditLog = require('../services/auditLog.service');
 
 const satisController = {
 
@@ -25,6 +26,20 @@ const satisController = {
     async ekle(req, res) {
         try {
             const data = await satisService.ekle(req.body, req.kullanici.tenantId);
+
+            await auditLog.kaydet({
+                eylem: 'SATIS_EKLE',
+                detay: {
+                    receteId: req.body.receteId,
+                    adet: req.body.adet,
+                    birimFiyat: req.body.birimFiyat,
+                    toplam: data.toplam
+                },
+                kullaniciId: req.kullanici.id,
+                tenantId: req.kullanici.tenantId,
+                ip: req.ip
+            });
+
             res.status(201).json({ basarili: true, data });
         } catch (error) {
             res.status(400).json({ basarili: false, mesaj: error.message });
@@ -34,6 +49,15 @@ const satisController = {
     async sil(req, res) {
         try {
             await satisService.sil(Number(req.params.id), req.kullanici.tenantId);
+
+            await auditLog.kaydet({
+                eylem: 'SATIS_SIL',
+                detay: { satisId: Number(req.params.id) },
+                kullaniciId: req.kullanici.id,
+                tenantId: req.kullanici.tenantId,
+                ip: req.ip
+            });
+
             res.json({ basarili: true, mesaj: 'Silindi' });
         } catch (error) {
             res.status(400).json({ basarili: false, mesaj: error.message });

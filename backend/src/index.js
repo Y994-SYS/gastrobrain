@@ -23,6 +23,7 @@ const subeRoutes = require('./routes/sube.routes');
 const kullaniciRoutes = require('./routes/kullanici.routes');
 const superAdminRoutes = require('./routes/superAdmin.routes');
 const feedbackRoutes = require('./routes/feedback.routes');
+const auditLogRoutes = require('./routes/auditLog.routes');
 
 
 const { PrismaClient } = require('@prisma/client');
@@ -98,6 +99,7 @@ app.use('/api/subeler', subeRoutes);
 app.use('/api/kullanicilar', kullaniciRoutes);
 app.use('/api/super-admin', superAdminRoutes);
 app.use('/api/feedback', feedbackRoutes);
+app.use('/api/audit-log', auditLogRoutes);
 
 // Genel & kritik rate limit — tenant+user bazlı (route'lardan sonra değil önce)
 app.use('/api/stok', kritikLimit);

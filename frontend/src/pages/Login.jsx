@@ -81,7 +81,7 @@ export default function Login() {
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
                                     onKeyDown={(e) => e.key === 'Enter' && emailDevam()}
-                                    placeholder="admin@gastroiq.com"
+                                    placeholder="admin@gastrobrain.com"
                                     className={inputCls}
                                     autoFocus
                                 />

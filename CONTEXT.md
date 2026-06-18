@@ -1,3 +1,4 @@
+@AGENTS.md
 # GastroBrain — Proje Context Dosyası
 
 ## PROJE BİLGİLERİ
@@ -8,10 +9,13 @@
 ## STACK
 - **Backend:** Node.js v22 + Express + Prisma ORM v6 + PostgreSQL 18
 - **Frontend:** React + Vite + Tailwind CSS v4
-- **Landing:** Next.js v16 (App Router)
+- **Landing:** Next.js v16 (App Router, static export)
 - **Veritabanı:** gastroiq_dev (PostgreSQL, localhost:5432)
 - **Auth:** JWT (bcryptjs + jsonwebtoken)
 - **Mail:** Nodemailer (SMTP/Gmail)
+- **Cron:** node-cron (lisans uyarı job'ları)
+- **Veritabanı:** Supabase PostgreSQL (production), localhost:5432 (local)
+- **Error Monitoring:** Sentry (@sentry/node)
 
 ## ÖNEMLİ NOTLAR
 - Prisma v6 kullanılıyor (v7 DEĞİL — prisma.config.ts olmadan çalışıyor)
@@ -20,7 +24,8 @@
 - Frontend port: 5173, Backend port: 3001, Landing port: 3000
 - Tema: Koyu (zinc-950 bg), lime-400 accent rengi
 - PowerShell'de `$disconnect` ve `$transaction` inline node -e komutlarında sorun çıkarıyor → dosya olarak çalıştır
-- gastroiq-landing klasörü gastroiq/landing olarak taşındı
+- landing klasörü gastroiq/landing altında (submodule değil, normal klasör)
+- auth.store.js'de setKullanici fonksiyonu var — profil güncellemede kullanılıyor
 
 ## PORT & URL
 - Frontend: http://localhost:5173
@@ -29,17 +34,54 @@
 - Super Admin: http://localhost:5173/super-admin
 - Kullanım Kılavuzu: http://localhost:3000/rehber
 - Yardım (uygulama içi): http://localhost:5173/yardim
+- Profil: http://localhost:5173/profil
+- Abonelik: http://localhost:5173/abonelik
+
+## PRODUCTION URL'LERİ (Render)
+- Frontend: https://gastrobrain-frontend.onrender.com
+- Backend: https://gastrobrain-backend.onrender.com
+- Landing: https://gastrobrain-landing.onrender.com
 
 ## VERİTABANI
-- **gastroiq_dev** — PostgreSQL localhost:5432
-- Toplam 18 tablo (Prisma schema)
+- **gastroiq_dev** — PostgreSQL localhost:5432 (local)
+- **Supabase** — aws-0-eu-west-1.pooler.supabase.com (production) ← GÜNCELLENDİ
+- Toplam 19 tablo (Prisma schema)
+- Connection pooling: Supabase pgBouncer (transaction mode, port 6543)
+- Direct URL: session mode (port 5432, migration için)
 
-## TEST KULLANICILARI
+## TEST KULLANICILARI (local)
 | Email | Şifre | Rol | Firma |
 |-------|-------|-----|-------|
 | admin@gastroiq.com | 123456 | TENANT_ADMIN | merkez-restoran |
 | test@gastroiq.com | 123456 | MUDUR | merkez-restoran |
 | super@gastroiq.com | 123456 | SUPER_ADMIN | merkez-restoran |
+
+## PRODUCTION KULLANICILARI
+| Email | Şifre | Rol |
+|-------|-------|-----|
+| super@gastroiq.com | 123456 | SUPER_ADMIN |
+| nazar@gmail.com | — | TENANT_ADMIN (nazaret) |
+
+## ORTAM DEĞİŞKENLERİ
+
+### Backend (.env)
+```
+DATABASE_URL=postgresql://...
+JWT_SECRET=...
+JWT_EXPIRES_IN=7d
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=senin@gmail.com
+SMTP_PASS=gmail_uygulama_sifresi (16 haneli)
+FEEDBACK_EMAIL=senin@gmail.com
+APP_URL=https://gastrobrain-frontend.onrender.com
+NODE_ENV=production
+```
+
+### Frontend (.env)
+```
+VITE_API_URL=https://gastrobrain-backend.onrender.com
+```
 
 ## TAMAMLANAN FAZLAR
 
@@ -71,70 +113,84 @@
 - Dashboard (günlük satış, kritik stok, bekleyen borç, hızlı erişim)
 - Stok: Durum, Giriş/İade Faturası, Zayi, Tüketim, Ay Sonu Sayım
 - Reçeteler (maliyet analizi dahil)
-- Satışlar
-- Cari Hesap
-- Personel (maaş, avans, devam)
-- Tanımlamalar: Kategori, Ölçü Birimi, Stok Kartı, Cari Kart
-- Raporlama (satış, stok, cari, maliyet + Excel)
-- Şube Yönetimi
-- Kullanıcı Yönetimi
+- Satışlar, Cari Hesap, Personel, Raporlama
+- Tanımlamalar: Kategori, Ölçü Birimi, Stok Kartı, Cari Kart, Şube, Kullanıcı
 - Gruplu sidebar menü (açılır/kapanır)
 
-**Test:**
-- Vitest kurulu, 11/11 unit test geçiyor
+**Test:** Vitest kurulu, 11/11 unit test geçiyor
 
 ### Faz 3 — Multi-Tenant ✅
-- Tenant modeli eklendi (Prisma schema)
-- Tüm tablolara tenantId foreign key eklendi
-- Unique constraint'ler tenant bazlı güncellendi (email+tenantId, kod+tenantId vb.)
+- Tenant modeli + tüm tablolara tenantId
 - JWT token'a tenantId eklendi
-- Login 2 adıma bölündü: email → firma seç + şifre
-- Tüm service/controller'lar tenantId filtresiyle güncellendi
-- POST /api/auth/kayit-firma — yeni firma kaydı (tenant+şube+admin transaction)
-- POST /api/auth/tenant-listesi — email ile firma listesi
-- /api/super-admin — tenant yönetimi (SUPER_ADMIN korumalı)
-- Süper admin paneli: tenant listesi, detay, aktif/pasif, plan, lisans yönetimi
-- Tenant modeline lisansBitis ve lisansNot alanları eklendi
-- Lisans süresi kontrolü giriş sırasında yapılıyor
+- Login 2 adım: email → firma seç + şifre
+- /api/auth/kayit-firma — tenant+şube+admin transaction
+- /api/super-admin — SUPER_ADMIN korumalı
+- Lisans bitiş kontrolü giriş sırasında
 
 ### Faz 4 — Production Ready ✅
-- [x] Güvenlik testleri — XSS, HPP koruması eklendi
-- [x] Rate limiting — tenant+user bazlı akıllı rate limiting
-  - Giriş/kayıt: IP bazlı sıkı limit (brute-force koruması)
-  - Genel API: tenant+user bazlı (restoran içi çakışma yok)
-  - Kritik işlemler (stok, satış): ayrı limit katmanı
-  - 429 hatası retryAfter ile frontend'e toast bildirimi
-- [x] Performans optimizasyonu — DB index'leri eklendi
-- [ ] Otomatik yedekleme — deploy aşamasında yapılacak
-- [ ] Hata izleme (Sentry) — deploy aşamasında eklenecek
+- XSS, HPP koruması
+- Rate limiting (IP bazlı + tenant+user bazlı)
+- DB index'leri
+- [x] Supabase migration (connection pooling dahil) ← YENİ
+- [x] Race condition fix (stok azaltma atomik) ← YENİ
+- [x] Prisma middleware (tenantId zorunluluğu) ← YENİ
+- [x] Hata izleme (Sentry) ✅ ← GÜNCELLENDİ
+- [x] Audit log sistemi (AuditLog modeli + service + endpoint + frontend sayfası)
+- [ ] Otomatik yedekleme — Supabase otomatik yapıyor ✅ ← GÜNCELLENDİ
 
 ### Faz 5 — Satış & Büyüme ✅
-- [x] Landing page — Next.js, gastroiq/landing klasöründe
-  - Hero, özellikler, nasıl çalışır, demo formu, SSS, footer
-  - GastroBrain logo + navbar + footer
-  - localhost:3000 adresinde çalışıyor
-- [x] Demo ortamı — sandbox tenant mevcut
+- [x] Landing page (Next.js static export, Render'da canlı)
+- [x] Demo ortamı (demoSeed.service.js — kayıt olunca otomatik)
 - [x] Kullanım kılavuzu
-  - Landing: localhost:3000/rehber (8 konu, adım adım, sol sidebar nav)
-  - Uygulama içi: localhost:5173/yardim (SSS formatı, arama, konu tabları)
-  - "Kılavuza git" butonu yardım sayfasından rehbere bağlı
-- [x] Geri bildirim döngüsü
-  - FeedbackModal.jsx — sidebar'da "Geri Bildirim" butonu
-  - POST /api/feedback — nodemailer ile e-posta gönderimi
-  - Tür seçimi: Öneri / Hata / Diğer
-  - E-posta: kullanıcı adı, email, tenantId ile birlikte geliyor
+  - Landing: /rehber (8 konu, adım adım)
+  - Uygulama içi: /yardim (SSS + arama)
+- [x] Geri bildirim (FeedbackModal + /api/feedback + nodemailer)
+- [x] Deploy — Render (backend + frontend + landing)
+
+### Faz 5 Devam — Lisans & Abonelik ✅
+- [x] Otomatik 30 gün ücretsiz lisans (kayıt olunca)
+- [x] Hoşgeldin e-postası (kayıt sonrası otomatik)
+- [x] Lisans bitiş uyarı maili (7 gün + 3 gün kala, cron job)
+- [x] Uygulama içi Abonelik sayfası (/abonelik)
+  - Aylık (₺799) / Yıllık (₺7.990) plan seçimi
+  - IBAN + açıklama kopyalama
+  - Ödeme talimatları
+- [x] Super Admin hızlı lisans uzatma (+1 Ay / +1 Yıl butonları)
+- [x] Lisans bitiş banner'ı (14 gün kala sarı, 3 gün kala kırmızı)
+- [x] Profil sayfası (/profil)
+  - Ad güncelleme
+  - Şifre değiştirme
 - [ ] İlk 5 beta müşteri — devam ediyor
 
-## ORTAM DEĞİŞKENLERİ (.env — backend)
-```
-DATABASE_URL=postgresql://...
-JWT_SECRET=...
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_USER=senin@gmail.com
-SMTP_PASS=gmail_uygulama_sifresi
-FEEDBACK_EMAIL=senin@gmail.com
-```
+## BACKEND API ENDPOINTLERİ (tam liste)
+
+### Auth
+- POST /api/auth/kayit
+- POST /api/auth/giris
+- GET  /api/auth/beni-getir
+- POST /api/auth/kayit-firma
+- POST /api/auth/tenant-listesi
+- GET  /api/auth/lisans-durum ← YENİ
+
+### Kullanıcılar
+- GET    /api/kullanicilar
+- POST   /api/kullanicilar
+- PUT    /api/kullanicilar/profil ← YENİ
+- PUT    /api/kullanicilar/sifre-degistir ← YENİ
+- PUT    /api/kullanicilar/:id
+- DELETE /api/kullanicilar/:id
+
+### Diğerleri
+- /api/kategoriler, /api/olcu-birimleri, /api/stok-kartlari, /api/cari-kartlar — CRUD
+- /api/stok — giriş/iade/zayi/tüketim/sayım/durum
+- /api/receteler — CRUD + maliyet
+- /api/satislar — CRUD + günlük toplam
+- /api/cari-hareketler — bakiye/ödeme/hareket
+- /api/personel — CRUD + maaş/avans/devam
+- /api/raporlar — satış/stok/cari/maliyet + Excel
+- /api/subeler — CRUD
+- /api/super-admin — istatistik/tenant/lisans yönetimi
+- /api/feedback — mail gönderimi
 
 ## DOSYA YAPISI
 ```
@@ -142,12 +198,12 @@ gastroiq/
 ├── backend/
 │   ├── src/
 │   │   ├── controllers/
-│   │   │   ├── auth.controller.js
+│   │   │   ├── auth.controller.js         (lisansDurum eklendi)
 │   │   │   ├── cariHareket.controller.js
 │   │   │   ├── cariKart.controller.js
-│   │   │   ├── feedback.controller.js       ← YENİ (Faz 5)
+│   │   │   ├── feedback.controller.js
 │   │   │   ├── kategori.controller.js
-│   │   │   ├── kullanici.controller.js
+│   │   │   ├── kullanici.controller.js    (profilGuncelle, sifreDegistir eklendi)
 │   │   │   ├── olcuBirimi.controller.js
 │   │   │   ├── personel.controller.js
 │   │   │   ├── rapor.controller.js
@@ -158,14 +214,16 @@ gastroiq/
 │   │   │   ├── sube.controller.js
 │   │   │   └── superAdmin.controller.js
 │   │   ├── middleware/
-│   │   │   └── auth.middleware.js
+│   │   │   ├── auth.middleware.js
+│   │   │   └── rateLimit.middleware.js
 │   │   ├── routes/
-│   │   │   ├── auth.routes.js
+│   │   │   ├── auth.routes.js             (lisans-durum eklendi)
+            ├── auditLog.routes.js
 │   │   │   ├── cariHareket.routes.js
 │   │   │   ├── cariKart.routes.js
-│   │   │   ├── feedback.routes.js           ← YENİ (Faz 5)
+│   │   │   ├── feedback.routes.js
 │   │   │   ├── kategori.routes.js
-│   │   │   ├── kullanici.routes.js
+│   │   │   ├── kullanici.routes.js        (profil, sifre-degistir eklendi)
 │   │   │   ├── olcuBirimi.routes.js
 │   │   │   ├── personel.routes.js
 │   │   │   ├── rapor.routes.js
@@ -176,36 +234,48 @@ gastroiq/
 │   │   │   ├── sube.routes.js
 │   │   │   └── superAdmin.routes.js
 │   │   ├── services/
-│   │   │   ├── auth.service.js
+│   │   │   ├── auth.service.js            (otomatik 30 gün lisans eklendi)
+            ├── auditLog.service.js  
 │   │   │   ├── cariHareket.service.js
 │   │   │   ├── cariKart.service.js
+│   │   │   ├── demoSeed.service.js
 │   │   │   ├── kategori.service.js
+│   │   │   ├── lisansUyari.service.js     ← YENİ (cron job)
+│   │   │   ├── mail.service.js            ← YENİ (hosgeldin + uyari maili)
 │   │   │   ├── olcuBirimi.service.js
 │   │   │   ├── personel.service.js
 │   │   │   ├── recete.service.js
 │   │   │   ├── satis.service.js
 │   │   │   ├── stok.service.js
 │   │   │   └── stokKart.service.js
-│   │   └── index.js
+│   │   └── index.js                       (cron job başlatma eklendi)
 │   ├── prisma/
 │   │   ├── schema.prisma
 │   │   └── seed.js
+│   ├── create-super-admin.js
+│   ├── create-tenant2.js
+│   ├── fix-tenant.js
+│   ├── fix-super-admin.js
 │   └── .env
 │
 ├── frontend/
 │   ├── src/
 │   │   ├── components/
-│   │   │   ├── FeedbackModal.jsx             ← YENİ (Faz 5)
-│   │   │   ├── Layout.jsx
+│   │   │   ├── FeedbackModal.jsx
+│   │   │   ├── Layout.jsx                 (LisansBanner + Profil linki eklendi)
+│   │   │   ├── LisansBanner.jsx           ← YENİ
 │   │   │   ├── LoadingSpinner.jsx
 │   │   │   ├── Modal.jsx
 │   │   │   └── Table.jsx
 │   │   ├── pages/
+│   │   │   ├── Abonelik.jsx               ← YENİ
+|   |   |   ├── AuditLog.jsx
 │   │   │   ├── Dashboard.jsx
 │   │   │   ├── KayitFirma.jsx
 │   │   │   ├── Login.jsx
-│   │   │   ├── SuperAdmin.jsx
-│   │   │   ├── Yardim.jsx                   ← YENİ (Faz 5)
+│   │   │   ├── Profil.jsx                 ← YENİ
+│   │   │   ├── SuperAdmin.jsx             (hızlı uzatma eklendi)
+│   │   │   ├── Yardim.jsx
 │   │   │   ├── cari/CariHesap.jsx
 │   │   │   ├── personel/Personel.jsx
 │   │   │   ├── raporlar/Raporlar.jsx
@@ -229,30 +299,23 @@ gastroiq/
 │   │   │   ├── api.js
 │   │   │   └── auth.service.js
 │   │   ├── store/
-│   │   │   └── auth.store.js
-│   │   └── App.jsx
+│   │   │   └── auth.store.js              (setKullanici eklendi)
+│   │   └── App.jsx                        (Abonelik, Profil route'ları eklendi)
 │   └── .env
 │
-├── landing/                                  ← YENİ (Faz 5) — Next.js
+├── landing/
 │   ├── app/
 │   │   ├── layout.tsx
-│   │   ├── page.tsx                          ← Ana landing sayfası
+│   │   ├── page.tsx
 │   │   ├── globals.css
 │   │   └── rehber/
-│   │       └── page.tsx                      ← Kullanım kılavuzu
+│   │       └── page.tsx
 │   ├── public/
-│   │   └── logo.png                          ← GastroBrain logo
-│   ├── package.json
-│   └── next.config.ts
+│   │   └── logo.png
+│   ├── next.config.ts                     (output: export eklendi)
+│   └── package.json
 │
 └── CONTEXT.md
-```
-
-## YARDIMCI DOSYALAR (backend klasöründe)
-- create-tenant2.js — test tenant oluşturma
-- create-super-admin.js — süper admin oluşturma
-- fix-tenant.js — tenant aktif etme
-- fix-super-admin.js — süper admin şifre sıfırlama
 
 ## SUNUCU BAŞLATMA
 ```powershell
@@ -268,3 +331,18 @@ npm run dev
 cd C:\Users\alkan\Projects\gastroiq\landing
 npm run dev
 ```
+
+## LİSANS SİSTEMİ
+- Kayıt → otomatik 30 gün ücretsiz
+- 7 gün kala → uyarı maili
+- 3 gün kala → uyarı maili
+- Uygulama içi banner (14 gün kala sarı, 3 gün kala kırmızı)
+- Ödeme: havale/EFT → IBAN → super admin manuel uzatma
+- Planlar: Aylık ₺799 / Yıllık ₺7.990
+
+## GİTHUB
+- Repo: https://github.com/Y994-SYS/gastrobrain
+- Branch: main
+
+### Audit Log
+- GET /api/audit-log  (ADMIN+)

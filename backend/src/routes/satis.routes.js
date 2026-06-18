@@ -1,13 +1,16 @@
 const express = require('express');
 const router = express.Router();
 const satisController = require('../controllers/satis.controller');
-const { authMiddleware } = require('../middleware/auth.middleware');
+const { authMiddleware, rolKontrol } = require('../middleware/auth.middleware');
 
 router.use(authMiddleware);
 
-router.get('/', satisController.hepsiniGetir);
-router.get('/gunluk-toplam', satisController.gunlukToplam);
-router.post('/', satisController.ekle);
-router.delete('/:id', satisController.sil);
+// Satış modülü: KASA + MUDUR + ADMIN — DEPO ve PERSONEL giremez
+const satisRol = rolKontrol('SUPER_ADMIN', 'TENANT_ADMIN', 'MUDUR', 'KASA');
+
+router.get('/', satisRol, satisController.hepsiniGetir);
+router.get('/gunluk-toplam', satisRol, satisController.gunlukToplam);
+router.post('/', satisRol, satisController.ekle);
+router.delete('/:id', satisRol, satisController.sil);
 
 module.exports = router;

@@ -97,8 +97,8 @@ export default function StokKartlari() {
                 </div>
             )
         },
-        { key: 'birim', baslik: 'Birim', render: (r) => r.birim?.kisaltma },  // görünür
-        { key: 'minStok', baslik: 'Min. Stok', gizle: true },       // gizli
+        { key: 'birim', baslik: 'Birim', render: (r) => r.birim?.kisaltma },
+        { key: 'minStok', baslik: 'Min. Stok', gizle: true },
     ];
 
     return (

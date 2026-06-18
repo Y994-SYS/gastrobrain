@@ -4,61 +4,80 @@ import useAuthStore from '../store/auth.store';
 import FeedbackModal from './FeedbackModal';
 import LisansBanner from './LisansBanner';
 
+// ─── Rol Grupları ─────────────────────────────────────────────────────────────
+const R = {
+    STOK: ['SUPER_ADMIN', 'TENANT_ADMIN', 'MUDUR', 'DEPO'],
+    SATIS: ['SUPER_ADMIN', 'TENANT_ADMIN', 'MUDUR', 'KASA'],
+    YONETIM: ['SUPER_ADMIN', 'TENANT_ADMIN', 'MUDUR'],
+    ADMIN: ['SUPER_ADMIN', 'TENANT_ADMIN'],
+    PERSONEL: ['SUPER_ADMIN', 'TENANT_ADMIN', 'MUDUR', 'PERSONEL'],
+    HERKES: ['SUPER_ADMIN', 'TENANT_ADMIN', 'MUDUR', 'DEPO', 'KASA', 'PERSONEL'],
+};
+
+// Her item'a roller tanımlandı — Layout render sırasında kullanıcı rolüne göre filtrelenir
 const menuGruplari = [
     {
         baslik: 'Genel',
+        roller: R.HERKES,
         items: [
-            { path: '/', label: 'Dashboard', icon: '📊' },
+            { path: '/', label: 'Dashboard', icon: '📊', roller: R.HERKES },
         ]
     },
     {
         baslik: 'Stok',
+        roller: R.STOK,
         items: [
-            { path: '/stok/durum', label: 'Stok Durumu', icon: '📦' },
-            { path: '/stok/giris-faturasi', label: 'Giriş Faturası', icon: '📥' },
-            { path: '/stok/iade-faturasi', label: 'İade Faturası', icon: '↩️' },
-            { path: '/stok/zayi', label: 'Zayi Gideri', icon: '🗑️' },
-            { path: '/stok/tuketim', label: 'Tüketim Gideri', icon: '🍽️' },
-            { path: '/stok/ay-sonu-sayim', label: 'Ay Sonu Sayım', icon: '📋' },
+            { path: '/stok/durum', label: 'Stok Durumu', icon: '📦', roller: R.STOK },
+            { path: '/stok/giris-faturasi', label: 'Giriş Faturası', icon: '📥', roller: R.STOK },
+            { path: '/stok/iade-faturasi', label: 'İade Faturası', icon: '↩️', roller: R.STOK },
+            { path: '/stok/zayi', label: 'Zayi Gideri', icon: '🗑️', roller: R.STOK },
+            { path: '/stok/tuketim', label: 'Tüketim Gideri', icon: '🍽️', roller: R.STOK },
+            { path: '/stok/ay-sonu-sayim', label: 'Ay Sonu Sayım', icon: '📋', roller: R.STOK },
         ]
     },
     {
         baslik: 'Satış',
+        roller: [...new Set([...R.YONETIM, ...R.SATIS])], // Reçete veya Satış'a erişimi olan herkese grubu göster
         items: [
-            { path: '/receteler', label: 'Reçeteler', icon: '📝' },
-            { path: '/satislar', label: 'Satışlar', icon: '💰' },
+            { path: '/receteler', label: 'Reçeteler', icon: '📝', roller: R.YONETIM },
+            { path: '/satislar', label: 'Satışlar', icon: '💰', roller: R.SATIS },
         ]
     },
     {
         baslik: 'Finans',
+        roller: R.YONETIM,
         items: [
-            { path: '/cari-hesap', label: 'Cari Hesap', icon: '🏦' },
-            { path: '/raporlar', label: 'Raporlar', icon: '📈' },
+            { path: '/cari-hesap', label: 'Cari Hesap', icon: '🏦', roller: R.YONETIM },
+            { path: '/raporlar', label: 'Raporlar', icon: '📈', roller: R.YONETIM },
         ]
     },
     {
         baslik: 'İnsan Kaynakları',
+        roller: R.PERSONEL,
         items: [
-            { path: '/personel', label: 'Personel', icon: '👥' },
+            { path: '/personel', label: 'Personel', icon: '👥', roller: R.PERSONEL },
         ]
     },
     {
         baslik: 'Tanımlamalar',
+        roller: R.STOK, // En geniş erişim grubu — içindeki item'lar kendi rolünü taşır
         items: [
-            { path: '/tanimlamalar/kategoriler', label: 'Kategoriler', icon: '🏷️' },
-            { path: '/tanimlamalar/olcu-birimleri', label: 'Ölçü Birimleri', icon: '⚖️' },
-            { path: '/tanimlamalar/stok-kartlari', label: 'Stok Kartları', icon: '🗂️' },
-            { path: '/tanimlamalar/cari-kartlar', label: 'Cari Kartlar', icon: '🏢' },
-            { path: '/tanimlamalar/subeler', label: 'Şubeler', icon: '🏪' },
-            { path: '/tanimlamalar/kullanicilar', label: 'Kullanıcılar', icon: '👤' }
+            { path: '/tanimlamalar/kategoriler', label: 'Kategoriler', icon: '🏷️', roller: R.STOK },
+            { path: '/tanimlamalar/olcu-birimleri', label: 'Ölçü Birimleri', icon: '⚖️', roller: R.STOK },
+            { path: '/tanimlamalar/stok-kartlari', label: 'Stok Kartları', icon: '🗂️', roller: R.STOK },
+            { path: '/tanimlamalar/cari-kartlar', label: 'Cari Kartlar', icon: '🏢', roller: R.YONETIM },
+            { path: '/tanimlamalar/subeler', label: 'Şubeler', icon: '🏪', roller: R.ADMIN },
+            { path: '/tanimlamalar/kullanicilar', label: 'Kullanıcılar', icon: '👤', roller: R.ADMIN },
+            { path: '/audit-log', label: 'İşlem Geçmişi', icon: '📜', roller: R.ADMIN }, // ← EKLE
         ]
     },
     {
         baslik: 'Yardım',
+        roller: R.HERKES,
         items: [
-            { path: '/abonelik', label: 'Abonelik', icon: '💳' },
-            { path: '/yardim', label: 'Yardım', icon: '❓' },
-            { path: '/profil', label: 'Profil', icon: '🙍' },
+            { path: '/abonelik', label: 'Abonelik', icon: '💳', roller: R.HERKES },
+            { path: '/yardim', label: 'Yardım', icon: '❓', roller: R.HERKES },
+            { path: '/profil', label: 'Profil', icon: '🙍', roller: R.HERKES },
         ]
     }
 ];
@@ -68,11 +87,30 @@ export default function Layout({ children }) {
     const [kapali, setKapali] = useState({});
     const [sidebarAcik, setSidebarAcik] = useState(false);
 
+    const rol = kullanici?.rol;
+
+    // Kullanıcının rolüne göre menüyü filtrele
+    const gorunurMenu = menuGruplari
+        .map(grup => ({
+            ...grup,
+            items: grup.items.filter(item => item.roller.includes(rol))
+        }))
+        .filter(grup => grup.items.length > 0); // Hiç item'ı kalmayan grubu gizle
+
     const toggleGrup = (baslik) => {
         setKapali(prev => ({ ...prev, [baslik]: !prev[baslik] }));
     };
 
     const sidebarKapat = () => setSidebarAcik(false);
+
+    const ROL_ETIKET = {
+        SUPER_ADMIN: '⚡ Süper Admin',
+        TENANT_ADMIN: '👑 Admin',
+        MUDUR: '🏢 Müdür',
+        DEPO: '📦 Depo',
+        KASA: '💰 Kasa',
+        PERSONEL: '👤 Personel',
+    };
 
     const SidebarIcerik = () => (
         <>
@@ -83,6 +121,9 @@ export default function Layout({ children }) {
                         Gastro<span className="text-lime-400">BRAIN</span>
                     </h1>
                     <p className="text-zinc-500 text-xs mt-0.5">{kullanici?.ad}</p>
+                    {rol && (
+                        <span className="text-zinc-600 text-xs">{ROL_ETIKET[rol] ?? rol}</span>
+                    )}
                 </div>
                 {/* Mobilde kapat butonu */}
                 <button
@@ -95,7 +136,7 @@ export default function Layout({ children }) {
 
             {/* Menu */}
             <nav className="flex-1 overflow-y-auto p-2 space-y-1 scrollbar-thin">
-                {menuGruplari.map((grup) => (
+                {gorunurMenu.map((grup) => (
                     <div key={grup.baslik}>
                         <button
                             onClick={() => toggleGrup(grup.baslik)}
@@ -164,10 +205,10 @@ export default function Layout({ children }) {
 
             {/* Mobil Sidebar */}
             <aside className={`
-                fixed top-0 left-0 h-full w-64 bg-zinc-900 border-r border-zinc-800
-                flex flex-col z-50 transform transition-transform duration-300 md:hidden
-                ${sidebarAcik ? 'translate-x-0' : '-translate-x-full'}
-            `}>
+        fixed top-0 left-0 h-full w-64 bg-zinc-900 border-r border-zinc-800
+        flex flex-col z-50 transform transition-transform duration-300 md:hidden
+        ${sidebarAcik ? 'translate-x-0' : '-translate-x-full'}
+      `}>
                 <SidebarIcerik />
             </aside>
 
@@ -185,7 +226,7 @@ export default function Layout({ children }) {
                     <h1 className="text-lg font-black text-white">
                         Gastro<span className="text-lime-400">BRAIN</span>
                     </h1>
-                    <div className="w-8" /> {/* sağ boşluk için */}
+                    <div className="w-8" />
                 </div>
 
                 <div className="flex-1 p-4 md:p-6">

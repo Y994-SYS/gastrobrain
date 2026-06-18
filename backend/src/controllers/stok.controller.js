@@ -1,4 +1,5 @@
 const stokService = require('../services/stok.service');
+const auditLog = require('../services/auditLog.service');
 
 const stokController = {
 
@@ -34,6 +35,13 @@ const stokController = {
     async girisFaturasiEkle(req, res) {
         try {
             const data = await stokService.girisFaturasiEkle(req.body, req.kullanici.tenantId);
+            await auditLog.kaydet({
+                eylem: 'STOK_GIRIS_FATURA',
+                detay: { stokKartId: req.body.stokKartId, miktar: req.body.miktar, birimFiyat: req.body.birimFiyat },
+                kullaniciId: req.kullanici.id,
+                tenantId: req.kullanici.tenantId,
+                ip: req.ip
+            });
             res.status(201).json({ basarili: true, data });
         } catch (error) {
             res.status(400).json({ basarili: false, mesaj: error.message });
@@ -43,6 +51,13 @@ const stokController = {
     async iadeFaturasiEkle(req, res) {
         try {
             const data = await stokService.iadeFaturasiEkle(req.body, req.kullanici.tenantId);
+            await auditLog.kaydet({
+                eylem: 'STOK_IADE_FATURA',
+                detay: { stokKartId: req.body.stokKartId, miktar: req.body.miktar },
+                kullaniciId: req.kullanici.id,
+                tenantId: req.kullanici.tenantId,
+                ip: req.ip
+            });
             res.status(201).json({ basarili: true, data });
         } catch (error) {
             res.status(400).json({ basarili: false, mesaj: error.message });
@@ -52,6 +67,13 @@ const stokController = {
     async zayiEkle(req, res) {
         try {
             const data = await stokService.zayiEkle(req.body, req.kullanici.tenantId);
+            await auditLog.kaydet({
+                eylem: 'STOK_ZAYI',
+                detay: { stokKartId: req.body.stokKartId, miktar: req.body.miktar },
+                kullaniciId: req.kullanici.id,
+                tenantId: req.kullanici.tenantId,
+                ip: req.ip
+            });
             res.status(201).json({ basarili: true, data });
         } catch (error) {
             res.status(400).json({ basarili: false, mesaj: error.message });
@@ -61,6 +83,13 @@ const stokController = {
     async tuketimEkle(req, res) {
         try {
             const data = await stokService.tuketimEkle(req.body, req.kullanici.tenantId);
+            await auditLog.kaydet({
+                eylem: 'STOK_TUKETIM',
+                detay: { stokKartId: req.body.stokKartId, miktar: req.body.miktar },
+                kullaniciId: req.kullanici.id,
+                tenantId: req.kullanici.tenantId,
+                ip: req.ip
+            });
             res.status(201).json({ basarili: true, data });
         } catch (error) {
             res.status(400).json({ basarili: false, mesaj: error.message });
@@ -70,12 +99,18 @@ const stokController = {
     async aySonuSayimEkle(req, res) {
         try {
             const data = await stokService.aySonuSayimEkle(req.body, req.kullanici.tenantId);
+            await auditLog.kaydet({
+                eylem: 'STOK_AY_SONU_SAYIM',
+                detay: { stokKartId: req.body.stokKartId, sayimMiktari: req.body.sayimMiktari },
+                kullaniciId: req.kullanici.id,
+                tenantId: req.kullanici.tenantId,
+                ip: req.ip
+            });
             res.status(201).json({ basarili: true, data });
         } catch (error) {
             res.status(400).json({ basarili: false, mesaj: error.message });
         }
     }
-
 };
 
 module.exports = stokController;

@@ -1,15 +1,18 @@
 const express = require('express');
 const router = express.Router();
 const receteController = require('../controllers/recete.controller');
-const { authMiddleware } = require('../middleware/auth.middleware');
+const { authMiddleware, rolKontrol } = require('../middleware/auth.middleware');
 
 router.use(authMiddleware);
 
-router.get('/', receteController.hepsiniGetir);
-router.get('/:id', receteController.biriniGetir);
-router.get('/:id/maliyet', receteController.maliyetHesapla);
-router.post('/', receteController.olustur);
-router.put('/:id', receteController.guncelle);
-router.delete('/:id', receteController.sil);
+// Reçete: MUDUR + ADMIN — DEPO sadece hammaddeyi bilir, reçeteye erişemez
+const yonetimRol = rolKontrol('SUPER_ADMIN', 'TENANT_ADMIN', 'MUDUR');
+
+router.get('/', yonetimRol, receteController.hepsiniGetir);
+router.get('/:id', yonetimRol, receteController.biriniGetir);
+router.get('/:id/maliyet', yonetimRol, receteController.maliyetHesapla);
+router.post('/', yonetimRol, receteController.olustur);
+router.put('/:id', yonetimRol, receteController.guncelle);
+router.delete('/:id', yonetimRol, receteController.sil);
 
 module.exports = router;

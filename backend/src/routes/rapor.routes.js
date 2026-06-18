@@ -1,14 +1,17 @@
 const express = require('express');
 const router = express.Router();
 const { satisRaporu, stokRaporu, cariRaporu, maliyetRaporu, excelExport } = require('../controllers/rapor.controller');
-const { authMiddleware } = require('../middleware/auth.middleware');
+const { authMiddleware, rolKontrol } = require('../middleware/auth.middleware');
 
 router.use(authMiddleware);
 
-router.get('/satis', satisRaporu);
-router.get('/stok', stokRaporu);
-router.get('/cari', cariRaporu);
-router.get('/maliyet', maliyetRaporu);
-router.get('/excel', excelExport);
+// Raporlar: MUDUR + ADMIN — finansal veri içerdiği için kasa/depo/personel göremez
+const yonetimRol = rolKontrol('SUPER_ADMIN', 'TENANT_ADMIN', 'MUDUR');
+
+router.get('/satis', yonetimRol, satisRaporu);
+router.get('/stok', yonetimRol, stokRaporu);
+router.get('/cari', yonetimRol, cariRaporu);
+router.get('/maliyet', yonetimRol, maliyetRaporu);
+router.get('/excel', yonetimRol, excelExport);
 
 module.exports = router;

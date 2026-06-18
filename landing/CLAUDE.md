@@ -14,6 +14,8 @@
 - **Auth:** JWT (bcryptjs + jsonwebtoken)
 - **Mail:** Nodemailer (SMTP/Gmail)
 - **Cron:** node-cron (lisans uyarı job'ları)
+- **Veritabanı:** Supabase PostgreSQL (production), localhost:5432 (local)
+- **Error Monitoring:** Sentry (@sentry/node)
 
 ## ÖNEMLİ NOTLAR
 - Prisma v6 kullanılıyor (v7 DEĞİL — prisma.config.ts olmadan çalışıyor)
@@ -42,8 +44,10 @@
 
 ## VERİTABANI
 - **gastroiq_dev** — PostgreSQL localhost:5432 (local)
-- **eticaretdb_94wj** — Render PostgreSQL (production)
+- **Supabase** — aws-0-eu-west-1.pooler.supabase.com (production) ← GÜNCELLENDİ
 - Toplam 18 tablo (Prisma schema)
+- Connection pooling: Supabase pgBouncer (transaction mode, port 6543)
+- Direct URL: session mode (port 5432, migration için)
 
 ## TEST KULLANICILARI (local)
 | Email | Şifre | Rol | Firma |
@@ -127,8 +131,11 @@ VITE_API_URL=https://gastrobrain-backend.onrender.com
 - XSS, HPP koruması
 - Rate limiting (IP bazlı + tenant+user bazlı)
 - DB index'leri
-- [ ] Otomatik yedekleme — deploy aşamasında
-- [ ] Hata izleme (Sentry) — deploy aşamasında
+- [x] Supabase migration (connection pooling dahil) ← YENİ
+- [x] Race condition fix (stok azaltma atomik) ← YENİ
+- [x] Prisma middleware (tenantId zorunluluğu) ← YENİ
+- [x] Hata izleme (Sentry) ✅ ← GÜNCELLENDİ
+- [ ] Otomatik yedekleme — Supabase otomatik yapıyor ✅ ← GÜNCELLENDİ
 
 ### Faz 5 — Satış & Büyüme ✅
 - [x] Landing page (Next.js static export, Render'da canlı)

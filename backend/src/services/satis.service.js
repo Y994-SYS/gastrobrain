@@ -38,7 +38,6 @@ const satisService = {
     },
 
     async ekle({ receteId, subeId, adet, birimFiyat, aciklama, tarih }, tenantId) {
-        // Reçetenin bu tenant'a ait olduğunu doğrula
         const recete = await prisma.recete.findFirst({
             where: { id: Number(receteId), tenantId },
             include: {
@@ -47,13 +46,44 @@ const satisService = {
         });
         if (!recete) throw new Error('Reçete bulunamadı');
 
-        // Şubenin bu tenant'a ait olduğunu doğrula
         const sube = await prisma.sube.findFirst({
             where: { id: Number(subeId), tenantId }
         });
         if (!sube) throw new Error('Şube bulunamadı');
 
         return prisma.$transaction(async (tx) => {
+            // ✅ Stok kontrolü — transaction içinde, atomik
+            for (const kalem of recete.kalemler) {
+                const gercekMiktar = ((kalem.miktar * kalem.carpan) / kalem.bolen) * Number(adet);
+
+                const girisler = await tx.stokHareket.aggregate({
+                    where: {
+                        stokKartId: kalem.stokKartId,
+                        subeId: Number(subeId),
+                        tip: { in: ['GIRIS_FATURA', 'AY_SONU_SAYIM', 'SUBE_TRANSFER_IN'] }
+                    },
+                    _sum: { miktar: true }
+                });
+
+                const cikislar = await tx.stokHareket.aggregate({
+                    where: {
+                        stokKartId: kalem.stokKartId,
+                        subeId: Number(subeId),
+                        tip: { in: ['IADE_FATURA', 'SATIS', 'ZAYI', 'TUKETIM', 'SUBE_TRANSFER_OUT'] }
+                    },
+                    _sum: { miktar: true }
+                });
+
+                const mevcutMiktar = (girisler._sum.miktar || 0) - (cikislar._sum.miktar || 0);
+
+                if (mevcutMiktar < gercekMiktar) {
+                    throw new Error(
+                        `Yetersiz stok: ${kalem.stokKart.ad} (mevcut: ${mevcutMiktar.toFixed(2)}, gereken: ${gercekMiktar.toFixed(2)})`
+                    );
+                }
+            }
+
+            // ✅ Kontrol geçtiyse satışı kaydet
             const satis = await tx.satis.create({
                 data: {
                     receteId: Number(receteId),

@@ -1,4 +1,5 @@
 require('dotenv').config();
+require('./instrument');
 
 const express = require('express');
 const cors = require('cors');
@@ -23,6 +24,27 @@ const kullaniciRoutes = require('./routes/kullanici.routes');
 const superAdminRoutes = require('./routes/superAdmin.routes');
 const feedbackRoutes = require('./routes/feedback.routes');
 
+
+const { PrismaClient } = require('@prisma/client');
+
+const prisma = new PrismaClient().$extends({
+    query: {
+        $allModels: {
+            async findMany({ args, query }) {
+                if (!args.where?.tenantId && !args.where?.sube?.tenantId && !args.where?.stokKart?.tenantId) {
+                    console.warn('⚠️  tenantId olmadan sorgu:', new Error().stack);
+                }
+                return query(args);
+            },
+            async findFirst({ args, query }) {
+                if (!args.where?.tenantId && !args.where?.sube?.tenantId && !args.where?.stokKart?.tenantId) {
+                    console.warn('⚠️  tenantId olmadan sorgu:', new Error().stack);
+                }
+                return query(args);
+            }
+        }
+    }
+});
 const app = express();
 const PORT = process.env.PORT || 3001;
 
@@ -92,8 +114,11 @@ app.use((req, res) => {
     res.status(404).json({ basarili: false, mesaj: 'Endpoint bulunamadı' });
 });
 
+
+
 // Hata yakalama
 app.use((err, req, res, next) => {
+    Sentry.captureException(err);
     console.error(err.stack);
     res.status(500).json({ basarili: false, mesaj: 'Sunucu hatası' });
 });
@@ -110,6 +135,3 @@ app.listen(PORT, () => {
     console.log(`✅ Server http://localhost:${PORT} adresinde çalışıyor`);
 });
 
-app.listen(PORT, () => {
-    console.log(`✅ Server http://localhost:${PORT} adresinde çalışıyor`);
-});

@@ -138,6 +138,12 @@ const stokService = {
 
         const gercekSubeId = await getSubeId(subeId, tenantId);
 
+        // ✅ Stok kontrolü
+        const mevcutStok = await stokService.mevcutStokGetir(stokKartId, gercekSubeId, tenantId);
+        if (mevcutStok < Number(miktar)) {
+            throw new Error(`Yetersiz stok: ${stokKart.ad} (mevcut: ${mevcutStok.toFixed(2)}, girilen: ${miktar})`);
+        }
+
         return prisma.stokHareket.create({
             data: {
                 tip: 'ZAYI',
@@ -155,6 +161,12 @@ const stokService = {
         if (!stokKart) throw new Error('Stok kartı bulunamadı');
 
         const gercekSubeId = await getSubeId(subeId, tenantId);
+
+        // ✅ Stok kontrolü
+        const mevcutStok = await stokService.mevcutStokGetir(stokKartId, gercekSubeId, tenantId);
+        if (mevcutStok < Number(miktar)) {
+            throw new Error(`Yetersiz stok: ${stokKart.ad} (mevcut: ${mevcutStok.toFixed(2)}, girilen: ${miktar})`);
+        }
 
         return prisma.stokHareket.create({
             data: {
@@ -175,7 +187,7 @@ const stokService = {
         const gercekSubeId = await getSubeId(subeId, tenantId);
 
         return prisma.$transaction(async (tx) => {
-            const mevcutStok = await this.mevcutStokGetir(stokKartId, gercekSubeId, tenantId);
+            const mevcutStok = await stokService.mevcutStokGetir(stokKartId, gercekSubeId, tenantId);
             const fark = Number(sayimMiktari) - mevcutStok;
 
             const hareket = await tx.stokHareket.create({

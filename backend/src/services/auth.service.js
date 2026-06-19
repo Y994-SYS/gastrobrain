@@ -22,28 +22,46 @@ const authService = {
     },
 
     async girisYap({ email, sifre, tenantId, tenantSlug }) {
-        let gercekTenantId = tenantId;
-        if (tenantSlug && !tenantId) {
-            const tenant = await prisma.tenant.findUnique({ where: { slug: tenantSlug } });
+        let gercekTenantId = tenantId ?? null;
+        let tenant = null;
+
+        // Tenant slug verilmişse normal firma girişi
+        if (tenantSlug) {
+            tenant = await prisma.tenant.findUnique({ where: { slug: tenantSlug } });
             if (!tenant) throw new Error('Firma bulunamadı');
             if (!tenant.aktif) throw new Error('Firma hesabı devre dışı');
             gercekTenantId = tenant.id;
         }
 
-        if (!gercekTenantId) throw new Error('Firma bilgisi gerekli');
+        let kullanici;
 
-        const kullanici = await prisma.kullanici.findUnique({
-            where: { email_tenantId: { email, tenantId: gercekTenantId } },
-            include: { tenant: { select: { id: true, ad: true, aktif: true, lisansBitis: true } } }
-        });
+        if (gercekTenantId) {
+            // ── Normal (tenant'a bağlı) kullanıcı girişi ──
+            kullanici = await prisma.kullanici.findUnique({
+                where: { email_tenantId: { email, tenantId: gercekTenantId } },
+                include: { tenant: { select: { id: true, ad: true, aktif: true, lisansBitis: true } } }
+            });
+        } else {
+            // ── Tenant belirtilmemiş — tenant'sız SUPER_ADMIN hesabı ara ──
+            kullanici = await prisma.kullanici.findFirst({
+                where: { email, tenantId: null, rol: 'SUPER_ADMIN' }
+            });
+            if (!kullanici) throw new Error('Firma bilgisi gerekli');
+        }
+
         if (!kullanici) throw new Error('Email veya şifre hatalı');
         if (!kullanici.aktif) throw new Error('Hesabınız devre dışı');
-        if (!kullanici.tenant.aktif && kullanici.rol !== 'SUPER_ADMIN') throw new Error('Firma hesabı devre dışı');
-        if (kullanici.rol !== 'SUPER_ADMIN' && kullanici.tenant.lisansBitis) {
-            const bugun = new Date();
-            const bitis = new Date(kullanici.tenant.lisansBitis);
-            if (bitis < bugun) throw new Error('Lisans süreniz dolmuştur. Lütfen yöneticinizle iletişime geçin.');
+
+        // Tenant'a bağlı kullanıcılar için firma aktiflik ve lisans kontrolü
+        if (kullanici.tenantId) {
+            if (!kullanici.tenant.aktif) throw new Error('Firma hesabı devre dışı');
+            if (kullanici.tenant.lisansBitis) {
+                const bugun = new Date();
+                const bitis = new Date(kullanici.tenant.lisansBitis);
+                if (bitis < bugun) throw new Error('Lisans süreniz dolmuştur. Lütfen yöneticinizle iletişime geçin.');
+            }
         }
+
         const sifreDoğru = await bcrypt.compare(sifre, kullanici.sifre);
         if (!sifreDoğru) throw new Error('Email veya şifre hatalı');
 
@@ -58,7 +76,8 @@ const authService = {
             kullanici: {
                 id: kullanici.id, ad: kullanici.ad, email: kullanici.email,
                 rol: kullanici.rol, subeId: kullanici.subeId,
-                tenantId: kullanici.tenantId, tenantAd: kullanici.tenant.ad
+                tenantId: kullanici.tenantId,
+                tenantAd: kullanici.tenantId ? kullanici.tenant.ad : null
             }
         };
     },
@@ -139,13 +158,25 @@ const authService = {
 
         if (kullanicilar.length === 0) throw new Error('Bu email ile kayıtlı hesap bulunamadı');
 
-        return kullanicilar.map(k => ({
-            tenantId: k.tenantId,
-            tenantAd: k.tenant.ad,
-            tenantSlug: k.tenant.slug,
-            tenantAktif: k.tenant.aktif,
-            rol: k.rol,
-        }));
+        return kullanicilar.map(k => {
+            // Tenant'sız SUPER_ADMIN kaydı
+            if (!k.tenantId) {
+                return {
+                    tenantId: null,
+                    tenantAd: 'Süper Admin Paneli',
+                    tenantSlug: null,
+                    tenantAktif: true,
+                    rol: k.rol,
+                };
+            }
+            return {
+                tenantId: k.tenantId,
+                tenantAd: k.tenant.ad,
+                tenantSlug: k.tenant.slug,
+                tenantAktif: k.tenant.aktif,
+                rol: k.rol,
+            };
+        });
     },
 
 };

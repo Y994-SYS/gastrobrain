@@ -29,7 +29,6 @@ import Yardim from './pages/Yardim';
 import Abonelik from './pages/Abonelik';
 import Profil from './pages/Profil';
 import Yetkisiz from './pages/Yetkisiz';
-import AuditLog from './pages/AuditLog';
 
 // ─── Rol Grupları ────────────────────────────────────────────────────────────
 const R = {
@@ -55,6 +54,18 @@ function PrivateRoute({ children, roller }) {
   return <Layout>{children}</Layout>;
 }
 
+// ─── SuperAdminRoute ──────────────────────────────────────────────────────────
+// Süper admin sayfası kendi layout'unu kullanıyor (Layout ile sarmıyoruz),
+// ama yine de SUPER_ADMIN olmayanları engellememiz gerekiyor.
+function SuperAdminRoute({ children }) {
+  const kullanici = useAuthStore((s) => s.kullanici);
+
+  if (!kullanici) return <Navigate to="/giris" replace />;
+  if (kullanici.rol !== 'SUPER_ADMIN') return <Navigate to="/yetkisiz" replace />;
+
+  return children;
+}
+
 export default function App() {
   const { baslat, yukleniyor } = useAuthStore();
 
@@ -72,8 +83,10 @@ export default function App() {
         <Route path="/kayit" element={<KayitFirma />} />
         <Route path="/yetkisiz" element={<Yetkisiz />} />
 
-        {/* ── Süper Admin (Layout dışında) ────────────────────────────── */}
-        <Route path="/super-admin" element={<SuperAdmin />} />
+        {/* ── Süper Admin (Layout dışında, ama rol korumalı) ──────────── */}
+        <Route path="/super-admin" element={
+          <SuperAdminRoute><SuperAdmin /></SuperAdminRoute>
+        } />
 
         {/* ── Dashboard — tüm roller ──────────────────────────────────── */}
         <Route path="/" element={<PrivateRoute roller={R.HERKES}><Dashboard /></PrivateRoute>} />
@@ -104,7 +117,6 @@ export default function App() {
         <Route path="/tanimlamalar/cari-kartlar" element={<PrivateRoute roller={R.YONETIM}><CariKartlar /></PrivateRoute>} />
         <Route path="/tanimlamalar/subeler" element={<PrivateRoute roller={R.ADMIN}><Subeler /></PrivateRoute>} />
         <Route path="/tanimlamalar/kullanicilar" element={<PrivateRoute roller={R.ADMIN}><Kullanicilar /></PrivateRoute>} />
-        <Route path="/audit-log" element={<PrivateRoute roller={R.ADMIN}><AuditLog /></PrivateRoute>} />
 
         {/* ── Diğer — tüm roller ──────────────────────────────────────── */}
         <Route path="/yardim" element={<PrivateRoute roller={R.HERKES}><Yardim /></PrivateRoute>} />

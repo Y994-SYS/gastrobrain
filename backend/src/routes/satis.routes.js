@@ -5,8 +5,8 @@ const { authMiddleware, rolKontrol } = require('../middleware/auth.middleware');
 
 router.use(authMiddleware);
 
-// Satış modülü: KASA + MUDUR + ADMIN — DEPO ve PERSONEL giremez
-const satisRol = rolKontrol('SUPER_ADMIN', 'TENANT_ADMIN', 'MUDUR', 'KASA');
+// Satış modülü: KASA + MUDUR + ADMIN — SUPER_ADMIN'in tenant'ı olmadığı için burada yok
+const satisRol = rolKontrol('TENANT_ADMIN', 'MUDUR', 'KASA');
 
 router.get('/', satisRol, satisController.hepsiniGetir);
 router.get('/gunluk-toplam', satisRol, satisController.gunlukToplam);

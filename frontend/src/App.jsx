@@ -31,13 +31,16 @@ import Profil from './pages/Profil';
 import Yetkisiz from './pages/Yetkisiz';
 
 // ─── Rol Grupları ────────────────────────────────────────────────────────────
+// NOT: SUPER_ADMIN bilerek bu gruplarda YOK. Süper admin hiçbir tenant'a bağlı
+// olmadığı için (tenantId: null) normal uygulama sayfalarını kullanamaz —
+// tüm istekleri tenantId gerektirir. Süper admin sadece /super-admin panelini kullanır.
 const R = {
-  STOK: ['SUPER_ADMIN', 'TENANT_ADMIN', 'MUDUR', 'DEPO'],
-  SATIS: ['SUPER_ADMIN', 'TENANT_ADMIN', 'MUDUR', 'KASA'],
-  YONETIM: ['SUPER_ADMIN', 'TENANT_ADMIN', 'MUDUR'],
-  ADMIN: ['SUPER_ADMIN', 'TENANT_ADMIN'],
-  PERSONEL: ['SUPER_ADMIN', 'TENANT_ADMIN', 'MUDUR', 'PERSONEL'],
-  HERKES: ['SUPER_ADMIN', 'TENANT_ADMIN', 'MUDUR', 'DEPO', 'KASA', 'PERSONEL'],
+  STOK: ['TENANT_ADMIN', 'MUDUR', 'DEPO'],
+  SATIS: ['TENANT_ADMIN', 'MUDUR', 'KASA'],
+  YONETIM: ['TENANT_ADMIN', 'MUDUR'],
+  ADMIN: ['TENANT_ADMIN'],
+  PERSONEL: ['TENANT_ADMIN', 'MUDUR', 'PERSONEL'],
+  HERKES: ['TENANT_ADMIN', 'MUDUR', 'DEPO', 'KASA', 'PERSONEL'],
 };
 
 // ─── PrivateRoute ─────────────────────────────────────────────────────────────
@@ -46,6 +49,12 @@ function PrivateRoute({ children, roller }) {
   const kullanici = useAuthStore((s) => s.kullanici);
 
   if (!kullanici) return <Navigate to="/giris" replace />;
+
+  // SÜPER_ADMIN'in tenant'ı yok — normal uygulama sayfalarına asla giremez,
+  // nereye gitmeye çalışırsa çalışsın kendi paneline geri atılır.
+  if (kullanici.rol === 'SUPER_ADMIN') {
+    return <Navigate to="/super-admin" replace />;
+  }
 
   if (roller && !roller.includes(kullanici.rol)) {
     return <Navigate to="/yetkisiz" replace />;

@@ -9,10 +9,13 @@ router.use(authMiddleware);
 router.put('/profil', profilGuncelle);
 router.put('/sifre-degistir', sifreDegistir);
 
-// Kullanıcı yönetimi — sadece TENANT_ADMIN ve SUPER_ADMIN
-router.get('/', rolKontrol('SUPER_ADMIN', 'TENANT_ADMIN'), hepsiniGetir);
-router.post('/', rolKontrol('SUPER_ADMIN', 'TENANT_ADMIN'), olustur);
-router.put('/:id', rolKontrol('SUPER_ADMIN', 'TENANT_ADMIN'), guncelle);
-router.delete('/:id', rolKontrol('SUPER_ADMIN', 'TENANT_ADMIN'), sil);
+// Kullanıcı yönetimi — sadece TENANT_ADMIN
+// NOT: SUPER_ADMIN burada YOK — hiçbir tenant'a bağlı olmadığı için bu endpoint'i
+// kullanamaz (tenantId: null). Süper admin kullanıcı yönetimini /super-admin
+// panelinden tenant detayına bakarak yapar, doğrudan bu route'u kullanmaz.
+router.get('/', rolKontrol('TENANT_ADMIN'), hepsiniGetir);
+router.post('/', rolKontrol('TENANT_ADMIN'), olustur);
+router.put('/:id', rolKontrol('TENANT_ADMIN'), guncelle);
+router.delete('/:id', rolKontrol('TENANT_ADMIN'), sil);
 
 module.exports = router;

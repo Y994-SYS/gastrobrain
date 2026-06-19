@@ -5,8 +5,7 @@ const { authMiddleware, rolKontrol } = require('../middleware/auth.middleware');
 
 router.use(authMiddleware);
 
-// Reçete: MUDUR + ADMIN — DEPO sadece hammaddeyi bilir, reçeteye erişemez
-const yonetimRol = rolKontrol('SUPER_ADMIN', 'TENANT_ADMIN', 'MUDUR');
+const yonetimRol = rolKontrol('TENANT_ADMIN', 'MUDUR');
 
 router.get('/', yonetimRol, receteController.hepsiniGetir);
 router.get('/:id', yonetimRol, receteController.biriniGetir);

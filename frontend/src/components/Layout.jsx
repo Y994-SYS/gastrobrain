@@ -5,16 +5,18 @@ import FeedbackModal from './FeedbackModal';
 import LisansBanner from './LisansBanner';
 
 // ─── Rol Grupları ─────────────────────────────────────────────────────────────
+// NOT: SUPER_ADMIN bilerek burada yok — süper admin bu Layout'u (normal uygulama
+// arayüzünü) hiç görmüyor, App.jsx içindeki PrivateRoute onu /super-admin'e
+// yönlendiriyor. Bu yüzden sidebar filtrelemesi sadece tenant'lı roller içindir.
 const R = {
-    STOK: ['SUPER_ADMIN', 'TENANT_ADMIN', 'MUDUR', 'DEPO'],
-    SATIS: ['SUPER_ADMIN', 'TENANT_ADMIN', 'MUDUR', 'KASA'],
-    YONETIM: ['SUPER_ADMIN', 'TENANT_ADMIN', 'MUDUR'],
-    ADMIN: ['SUPER_ADMIN', 'TENANT_ADMIN'],
-    PERSONEL: ['SUPER_ADMIN', 'TENANT_ADMIN', 'MUDUR', 'PERSONEL'],
-    HERKES: ['SUPER_ADMIN', 'TENANT_ADMIN', 'MUDUR', 'DEPO', 'KASA', 'PERSONEL'],
+    STOK: ['TENANT_ADMIN', 'MUDUR', 'DEPO'],
+    SATIS: ['TENANT_ADMIN', 'MUDUR', 'KASA'],
+    YONETIM: ['TENANT_ADMIN', 'MUDUR'],
+    ADMIN: ['TENANT_ADMIN'],
+    PERSONEL: ['TENANT_ADMIN', 'MUDUR', 'PERSONEL'],
+    HERKES: ['TENANT_ADMIN', 'MUDUR', 'DEPO', 'KASA', 'PERSONEL'],
 };
 
-// Her item'a roller tanımlandı — Layout render sırasında kullanıcı rolüne göre filtrelenir
 const menuGruplari = [
     {
         baslik: 'Genel',
@@ -37,7 +39,7 @@ const menuGruplari = [
     },
     {
         baslik: 'Satış',
-        roller: [...new Set([...R.YONETIM, ...R.SATIS])], // Reçete veya Satış'a erişimi olan herkese grubu göster
+        roller: [...new Set([...R.YONETIM, ...R.SATIS])],
         items: [
             { path: '/receteler', label: 'Reçeteler', icon: '📝', roller: R.YONETIM },
             { path: '/satislar', label: 'Satışlar', icon: '💰', roller: R.SATIS },
@@ -60,7 +62,7 @@ const menuGruplari = [
     },
     {
         baslik: 'Tanımlamalar',
-        roller: R.STOK, // En geniş erişim grubu — içindeki item'lar kendi rolünü taşır
+        roller: R.STOK,
         items: [
             { path: '/tanimlamalar/kategoriler', label: 'Kategoriler', icon: '🏷️', roller: R.STOK },
             { path: '/tanimlamalar/olcu-birimleri', label: 'Ölçü Birimleri', icon: '⚖️', roller: R.STOK },
@@ -68,7 +70,6 @@ const menuGruplari = [
             { path: '/tanimlamalar/cari-kartlar', label: 'Cari Kartlar', icon: '🏢', roller: R.YONETIM },
             { path: '/tanimlamalar/subeler', label: 'Şubeler', icon: '🏪', roller: R.ADMIN },
             { path: '/tanimlamalar/kullanicilar', label: 'Kullanıcılar', icon: '👤', roller: R.ADMIN },
-            { path: '/audit-log', label: 'İşlem Geçmişi', icon: '📜', roller: R.ADMIN }, // ← EKLE
         ]
     },
     {
@@ -89,13 +90,12 @@ export default function Layout({ children }) {
 
     const rol = kullanici?.rol;
 
-    // Kullanıcının rolüne göre menüyü filtrele
     const gorunurMenu = menuGruplari
         .map(grup => ({
             ...grup,
             items: grup.items.filter(item => item.roller.includes(rol))
         }))
-        .filter(grup => grup.items.length > 0); // Hiç item'ı kalmayan grubu gizle
+        .filter(grup => grup.items.length > 0);
 
     const toggleGrup = (baslik) => {
         setKapali(prev => ({ ...prev, [baslik]: !prev[baslik] }));
@@ -104,7 +104,6 @@ export default function Layout({ children }) {
     const sidebarKapat = () => setSidebarAcik(false);
 
     const ROL_ETIKET = {
-        SUPER_ADMIN: '⚡ Süper Admin',
         TENANT_ADMIN: '👑 Admin',
         MUDUR: '🏢 Müdür',
         DEPO: '📦 Depo',
@@ -114,7 +113,6 @@ export default function Layout({ children }) {
 
     const SidebarIcerik = () => (
         <>
-            {/* Logo */}
             <div className="p-5 border-b border-zinc-800 flex-shrink-0 flex items-center justify-between">
                 <div>
                     <h1 className="text-xl font-black text-white">
@@ -125,7 +123,6 @@ export default function Layout({ children }) {
                         <span className="text-zinc-600 text-xs">{ROL_ETIKET[rol] ?? rol}</span>
                     )}
                 </div>
-                {/* Mobilde kapat butonu */}
                 <button
                     onClick={sidebarKapat}
                     className="md:hidden text-zinc-400 hover:text-white p-1"
@@ -134,7 +131,6 @@ export default function Layout({ children }) {
                 </button>
             </div>
 
-            {/* Menu */}
             <nav className="flex-1 overflow-y-auto p-2 space-y-1 scrollbar-thin">
                 {gorunurMenu.map((grup) => (
                     <div key={grup.baslik}>
@@ -171,10 +167,8 @@ export default function Layout({ children }) {
                 ))}
             </nav>
 
-            {/* Geri Bildirim */}
             <FeedbackModal />
 
-            {/* Çıkış */}
             <div className="p-2 border-t border-zinc-800 flex-shrink-0">
                 <button
                     onClick={cikisYap}
@@ -189,13 +183,10 @@ export default function Layout({ children }) {
 
     return (
         <div className="min-h-screen bg-zinc-950 flex">
-
-            {/* Masaüstü Sidebar */}
             <aside className="hidden md:flex w-56 bg-zinc-900 border-r border-zinc-800 flex-col fixed h-full z-30">
                 <SidebarIcerik />
             </aside>
 
-            {/* Mobil Overlay */}
             {sidebarAcik && (
                 <div
                     className="fixed inset-0 bg-black/60 z-40 md:hidden"
@@ -203,7 +194,6 @@ export default function Layout({ children }) {
                 />
             )}
 
-            {/* Mobil Sidebar */}
             <aside className={`
         fixed top-0 left-0 h-full w-64 bg-zinc-900 border-r border-zinc-800
         flex flex-col z-50 transform transition-transform duration-300 md:hidden
@@ -212,10 +202,7 @@ export default function Layout({ children }) {
                 <SidebarIcerik />
             </aside>
 
-            {/* Main */}
             <main className="flex-1 md:ml-56 flex flex-col min-h-screen">
-
-                {/* Mobil Header */}
                 <div className="md:hidden flex items-center justify-between px-4 py-3 bg-zinc-900 border-b border-zinc-800 sticky top-0 z-20">
                     <button
                         onClick={() => setSidebarAcik(true)}

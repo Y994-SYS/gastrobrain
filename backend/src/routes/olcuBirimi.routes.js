@@ -5,8 +5,7 @@ const { authMiddleware, rolKontrol } = require('../middleware/auth.middleware');
 
 router.use(authMiddleware);
 
-// Ölçü birimi tanımları: DEPO + MUDUR + ADMIN
-const stokRol = rolKontrol('SUPER_ADMIN', 'TENANT_ADMIN', 'MUDUR', 'DEPO');
+const stokRol = rolKontrol('TENANT_ADMIN', 'MUDUR', 'DEPO');
 
 router.get('/', stokRol, olcuBirimiController.hepsiniGetir);
 router.get('/:id', stokRol, olcuBirimiController.biriniGetir);

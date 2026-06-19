@@ -5,10 +5,8 @@ const { authMiddleware, rolKontrol } = require('../middleware/auth.middleware');
 
 router.use(authMiddleware);
 
-// Şube listeleme: MUDUR da kendi şubesini görmeli
-const okuma = rolKontrol('SUPER_ADMIN', 'TENANT_ADMIN', 'MUDUR');
-// Şube oluşturma/güncelleme: sadece ADMIN
-const yonetim = rolKontrol('SUPER_ADMIN', 'TENANT_ADMIN');
+const okuma = rolKontrol('TENANT_ADMIN', 'MUDUR');
+const yonetim = rolKontrol('TENANT_ADMIN');
 
 router.get('/', okuma, hepsiniGetir);
 router.get('/:id', okuma, tekiniGetir);

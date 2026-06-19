@@ -5,8 +5,8 @@ const { authMiddleware, rolKontrol } = require('../middleware/auth.middleware');
 
 router.use(authMiddleware);
 
-// Stok modülü: DEPO + MUDUR + ADMIN — KASA ve PERSONEL giremez
-const stokRol = rolKontrol('SUPER_ADMIN', 'TENANT_ADMIN', 'MUDUR', 'DEPO');
+// Stok modülü: DEPO + MUDUR + ADMIN — SUPER_ADMIN tenant'sız olduğu için yok
+const stokRol = rolKontrol('TENANT_ADMIN', 'MUDUR', 'DEPO');
 
 router.get('/hareketler', stokRol, stokController.hareketleriGetir);
 router.get('/durum', stokRol, stokController.tumStokDurumu);

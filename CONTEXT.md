@@ -162,6 +162,15 @@ VITE_API_URL=https://gastrobrain-backend.onrender.com
   - Şifre değiştirme
 - [ ] İlk 5 beta müşteri — devam ediyor
 
+### Faz 6 — Stabilite & Monitoring ✅
+- [x] Supabase migration (connection pooling dahil)
+- [x] Race condition fix (stok azaltma atomik, transaction içinde kontrol)
+- [x] Prisma middleware (tenantId zorunluluğu — index.js)
+- [x] Connection pooling (Supabase pgBouncer, directUrl migrations için)
+- [x] Sentry entegrasyonu (@sentry/node, instrument.js)
+- [x] Mobil uyumluluk (hamburger menü, responsive grid, tablo sütun gizleme)
+- [x] Audit log sistemi (AuditLog modeli, service, endpoint, frontend sayfası)
+
 ## BACKEND API ENDPOINTLERİ (tam liste)
 
 ### Auth
@@ -171,6 +180,7 @@ VITE_API_URL=https://gastrobrain-backend.onrender.com
 - POST /api/auth/kayit-firma
 - POST /api/auth/tenant-listesi
 - GET  /api/auth/lisans-durum ← YENİ
+- GET /api/audit-log (ADMIN+)
 
 ### Kullanıcılar
 - GET    /api/kullanicilar
@@ -235,7 +245,7 @@ gastroiq/
 │   │   │   └── superAdmin.routes.js
 │   │   ├── services/
 │   │   │   ├── auth.service.js            (otomatik 30 gün lisans eklendi)
-            ├── auditLog.service.js  
+│   │   │   ├── auditLog.service.js  
 │   │   │   ├── cariHareket.service.js
 │   │   │   ├── cariKart.service.js
 │   │   │   ├── demoSeed.service.js
@@ -276,6 +286,7 @@ gastroiq/
 │   │   │   ├── Profil.jsx                 ← YENİ
 │   │   │   ├── SuperAdmin.jsx             (hızlı uzatma eklendi)
 │   │   │   ├── Yardim.jsx
+│   │   │   ├──Yetkisiz.jsx
 │   │   │   ├── cari/CariHesap.jsx
 │   │   │   ├── personel/Personel.jsx
 │   │   │   ├── raporlar/Raporlar.jsx

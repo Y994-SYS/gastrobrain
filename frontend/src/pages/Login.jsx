@@ -41,7 +41,16 @@ export default function Login() {
         setYukleniyor(true);
         try {
             await girisYap(email, sifre, seciliTenant.tenantSlug);
-            navigate('/');
+
+            // Giriş sonrası rol bazlı yönlendirme
+            // girisYap store içindeki 'kullanici' state'ini set ediyor — buradan en güncel halini okuyoruz
+            const kullanici = useAuthStore.getState().kullanici;
+
+            if (kullanici?.rol === 'SUPER_ADMIN') {
+                navigate('/super-admin');
+            } else {
+                navigate('/');
+            }
         } catch (err) {
             setHata(err.response?.data?.mesaj || 'Giriş başarısız');
         } finally {

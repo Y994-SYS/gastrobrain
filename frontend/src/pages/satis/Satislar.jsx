@@ -21,14 +21,33 @@ export default function Satislar() {
 
     const getir = async () => {
         const subeId = kullanici?.subeId || '';
-        const [satisRes, receteRes, gunlukRes] = await Promise.all([
-            api.get(`/api/satislar?subeId=${subeId}`),
-            api.get('/api/receteler'),
-            api.get(`/api/satislar/gunluk-toplam?subeId=${subeId}`),
-        ]);
-        setVeri(satisRes.data.data);
-        setReceteler(receteRes.data.data);
-        setGunlukToplam(gunlukRes.data.data.toplam);
+
+        // Her isteği ayrı ayrı yönetiyoruz — biri patlasa bile diğerleri çalışmaya devam etsin
+        // ve gerçek hatayı konsola/toast'a basalım (önceki haliyle tüm Promise.all sessizce
+        // boş kalıyordu, teşhis imkansızdı).
+
+        try {
+            const receteRes = await api.get('/api/receteler');
+            setReceteler(receteRes.data.data);
+        } catch (err) {
+            console.error('Reçeteler çekilemedi:', err.response?.data || err.message);
+            toast.error('Reçeteler yüklenemedi: ' + (err.response?.data?.mesaj || err.message));
+        }
+
+        try {
+            const satisRes = await api.get(`/api/satislar?subeId=${subeId}`);
+            setVeri(satisRes.data.data);
+        } catch (err) {
+            console.error('Satışlar çekilemedi:', err.response?.data || err.message);
+            toast.error('Satışlar yüklenemedi: ' + (err.response?.data?.mesaj || err.message));
+        }
+
+        try {
+            const gunlukRes = await api.get(`/api/satislar/gunluk-toplam?subeId=${subeId}`);
+            setGunlukToplam(gunlukRes.data.data.toplam);
+        } catch (err) {
+            console.error('Günlük toplam çekilemedi:', err.response?.data || err.message);
+        }
     };
 
     useEffect(() => { getir(); }, []);
@@ -148,6 +167,11 @@ export default function Satislar() {
                                     <option key={r.id} value={r.id}>{r.ad}</option>
                                 ))}
                             </select>
+                            {receteler.length === 0 && (
+                                <p className="text-amber-400 text-xs mt-1">
+                                    Reçete listesi boş geldi — konsolda hata mesajını kontrol et.
+                                </p>
+                            )}
                         </div>
 
                         <div className="grid grid-cols-2 gap-3">

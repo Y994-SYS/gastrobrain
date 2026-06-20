@@ -65,6 +65,9 @@ export default function Login() {
             <div className="w-full max-w-sm">
 
                 <div className="text-center mb-8">
+                    <div className="flex justify-center mb-2">
+                        <img src="/logo.png" alt="GastroBRAIN" className="w-16 h-16 object-contain" />
+                    </div>
                     <h1 className="text-3xl font-black text-white tracking-tight">
                         Gastro<span className="text-lime-400">BRAIN</span>
                     </h1>

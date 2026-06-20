@@ -357,3 +357,43 @@ npm run dev
 
 ### Audit Log
 - GET /api/audit-log  (ADMIN+)
+
+# GastroBrain — Proje Bağlamı
+
+## Genel Mimari
+- **Landing:** gastrobrain.com.tr (Next.js, gastrobrain-landing servisi)
+- **Frontend (App):** app.gastrobrain.com.tr (gastrobrain-frontend servisi)
+- **Backend (API):** api.gastrobrain.com.tr (gastrobrain-backend servisi)
+- **Hosting:** Render.com
+- **DNS:** Cloudflare (nameserver üzerinden)
+- **Domain:** gastrobrain.com.tr (İsimtescil'den alındı)
+
+## DNS Yapısı (Cloudflare)
+| Tür | Ad | Hedef |
+|-----|----|-------|
+| CNAME | @ (gastrobrain.com.tr) | gastrobrain-landing.onrender.com |
+| CNAME | www | gastrobrain-landing.onrender.com |
+| CNAME | app | gastrobrain-frontend.onrender.com |
+| CNAME | api | gastrobrain-backend.onrender.com |
+
+Tüm kayıtlar: **DNS only** (proxy kapalı)
+
+## Render Custom Domain Durumu
+- gastrobrain.com.tr → Verified ✅ + Certificate Issued ✅
+- www.gastrobrain.com.tr → Verified ✅ + Certificate Issued ✅
+- app.gastrobrain.com.tr → Verified ✅ + Certificate Issued ✅
+- api.gastrobrain.com.tr → Verified ✅ + Certificate Issued ✅
+
+## Cloudflare Nameservers
+- elinore.ns.cloudflare.com
+- woz.ns.cloudflare.com
+
+## Önemli Notlar
+- Render free PostgreSQL (e-ticaret-db) süresi doldu, 14 gün içinde ücretli plana geçilmeli veya Supabase/Neon'a taşınmalı
+- Landing APP_URL: https://app.gastrobrain.com.tr/kayit
+- Navbar'a Giriş Yap butonu eklendi (https://app.gastrobrain.com.tr/login)
+
+## Landing Sayfası (page.tsx)
+- Framework: Next.js (App Router)
+- Stil: Inline CSS (style tag içinde)
+- Renk paleti: #09090b (bg), #a3e635 (lime/vurgu), #fff (text)

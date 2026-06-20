@@ -25,6 +25,57 @@ const bolumler = [
         ]
     },
     {
+        id: 'yetkilendirme',
+        icon: '🔐',
+        baslik: 'Roller ve Yetkiler',
+        konular: [
+            {
+                baslik: 'Sistemde hangi roller var?',
+                icerik: `GastroBrain'de 6 farklı kullanıcı rolü bulunur. Her rolün erişebileceği modüller farklıdır — bu sayede her çalışan sadece kendi işiyle ilgili ekranları görür, hassas veya alakasız bölümlere erişemez.
+
+ADMIN (Firma Sahibi)
+Firmanızın tüm verilerine ve modüllerine erişir. Kullanıcı ekler/çıkarır, şube açar, tüm raporları görür. Sisteme ilk kayıt olan kişi otomatik olarak bu rolü alır.
+
+MÜDÜR (Şube Müdürü)
+Stok, satış, reçete, cari hesap, rapor ve personel modüllerine erişir. Kullanıcı yönetimi ve şube ayarları gibi hassas alanlara giremez.
+
+DEPO
+Sadece stok modülüne erişir: giriş/iade faturası, zayi, tüketim, ay sonu sayım, stok kartı/kategori/ölçü birimi tanımları. Satış veya cari hesaba dokunamaz.
+
+KASA
+Sadece satış ekranına erişir: günlük satış girişi. Stok veya cari hesaba erişemez.
+
+PERSONEL
+En kısıtlı rol. Sadece kendi devam/mesai/avans bilgisini görür, başka hiçbir modüle erişemez.
+
+SÜPER ADMIN
+GastroBrain'i işleten ekip için ayrılmış özel bir rol — hiçbir restoran firmasına bağlı değildir, kendi paneli üzerinden tüm firma hesaplarını yönetir. Normal kullanıcı işlemleriyle ilgisi yoktur.`
+            },
+            {
+                baslik: 'Hangi rol hangi sayfaları görür?',
+                icerik: `ADMIN — Dashboard, Stok (tümü), Satış, Reçeteler, Cari Hesap, Raporlar, Personel, Tanımlamalar (tümü), Şubeler, Kullanıcılar
+
+MÜDÜR — Dashboard, Stok (tümü), Satış, Reçeteler, Cari Hesap, Raporlar, Personel, Tanımlamalar (Kategori/Ölçü Birimi/Stok Kartı/Cari Kart)
+
+DEPO — Dashboard, Stok (tümü), Tanımlamalar (Kategori/Ölçü Birimi/Stok Kartı)
+
+KASA — Dashboard, Satış
+
+PERSONEL — Dashboard, Personel (sadece kendi kaydı)
+
+Bir kullanıcı yetkisi olmayan bir sayfaya gitmeye çalışırsa "Erişim Yetkisi Yok" sayfası ile karşılaşır ve ana sayfaya yönlendirilir. Menüde de zaten sadece yetkisi olan bölümler görünür.`
+            },
+            {
+                baslik: 'Bir çalışanın rolünü nasıl değiştiririm?',
+                icerik: `Tanımlamalar → Kullanıcılar sayfasına gidin (sadece ADMIN bu sayfayı görebilir).
+
+İlgili kullanıcının yanındaki "Düzenle" butonuna tıklayın, Rol alanından yeni rolü seçin ve kaydedin. Değişiklik, kullanıcının bir sonraki girişinde (veya token yenilendiğinde) geçerli olur.
+
+Not: Kendi rolünüzü buradan değiştiremezsiniz; firma sahipliği transferi gerekiyorsa bizimle iletişime geçin.`
+            },
+        ]
+    },
+    {
         id: 'stok',
         icon: '📦',
         baslik: 'Stok Yönetimi',
@@ -197,8 +248,8 @@ export default function Yardim() {
                                 key={b.id}
                                 onClick={() => { setAktifBolum(b.id); setAktifKonu(null); }}
                                 className={`w-full flex items-center gap-3 px-4 py-3 text-sm text-left transition-colors border-b border-zinc-800 last:border-0 ${aktifBolum === b.id
-                                        ? 'bg-lime-400/10 text-lime-400 font-semibold'
-                                        : 'text-zinc-400 hover:text-white hover:bg-zinc-800'
+                                    ? 'bg-lime-400/10 text-lime-400 font-semibold'
+                                    : 'text-zinc-400 hover:text-white hover:bg-zinc-800'
                                     }`}
                             >
                                 <span>{b.icon}</span>

@@ -3,6 +3,12 @@ const bcrypt = require('bcryptjs');
 const auditLog = require('../services/auditLog.service');
 const prisma = new PrismaClient();
 
+// Bu controller üzerinden ATANABİLECEK roller — bilerek sınırlı tutuluyor.
+// SUPER_ADMIN buraya YOK: süper admin hesapları sadece ops scriptleriyle,
+// tenant dışında oluşturulur. Bir TENANT_ADMIN'in kendi firmasından
+// SUPER_ADMIN yaratabilmesi ciddi bir yetki yükseltme açığı olurdu.
+const ATANABILIR_ROLLER = ['TENANT_ADMIN', 'MUDUR', 'DEPO', 'KASA', 'PERSONEL'];
+
 const hepsiniGetir = async (req, res) => {
     try {
         const kullanicilar = await prisma.kullanici.findMany({
@@ -24,6 +30,11 @@ const olustur = async (req, res) => {
         const { ad, email, sifre, rol, subeId } = req.body;
         if (!ad || !email || !sifre) return res.status(400).json({ hata: 'Ad, email ve şifre zorunlu' });
 
+        const istenenRol = rol || 'PERSONEL';
+        if (!ATANABILIR_ROLLER.includes(istenenRol)) {
+            return res.status(403).json({ hata: 'Bu rol atanamaz' });
+        }
+
         const mevcutKullanici = await prisma.kullanici.findUnique({
             where: { email_tenantId: { email, tenantId: req.kullanici.tenantId } }
         });
@@ -33,7 +44,7 @@ const olustur = async (req, res) => {
         const kullanici = await prisma.kullanici.create({
             data: {
                 ad, email, sifre: sifreHash,
-                rol: rol || 'PERSONEL',
+                rol: istenenRol,
                 subeId: subeId || null,
                 tenantId: req.kullanici.tenantId
             },
@@ -42,7 +53,7 @@ const olustur = async (req, res) => {
 
         await auditLog.kaydet({
             eylem: 'KULLANICI_EKLE',
-            detay: { ad, email, rol: rol || 'PERSONEL' },
+            detay: { ad, email, rol: istenenRol },
             kullaniciId: req.kullanici.id,
             tenantId: req.kullanici.tenantId,
             ip: req.ip
@@ -62,6 +73,11 @@ const guncelle = async (req, res) => {
         if (!mevcut) return res.status(404).json({ hata: 'Kullanıcı bulunamadı' });
 
         const { ad, email, sifre, rol, subeId, aktif } = req.body;
+
+        if (rol && !ATANABILIR_ROLLER.includes(rol)) {
+            return res.status(403).json({ hata: 'Bu rol atanamaz' });
+        }
+
         const data = { ad, email, rol, aktif, subeId: subeId || null };
         if (sifre) data.sifre = await bcrypt.hash(sifre, 10);
 

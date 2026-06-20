@@ -115,9 +115,12 @@ export default function Layout({ children }) {
         <>
             <div className="p-5 border-b border-zinc-800 flex-shrink-0 flex items-center justify-between">
                 <div>
-                    <h1 className="text-xl font-black text-white">
-                        Gastro<span className="text-lime-400">BRAIN</span>
-                    </h1>
+                    <div className="flex items-center gap-2">
+                        <img src="/logo.png" alt="GastroBRAIN" className="w-8 h-8 object-contain" />
+                        <h1 className="text-xl font-black text-white">
+                            Gastro<span className="text-lime-400">BRAIN</span>
+                        </h1>
+                    </div>
                     <p className="text-zinc-500 text-xs mt-0.5">{kullanici?.ad}</p>
                     {rol && (
                         <span className="text-zinc-600 text-xs">{ROL_ETIKET[rol] ?? rol}</span>
@@ -210,7 +213,8 @@ export default function Layout({ children }) {
                     >
                         <span className="text-2xl">☰</span>
                     </button>
-                    <h1 className="text-lg font-black text-white">
+                    <h1 className="text-lg font-black text-white flex items-center gap-1.5">
+                        <img src="/logo.png" alt="GastroBRAIN" className="w-6 h-6 object-contain" />
                         Gastro<span className="text-lime-400">BRAIN</span>
                     </h1>
                     <div className="w-8" />

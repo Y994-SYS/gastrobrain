@@ -2,8 +2,8 @@
 
 import { useEffect } from 'react';
 import Image from 'next/image';
-
-const APP_URL = 'https://gastrobrain-frontend.onrender.com/kayit';
+const APP_URL = 'https://app.gastrobrain.com.tr/kayit';
+// const APP_URL = 'https://gastrobrain-frontend.onrender.com/kayit';
 
 const ozellikler = [
   {
@@ -285,6 +285,7 @@ export default function Home() {
             <a href="#fiyatlar">Fiyatlar</a>
             <a href="#sss">SSS</a>
             <a href="/rehber" style={{ color: 'var(--muted)', textDecoration: 'none', fontSize: 14, transition: 'color 0.2s' }} onMouseEnter={e => e.currentTarget.style.color = 'var(--lime)'} onMouseLeave={e => e.currentTarget.style.color = 'var(--muted)'}>Rehber</a>
+            <a href="https://app.gastrobrain.com.tr/login" style={{ color: '#a1a1aa', textDecoration: 'none', fontSize: '0.875rem', transition: 'color 0.2s' }} onMouseEnter={e => e.currentTarget.style.color = '#fff'} onMouseLeave={e => e.currentTarget.style.color = '#a1a1aa'}>Giriş Yap</a>
             <a href={APP_URL} className="nav-cta">1 Ay Ücretsiz Dene</a>
           </div>
         </nav>

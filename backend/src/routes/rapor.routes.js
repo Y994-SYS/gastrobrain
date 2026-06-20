@@ -1,17 +1,16 @@
 const express = require('express');
 const router = express.Router();
-const receteController = require('../controllers/recete.controller');
+const raporController = require('../controllers/rapor.controller');
 const { authMiddleware, rolKontrol } = require('../middleware/auth.middleware');
 
 router.use(authMiddleware);
 
 const yonetimRol = rolKontrol('TENANT_ADMIN', 'MUDUR');
 
-router.get('/', yonetimRol, receteController.hepsiniGetir);
-router.get('/:id', yonetimRol, receteController.biriniGetir);
-router.get('/:id/maliyet', yonetimRol, receteController.maliyetHesapla);
-router.post('/', yonetimRol, receteController.olustur);
-router.put('/:id', yonetimRol, receteController.guncelle);
-router.delete('/:id', yonetimRol, receteController.sil);
+router.get('/satis', yonetimRol, raporController.satisRaporu);
+router.get('/stok', yonetimRol, raporController.stokRaporu);
+router.get('/cari', yonetimRol, raporController.cariRaporu);
+router.get('/maliyet', yonetimRol, raporController.maliyetRaporu);
+router.get('/excel', yonetimRol, raporController.excelExport);
 
 module.exports = router;

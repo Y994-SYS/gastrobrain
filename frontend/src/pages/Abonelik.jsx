@@ -49,7 +49,7 @@ const PLANLAR = [
 ];
 
 const IBAN = 'TR64 0006 2001 2620 0006 6629 79';
-const DESTEK_EMAIL = 'destek@gastrobrain.com';
+const DESTEK_EMAIL = 'alkan.yazilim.dev@gmail.com';
 
 export default function Abonelik() {
     const { kullanici } = useAuthStore();
@@ -121,7 +121,7 @@ export default function Abonelik() {
                             key={plan.id}
                             onClick={() => setSecilenPlan(plan.id)}
                             className={`relative border rounded-xl p-6 cursor-pointer transition-all flex flex-col justify-between ${isSelected
-                                ? 'border-lime-400 bg-lime-400/5 ring-1 ring-lime-400'
+                                ? 'border-lime-400 bg-lime-400/5 ring-2 ring-lime-400 animate-[pulse-border_2s_ease-in-out_infinite]'
                                 : 'border-zinc-800 bg-zinc-900 hover:border-zinc-700'
                                 }`}
                         >

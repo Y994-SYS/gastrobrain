@@ -16,6 +16,8 @@
 - **Cron:** node-cron (lisans uyarı job'ları)
 - **Veritabanı:** Supabase PostgreSQL (production), localhost:5432 (local)
 - **Error Monitoring:** Sentry (@sentry/node)
+Hosting: Render.com (backend + frontend + landing, ayrı servisler)
+DNS: Cloudflare (gastrobrain.com.tr, İsimtescil'den alındı)
 
 ## ÖNEMLİ NOTLAR
 - Prisma v6 kullanılıyor (v7 DEĞİL — prisma.config.ts olmadan çalışıyor)
@@ -26,6 +28,8 @@
 - PowerShell'de `$disconnect` ve `$transaction` inline node -e komutlarında sorun çıkarıyor → dosya olarak çalıştır
 - landing klasörü gastroiq/landing altında (submodule değil, normal klasör)
 - auth.store.js'de setKullanici fonksiyonu var — profil güncellemede kullanılıyor
+-Şema değişikliklerinde npx prisma migrate dev DEĞİL npx prisma db push kullan — migration history Supabase'de tutulmuyor, migrate dev "drift detected" deyip reset istiyor (VERİ KAYBI RİSKİ). db push veriyi koruyarak şemayı senkronize eder.
+-Render Build Command'ı npm install && npx prisma generate olmalı — sadece npm install Prisma Client'ı eski şemadan üretilmiş halde bırakabilir
 
 ## PORT & URL
 - Frontend: http://localhost:5173
@@ -38,16 +42,36 @@
 - Abonelik: http://localhost:5173/abonelik
 
 ## PRODUCTION URL'LERİ (Render)
-- Frontend: https://gastrobrain-frontend.onrender.com
-- Backend: https://gastrobrain-backend.onrender.com
-- Landing: https://gastrobrain-landing.onrender.com
+- Landing: https://gastrobrain.com.tr (+ www)
+-Frontend (App): https://app.gastrobrain.com.tr
+-Backend (API): https://api.gastrobrain.com.tr
+-Süper Admin: https://app.gastrobrain.com.tr/super-admin
+-(Eski Render alt domainleri hâlâ çalışıyor olabilir ama artık custom domain birincil: gastrobrain-frontend.onrender.com, gastrobrain-backend.onrender.com, gastrobrain-landing.onrender.com)
+
+DNS Yapısı (Cloudflare — DNS only, proxy kapalı)
+
+TürAdHedefCNAME@ (gastrobrain.com.tr)gastrobrain-landing.onrender.comCNAMEwwwgastrobrain-landing.onrender.comCNAMEappgastrobrain-frontend.onrender.comCNAMEapigastrobrain-backend.onrender.com
+
+Nameserver: elinore.ns.cloudflare.com, woz.ns.cloudflare.com
+Render Custom Domain durumu: tüm 4 domain Verified ✅ + Certificate Issued ✅
+Landing APP_URL: https://app.gastrobrain.com.tr/kayit — Navbar'da "Giriş Yap" butonu app.gastrobrain.com.tr/giris'e gidiyor
 
 ## VERİTABANI
 - **gastroiq_dev** — PostgreSQL localhost:5432 (local)
-- **Supabase** — aws-0-eu-west-1.pooler.supabase.com (production) ← GÜNCELLENDİ
-- Toplam 19 tablo (Prisma schema)
-- Connection pooling: Supabase pgBouncer (transaction mode, port 6543)
-- Direct URL: session mode (port 5432, migration için)
+- *Supabase PostgreSQL — proje ID: cqeexgnzjlikyjxiphjf, aws-0-eu-west-1.pooler.supabase.com
+DATABASE_URL: port 6543, pgbouncer=true (Prisma transaction pooler)
+DIRECT_URL: port 5432 (migration/db push için)
+Toplam 19 tablo (Tenant, Kullanici, Sube, Kategori, OlcuBirimi, StokKart, StokHareket, Recete, ReceteKalem, Satis, CariKart, CariHareket, CariHareketKalem, Personel, PersonelMaas, PersonelAvans, PersonelDevam, AuditLog + diğer)
+Render'ın kendi ücretsiz PostgreSQL servisi (eski "eticaretdb_94wj") kullanılmıyor — Render backend'de DATABASE_URL'in gerçekten Supabase'e işaret ettiğinden emin ol (proje ID cqeexgnzjlikyjxiphjf geçmeli)
+
+
+##ROL SİSTEMİ (6 Rol) — RBAC tam uygulandı
+
+RolErişimSUPER_ADMINHiçbir tenant'a bağlı değil (tenantId: null, subeId: null). SADECE /super-admin panelini kullanabilir — normal uygulama sayfalarına (Stok, Satış, Kullanıcılar vb.) girmeye çalışırsa otomatik olarak /super-admin'e geri yönlendirilir. Bu hem frontend (PrivateRoute) hem backend (rolKontrol listelerinden çıkarıldı) seviyesinde uygulanıyor.TENANT_ADMINFirma sahibi. Kendi tenant'ının tüm modüllerine erişir, kullanıcı/şube yönetir.MUDURStok, satış, reçete, cari, rapor, personel modüllerine erişir. Kullanıcı/şube yönetimine erişemez.DEPOSadece stok modülü (giriş/iade faturası, zayi, tüketim, sayım, stok kartı/kategori/ölçü birimi tanımları).KASASadece satış ekranı.PERSONELEn kısıtlı. Sadece kendi devam/mesai/avans bilgisini görür.
+
+ÖNEMLİ — ADMIN enum değeri kullanılmıyor: Prisma şemasında Rol enum'unda ADMIN diye bir değer var ama hiçbir route/role-group bunu tanımıyor; gerçek admin rolü her zaman TENANT_ADMIN. Kullanıcı oluşturma formlarında asla 'ADMIN' literal'ı kullanılmamalı, kullanıcı sisteme kilitlenir.
+
+🔒 Güvenlik kısıtı — SUPER_ADMIN asla normal kullanıcı oluşturma formundan atanamaz: kullanici.controller.js'deki ATANABILIR_ROLLER whitelist'i (TENANT_ADMIN, MUDUR, DEPO, KASA, PERSONEL) sadece bu rollerin atanmasına izin veriyor. Bu kontrol olmadan bir TENANT_ADMIN kendi firmasında rol: 'SUPER_ADMIN' ile kullanıcı oluşturup global panele sızabilirdi — bu açık kapatıldı, hem backend hem frontend dropdown'unda.
 
 ## TEST KULLANICILARI (local)
 | Email | Şifre | Rol | Firma |
@@ -67,6 +91,7 @@
 ### Backend (.env)
 ```
 DATABASE_URL=postgresql://...
+DIRECT_URL=postgresql://postgres.cqeexgnzjlikyjxiphjf:****@aws-0-eu-west-1.pooler.supabase.com:5432/postgres
 JWT_SECRET=...
 JWT_EXPIRES_IN=7d
 SMTP_HOST=smtp.gmail.com
@@ -74,13 +99,15 @@ SMTP_PORT=587
 SMTP_USER=senin@gmail.com
 SMTP_PASS=gmail_uygulama_sifresi (16 haneli)
 FEEDBACK_EMAIL=senin@gmail.com
-APP_URL=https://gastrobrain-frontend.onrender.com
+APP_URL=https://app.gastrobrain.com.tr
 NODE_ENV=production
+SENTRY_DSN=...
 ```
 
 ### Frontend (.env)
 ```
-VITE_API_URL=https://gastrobrain-backend.onrender.com
+VITE_API_URL=https://api.gastrobrain.com.tr
+
 ```
 
 ## TAMAMLANAN FAZLAR
@@ -171,6 +198,58 @@ VITE_API_URL=https://gastrobrain-backend.onrender.com
 - [x] Mobil uyumluluk (hamburger menü, responsive grid, tablo sütun gizleme)
 - [x] Audit log sistemi (AuditLog modeli, service, endpoint, frontend sayfası)
 
+Faz 7 — Rol Bazlı Yetkilendirme (RBAC) ✅
+
+Backend: Her route dosyasına rolKontrol(...roller) middleware'i eklendi:
+
+
+STOK modülü (stok, stokKart, kategori, olcuBirimi): TENANT_ADMIN, MUDUR, DEPO
+SATIS modülü: TENANT_ADMIN, MUDUR, KASA
+Finansal/Yönetim (cariKart, cariHareket, recete, rapor): TENANT_ADMIN, MUDUR
+Kullanıcı yönetimi: TENANT_ADMIN (sadece)
+Şube: okuma TENANT_ADMIN, MUDUR / yazma TENANT_ADMIN (sadece)
+Personel: yönetim TENANT_ADMIN, MUDUR / okuma + PERSONEL (sadece kendi kaydı)
+/api/super-admin/*: SUPER_ADMIN (sadece)
+NOT: SUPER_ADMIN bilerek tenant-scoped route'ların hiçbirinde YOK (aşağıdaki Faz 8'e bakın — sebebi orada açıklanıyor)
+
+
+Frontend:
+
+
+App.jsx — her route PrivateRoute roller={...} ile sarıldı; /super-admin ayrı guard ile korunuyor
+Layout.jsx — sidebar menuGruplari rol bazlı filtreleniyor, boş kalan gruplar tamamen gizleniyor
+Dashboard.jsx — role özel 4 farklı görünüm: PersonelDashboard, KasaDashboard, DepoDashboard, YonetimDashboard
+Yetkisiz.jsx — yetkisiz erişim sayfası (mevcut rolü gösterir, geri dön/ana sayfa seçeneği sunar)
+Login.jsx — giriş sonrası rol bazlı yönlendirme: SUPER_ADMIN → /super-admin, diğerleri → /
+
+
+Faz 8 — Süper Admin Tam İzolasyonu ✅
+
+Sorun 1: SUPER_ADMIN hesabı başlangıçta bir tenant'a (tenantId: 1) bağlıydı.
+Çözüm:
+
+
+schema.prisma: Kullanici.tenantId opsiyonel yapıldı (Int?), tenant ilişkisi de opsiyonel (Tenant?)
+npx prisma db push ile Supabase'e veri kaybı olmadan uygulandı
+auth.service.js → girisYap: tenantSlug verilmemişse tenantId: null + rol: SUPER_ADMIN kaydını arıyor
+auth.service.js → tenantListesiGetir: tenantId null kullanıcılar için "Süper Admin Paneli" seçeneği dönüyor
+Mevcut süper admin kaydı UPDATE ... SET tenantId = null, subeId = null ile izole edildi
+
+
+Sorun 2 (kritik): İzolasyon sonrası SUPER_ADMIN normal tenant sayfalarına (Şubeler, Stok Kartları vb.) girmeye çalışınca Argument tenant is missing / Invalid prisma.X.create() hataları aldı — çünkü bu sayfalar req.kullanici.tenantId'yi kullanıyor ve artık null geliyor.
+Çözüm: SUPER_ADMIN, tüm tenant-scoped backend route'larının rolKontrol(...) listelerinden VE frontend R rol gruplarından (App.jsx, Layout.jsx) tamamen çıkarıldı. PrivateRoute'a şu kural eklendi: SUPER_ADMIN hangi route'a gitmeye çalışırsa çalışsın otomatik /super-admin'e yönlendirilir.
+
+Sonuç: SUPER_ADMIN artık mimari olarak da pratikte de tamamen izole — hiçbir firmanın verisine/kullanıcı sayısına dahil değil, hiçbir tenant CRUD işlemine erişemez, sadece kendi global panelini kullanır.
+
+Faz 9 — Küçük İyileştirmeler ✅
+
+
+Kullanıcı Yönetimi mobil uyumlu hale getirildi (Kullanicilar.jsx): sm altında tablo yerine kart görünümü, modal max-h-[90vh] overflow-y-auto ile taşma engellendi, alt butonlar sticky
+Kullanıcı eklerken rol bilgi kutusu: Rol seçilince dropdown altında o rolün tam yetki açıklaması renkli kutu olarak gösteriliyor (ROL_ACIKLAMA map'i)
+Yardım sayfasına "Roller ve Yetkiler" bölümü eklendi (Yardim.jsx): rollerin tanımları, hangi rolün hangi sayfayı gördüğü tablosu, rol değiştirme talimatı
+Logo eklendi: frontend/public/logo.png (şeffaf arka planlı PNG, landing'deki logodan üretildi), Layout.jsx (sidebar header + mobil header) ve Login.jsx'e (giriş ekranı başlığı) logo+yazı yan yana eklendi
+Satislar.jsx hata yönetimi düzeltildi: Önceden 3 API isteği tek Promise.all içindeydi, biri patlarsa hepsi sessizce boş kalıyordu (reçete dropdown'u boş geliyordu, hata görünmüyordu). Artık her istek ayrı try/catch ile yönetiliyor, gerçek hata mesajı toast olarak gösteriliyor, dropdown boşsa uyarı metni çıkıyor.
+
 ## BACKEND API ENDPOINTLERİ (tam liste)
 
 ### Auth
@@ -183,12 +262,12 @@ VITE_API_URL=https://gastrobrain-backend.onrender.com
 - GET /api/audit-log (ADMIN+)
 
 ### Kullanıcılar
-- GET    /api/kullanicilar
-- POST   /api/kullanicilar
-- PUT    /api/kullanicilar/profil ← YENİ
-- PUT    /api/kullanicilar/sifre-degistir ← YENİ
-- PUT    /api/kullanicilar/:id
-- DELETE /api/kullanicilar/:id
+GET    /api/kullanicilar (TENANT_ADMIN)
+POST   /api/kullanicilar (TENANT_ADMIN — SUPER_ADMIN rolü atanamaz, whitelist korumalı)
+PUT    /api/kullanicilar/profil (herkes, kendi profili)
+PUT    /api/kullanicilar/sifre-degistir (herkes, kendi şifresi)
+PUT    /api/kullanicilar/:id (TENANT_ADMIN)
+DELETE /api/kullanicilar/:id (TENANT_ADMIN)
 
 ### Diğerleri
 - /api/kategoriler, /api/olcu-birimleri, /api/stok-kartlari, /api/cari-kartlar — CRUD
@@ -208,12 +287,12 @@ gastroiq/
 ├── backend/
 │   ├── src/
 │   │   ├── controllers/
-│   │   │   ├── auth.controller.js         (lisansDurum eklendi)
+│   │   │   ├── auth.controller.js              # lisansDurum eklendi
 │   │   │   ├── cariHareket.controller.js
 │   │   │   ├── cariKart.controller.js
 │   │   │   ├── feedback.controller.js
 │   │   │   ├── kategori.controller.js
-│   │   │   ├── kullanici.controller.js    (profilGuncelle, sifreDegistir eklendi)
+│   │   │   ├── kullanici.controller.js         # ATANABILIR_ROLLER whitelist (SUPER_ADMIN ataması engellendi) + profilGuncelle, sifreDegistir
 │   │   │   ├── olcuBirimi.controller.js
 │   │   │   ├── personel.controller.js
 │   │   │   ├── rapor.controller.js
@@ -224,16 +303,16 @@ gastroiq/
 │   │   │   ├── sube.controller.js
 │   │   │   └── superAdmin.controller.js
 │   │   ├── middleware/
-│   │   │   ├── auth.middleware.js
+│   │   │   ├── auth.middleware.js              # authMiddleware + rolKontrol (SUPER_ADMIN tenant‑scoped olanlardan çıkarıldı)
 │   │   │   └── rateLimit.middleware.js
 │   │   ├── routes/
-│   │   │   ├── auth.routes.js             (lisans-durum eklendi)
-            ├── auditLog.routes.js
+│   │   │   ├── auth.routes.js                  # /lisans-durum eklendi
+│   │   │   ├── auditLog.routes.js
 │   │   │   ├── cariHareket.routes.js
 │   │   │   ├── cariKart.routes.js
 │   │   │   ├── feedback.routes.js
 │   │   │   ├── kategori.routes.js
-│   │   │   ├── kullanici.routes.js        (profil, sifre-degistir eklendi)
+│   │   │   ├── kullanici.routes.js             # /profil, /sifre-degistir eklendi
 │   │   │   ├── olcuBirimi.routes.js
 │   │   │   ├── personel.routes.js
 │   │   │   ├── rapor.routes.js
@@ -244,24 +323,27 @@ gastroiq/
 │   │   │   ├── sube.routes.js
 │   │   │   └── superAdmin.routes.js
 │   │   ├── services/
-│   │   │   ├── auth.service.js            (otomatik 30 gün lisans eklendi)
-│   │   │   ├── auditLog.service.js  
+│   │   │   ├── auth.service.js                 # SUPER_ADMIN tenant'sız giriş desteği + otomatik 30 gün lisans
+│   │   │   ├── auditLog.service.js
 │   │   │   ├── cariHareket.service.js
 │   │   │   ├── cariKart.service.js
 │   │   │   ├── demoSeed.service.js
 │   │   │   ├── kategori.service.js
-│   │   │   ├── lisansUyari.service.js     ← YENİ (cron job)
-│   │   │   ├── mail.service.js            ← YENİ (hosgeldin + uyari maili)
+│   │   │   ├── lisansUyari.service.js          # 🆕 cron job – lisans bitiş uyarıları
+│   │   │   ├── mail.service.js                 # 🆕 hoş geldin ve uyarı e‑postaları
 │   │   │   ├── olcuBirimi.service.js
 │   │   │   ├── personel.service.js
 │   │   │   ├── recete.service.js
 │   │   │   ├── satis.service.js
 │   │   │   ├── stok.service.js
 │   │   │   └── stokKart.service.js
-│   │   └── index.js                       (cron job başlatma eklendi)
+│   │   └── index.js                            # cron job başlatma eklendi
 │   ├── prisma/
-│   │   ├── schema.prisma
-│   │   └── seed.js
+│   │   ├── schema.prisma                       # Kullanici.tenantId → Int? (opsiyonel)
+│   │   ├── seed.js
+│   │   └── ...
+│   ├── izole-et-super-admin.js                 # 🆕 SUPER_ADMIN'i tenant'sız hale getiren tek seferlik script
+│   ├── check-tenants.js                        # 🆕 tenant/şube ID'lerini listeleyen script
 │   ├── create-super-admin.js
 │   ├── create-tenant2.js
 │   ├── fix-tenant.js
@@ -269,52 +351,38 @@ gastroiq/
 │   └── .env
 │
 ├── frontend/
+│   ├── public/
+│   │   └── logo.png                            # 🆕 şeffaf arka planlı logo
 │   ├── src/
 │   │   ├── components/
-│   │   │   ├── FeedbackModal.jsx
-│   │   │   ├── Layout.jsx                 (LisansBanner + Profil linki eklendi)
-│   │   │   ├── LisansBanner.jsx           ← YENİ
+│   │   │   ├── Layout.jsx                      # logo + rol bazlı sidebar filtreleme, LisansBanner, Profil linki
+│   │   │   ├── LisansBanner.jsx                # 🆕 lisans durumu banner'ı
+│   │   │   ├── FeedbackModal.jsx               # 🆕 geri bildirim modal'ı
 │   │   │   ├── LoadingSpinner.jsx
 │   │   │   ├── Modal.jsx
 │   │   │   └── Table.jsx
 │   │   ├── pages/
-│   │   │   ├── Abonelik.jsx               ← YENİ
-|   |   |   ├── AuditLog.jsx
-│   │   │   ├── Dashboard.jsx
+│   │   │   ├── Login.jsx                       # logo + rol bazlı yönlendirme
+│   │   │   ├── Dashboard.jsx                   # rol bazlı 4 farklı görünüm
+│   │   │   ├── Yetkisiz.jsx                    # 🆕 yetkisiz erişim sayfası
+│   │   │   ├── Yardim.jsx                      # Roller ve Yetkiler bölümü eklendi
+│   │   │   ├── Profil.jsx                      # 🆕 kullanıcı profil sayfası
+│   │   │   ├── Abonelik.jsx                    # 🆕 lisans/abonelik yönetimi
+│   │   │   ├── AuditLog.jsx                    # 🆕 denetim günlüğü
 │   │   │   ├── KayitFirma.jsx
-│   │   │   ├── Login.jsx
-│   │   │   ├── Profil.jsx                 ← YENİ
-│   │   │   ├── SuperAdmin.jsx             (hızlı uzatma eklendi)
-│   │   │   ├── Yardim.jsx
-│   │   │   ├──Yetkisiz.jsx
-│   │   │   ├── cari/CariHesap.jsx
-│   │   │   ├── personel/Personel.jsx
-│   │   │   ├── raporlar/Raporlar.jsx
-│   │   │   ├── recete/Receteler.jsx
-│   │   │   ├── satis/Satislar.jsx
-│   │   │   ├── stok/
-│   │   │   │   ├── AySonuSayim.jsx
-│   │   │   │   ├── GirisFaturasi.jsx
-│   │   │   │   ├── IadeFaturasi.jsx
-│   │   │   │   ├── StokDurumu.jsx
-│   │   │   │   ├── TuketimGideri.jsx
-│   │   │   │   └── ZayiGideri.jsx
+│   │   │   ├── SuperAdmin.jsx                  # hızlı uzatma butonu eklendi
+│   │   │   ├── satis/Satislar.jsx              # hata yönetimi düzeltildi
 │   │   │   └── tanimlamalar/
-│   │   │       ├── CariKartlar.jsx
-│   │   │       ├── Kategoriler.jsx
-│   │   │       ├── Kullanicilar.jsx
-│   │   │       ├── OlcuBirimleri.jsx
-│   │   │       ├── StokKartlari.jsx
-│   │   │       └── Subeler.jsx
+│   │   │       └── Kullanicilar.jsx            # mobil kart görünümü + rol yetki bilgi kutusu + SUPER_ADMIN/ADMIN bug fix
 │   │   ├── services/
 │   │   │   ├── api.js
 │   │   │   └── auth.service.js
 │   │   ├── store/
-│   │   │   └── auth.store.js              (setKullanici eklendi)
-│   │   └── App.jsx                        (Abonelik, Profil route'ları eklendi)
+│   │   │   └── auth.store.js                   # setKullanici eklendi
+│   │   └── App.jsx                             # her route PrivateRoute korumalı, SUPER_ADMIN → /super-admin, Abonelik/Profil route'ları
 │   └── .env
 │
-├── landing/
+├── landing/                                     # (değişmedi)
 │   ├── app/
 │   │   ├── layout.tsx
 │   │   ├── page.tsx
@@ -323,10 +391,10 @@ gastroiq/
 │   │       └── page.tsx
 │   ├── public/
 │   │   └── logo.png
-│   ├── next.config.ts                     (output: export eklendi)
+│   ├── next.config.ts                           # output: export
 │   └── package.json
 │
-└── CONTEXT.md
+└── CONTEXT.md                                   # bu dosya
 
 ## SUNUCU BAŞLATMA
 ```powershell
@@ -397,3 +465,10 @@ Tüm kayıtlar: **DNS only** (proxy kapalı)
 - Framework: Next.js (App Router)
 - Stil: Inline CSS (style tag içinde)
 - Renk paleti: #09090b (bg), #a3e635 (lime/vurgu), #fff (text)
+
+BİLİNEN RİSKLER / TAKİP EDİLECEKLER
+
+
+İleride birden fazla SUPER_ADMIN eklenirse, email üzerinde tenantId IS NULL koşullu partial unique index eklenmesi düşünülebilir (şu an tek süper admin olduğu için risk değil)
+Render free tier disk kalıcı değil — veritabanı zaten Supabase'e taşındı, sorun çözüldü
+İlk 5 beta müşteri — devam ediyor

@@ -3,6 +3,8 @@ import toast from 'react-hot-toast';
 import api from '../../services/api';
 import Modal from '../../components/Modal';
 
+const fmt = (n) => Number(n || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
 export default function CariHesap() {
     const [cariler, setCariler] = useState([]);
     const [seciliCari, setSeciliCari] = useState(null);
@@ -72,11 +74,11 @@ export default function CariHesap() {
             <div className="grid grid-cols-2 gap-4 mb-6">
                 <div className="bg-zinc-900 border border-red-500/20 rounded-2xl p-4">
                     <div className="text-xs text-zinc-500 mb-1">Toplam Borç</div>
-                    <div className="text-red-400 font-bold text-xl">₺{toplamBorc.toFixed(2)}</div>
+                    <div className="text-red-400 font-bold text-xl">₺{fmt(toplamBorc)}</div>
                 </div>
                 <div className="bg-zinc-900 border border-lime-500/20 rounded-2xl p-4">
                     <div className="text-xs text-zinc-500 mb-1">Toplam Alacak</div>
-                    <div className="text-lime-400 font-bold text-xl">₺{toplamAlacak.toFixed(2)}</div>
+                    <div className="text-lime-400 font-bold text-xl">₺{fmt(toplamAlacak)}</div>
                 </div>
             </div>
 
@@ -101,7 +103,7 @@ export default function CariHesap() {
                                         <div className="text-xs text-zinc-500 font-mono mt-0.5">{c.kod}</div>
                                     </div>
                                     <div className={`text-sm font-bold font-mono ${c.bakiye > 0 ? 'text-red-400' : c.bakiye < 0 ? 'text-lime-400' : 'text-zinc-500'}`}>
-                                        {c.bakiye > 0 ? '-' : c.bakiye < 0 ? '+' : ''}₺{Math.abs(c.bakiye).toFixed(2)}
+                                        {c.bakiye > 0 ? '-' : c.bakiye < 0 ? '+' : ''}₺{fmt(Math.abs(c.bakiye))}
                                     </div>
                                 </div>
                             </div>
@@ -117,7 +119,7 @@ export default function CariHesap() {
                                 <div>
                                     <h2 className="text-sm font-bold text-white">{seciliCari.ad}</h2>
                                     <div className={`text-xs font-mono mt-0.5 ${seciliCari.bakiye > 0 ? 'text-red-400' : 'text-lime-400'}`}>
-                                        Bakiye: ₺{seciliCari.bakiye?.toFixed(2)}
+                                        Bakiye: ₺{fmt(seciliCari.bakiye)}
                                     </div>
                                 </div>
                                 <button
@@ -141,7 +143,7 @@ export default function CariHesap() {
                                             <div className="text-xs text-zinc-600">{new Date(h.tarih).toLocaleDateString('tr-TR')}</div>
                                         </div>
                                         <span className={`text-sm font-bold font-mono ${tipRenk(h.tip)}`}>
-                                            {h.tip === 'BORC' ? '-' : '+'}₺{h.tutar.toFixed(2)}
+                                            {h.tip === 'BORC' ? '-' : '+'}₺{fmt(h.tutar)}
                                         </span>
                                     </div>
                                 ))}

@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import api from '../../services/api';
 import useAuthStore from '../../store/auth.store';
 
+const fmt = (n) => Number(n || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
 export default function StokDurumu() {
     const { kullanici } = useAuthStore();
     const [veri, setVeri] = useState([]);
@@ -76,10 +78,10 @@ export default function StokDurumu() {
                                         </div>
                                     </td>
                                     <td className="py-3 px-4 text-right text-sm font-mono font-semibold text-white">
-                                        {s.mevcutStok.toFixed(2)} <span className="text-zinc-500 font-normal">{s.birim?.kisaltma}</span>
+                                        {fmt(s.mevcutStok)} <span className="text-zinc-500 font-normal">{s.birim?.kisaltma}</span>
                                     </td>
                                     <td className="py-3 px-4 text-right text-sm font-mono text-zinc-400 hidden sm:table-cell">
-                                        {s.minStok} <span className="text-zinc-600">{s.birim?.kisaltma}</span>
+                                        {fmt(s.minStok)} <span className="text-zinc-600">{s.birim?.kisaltma}</span>
                                     </td>
                                     <td className="py-3 px-4 text-center">
                                         {s.kritik ? (

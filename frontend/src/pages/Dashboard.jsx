@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import useAuthStore from '../store/auth.store';
 
+const fmt = (n) => Number(n || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
 // ─── Personel Dashboard ───────────────────────────────────────────────────────
 // PERSONEL rolü için — sadece kendi bilgilerini görür, finansal veriye dokunmaz
 function PersonelDashboard() {
@@ -151,7 +153,7 @@ function YonetimDashboard() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                 <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
                     <div className="text-xs text-zinc-500 mb-1">Günlük Satış</div>
-                    <div className="text-2xl font-black text-lime-400">₺{gunlukToplam.toFixed(2)}</div>
+                    <div className="text-2xl font-black text-lime-400">₺{fmt(gunlukToplam)}</div>
                     <div className="text-xs text-zinc-500 mt-1">{bugunSatisSayisi} işlem</div>
                 </div>
                 <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
@@ -161,7 +163,7 @@ function YonetimDashboard() {
                 </div>
                 <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
                     <div className="text-xs text-zinc-500 mb-1">Toplam Borç</div>
-                    <div className="text-2xl font-black text-orange-400">₺{toplamBorc.toFixed(2)}</div>
+                    <div className="text-2xl font-black text-orange-400">₺{fmt(toplamBorc)}</div>
                     <div className="text-xs text-zinc-500 mt-1">{cariler.length} tedarikçi</div>
                 </div>
                 <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
@@ -188,7 +190,7 @@ function YonetimDashboard() {
                                     <div className="text-xs text-zinc-500">{s.kategori?.ad}</div>
                                 </div>
                                 <div className="text-right">
-                                    <div className="text-sm font-mono text-red-400">{s.mevcutStok.toFixed(2)} {s.birim?.kisaltma}</div>
+                                    <div className="text-sm font-mono text-red-400">{fmt(s.mevcutStok)} {s.birim?.kisaltma}</div>
                                     <div className="text-xs text-zinc-500">min: {s.minStok}</div>
                                 </div>
                             </div>
@@ -211,7 +213,7 @@ function YonetimDashboard() {
                                     <div className="text-sm text-white">{s.recete?.ad}</div>
                                     <div className="text-xs text-zinc-500">{s.adet} adet — {new Date(s.tarih).toLocaleDateString('tr-TR')}</div>
                                 </div>
-                                <div className="text-sm font-mono font-bold text-lime-400">₺{s.toplam}</div>
+                                <div className="text-sm font-mono font-bold text-lime-400">₺{fmt(s.toplam)}</div>
                             </div>
                         ))}
                     </div>
@@ -232,7 +234,7 @@ function YonetimDashboard() {
                                     <div className="text-sm text-white">{c.ad}</div>
                                     <div className="text-xs text-zinc-500 font-mono">{c.kod}</div>
                                 </div>
-                                <div className="text-sm font-mono font-bold text-red-400">₺{c.bakiye.toFixed(2)}</div>
+                                <div className="text-sm font-mono font-bold text-red-400">₺{fmt(c.bakiye)}</div>
                             </div>
                         ))}
                     </div>
@@ -301,7 +303,7 @@ function KasaDashboard() {
             <div className="grid grid-cols-2 gap-4 mb-6">
                 <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
                     <div className="text-xs text-zinc-500 mb-1">Günlük Satış</div>
-                    <div className="text-2xl font-black text-lime-400">₺{gunlukToplam.toFixed(2)}</div>
+                    <div className="text-2xl font-black text-lime-400">₺{fmt(gunlukToplam)}</div>
                     <div className="text-xs text-zinc-500 mt-1">{bugunSatisSayisi} işlem</div>
                 </div>
                 <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
@@ -326,7 +328,7 @@ function KasaDashboard() {
                                     <div className="text-sm text-white">{s.recete?.ad}</div>
                                     <div className="text-xs text-zinc-500">{s.adet} adet — {new Date(s.tarih).toLocaleDateString('tr-TR')}</div>
                                 </div>
-                                <div className="text-sm font-mono font-bold text-lime-400">₺{s.toplam}</div>
+                                <div className="text-sm font-mono font-bold text-lime-400">₺{fmt(s.toplam)}</div>
                             </div>
                         ))}
                     </div>
@@ -412,7 +414,7 @@ function DepoDashboard() {
                                     <div className="text-xs text-zinc-500">{s.kategori?.ad}</div>
                                 </div>
                                 <div className="text-right">
-                                    <div className="text-sm font-mono text-red-400">{s.mevcutStok.toFixed(2)} {s.birim?.kisaltma}</div>
+                                    <div className="text-sm font-mono text-red-400">{fmt(s.mevcutStok)} {s.birim?.kisaltma}</div>
                                     <div className="text-xs text-zinc-500">min: {s.minStok}</div>
                                 </div>
                             </div>

@@ -3,6 +3,9 @@ import toast from 'react-hot-toast';
 import api from '../../services/api';
 import Modal from '../../components/Modal';
 
+const fmt = (n) => Number(n || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const fmt3 = (n) => Number(n || 0).toLocaleString('tr-TR', { minimumFractionDigits: 3, maximumFractionDigits: 3 });
+
 export default function Receteler() {
     const [veri, setVeri] = useState([]);
     const [stokKartlari, setStokKartlari] = useState([]);
@@ -135,7 +138,7 @@ export default function Receteler() {
                                         <span className="text-xs bg-zinc-800 text-zinc-300 px-2 py-0.5 rounded font-mono">{r.satisKodu}</span>
                                     )}
                                     {r.satisFiyati && (
-                                        <span className="text-xs text-lime-400">₺{r.satisFiyati}</span>
+                                        <span className="text-xs text-lime-400">₺{fmt(r.satisFiyati)}</span>
                                     )}
                                 </div>
                             </div>
@@ -163,7 +166,7 @@ export default function Receteler() {
                         <div className="flex flex-wrap gap-2">
                             {r.kalemler.map((k, i) => (
                                 <span key={i} className="text-xs bg-zinc-800 text-zinc-300 px-2 py-1 rounded-lg">
-                                    {k.stokKart?.ad} — {k.miktar} {k.stokKart?.birim?.kisaltma}
+                                    {k.stokKart?.ad} — {fmt3(k.miktar)} {k.stokKart?.birim?.kisaltma}
                                     {(k.carpan !== 1 || k.bolen !== 1) && (
                                         <span className="text-zinc-500"> ×{k.carpan}/÷{k.bolen}</span>
                                     )}
@@ -301,15 +304,15 @@ export default function Receteler() {
                                 <div key={i} className="flex justify-between items-center py-2 border-b border-zinc-800">
                                     <div>
                                         <div className="text-sm text-white">{k.stokAd}</div>
-                                        <div className="text-xs text-zinc-500">{k.miktar.toFixed(3)} {k.birim} × ₺{k.birimFiyat}</div>
+                                        <div className="text-xs text-zinc-500">{fmt3(k.miktar)} {k.birim} × ₺{fmt(k.birimFiyat)}</div>
                                     </div>
-                                    <span className="text-sm font-mono text-zinc-300">₺{k.toplam.toFixed(2)}</span>
+                                    <span className="text-sm font-mono text-zinc-300">₺{fmt(k.toplam)}</span>
                                 </div>
                             ))}
                         </div>
                         <div className="flex justify-between items-center pt-2">
                             <span className="text-zinc-400 font-semibold">Toplam Maliyet</span>
-                            <span className="text-lime-400 font-bold text-lg">₺{maliyetModal.toplamMaliyet.toFixed(2)}</span>
+                            <span className="text-lime-400 font-bold text-lg">₺{fmt(maliyetModal.toplamMaliyet)}</span>
                         </div>
                         {maliyetModal.recete.satisFiyati && (
                             <div className="flex justify-between items-center bg-zinc-800 rounded-lg p-3">

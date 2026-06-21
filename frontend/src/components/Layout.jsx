@@ -208,28 +208,27 @@ export default function Layout({ children }) {
 
                         {!kapali[grup.baslik] && (
                             <div className="space-y-0.5 mb-1">
-                                {grup.items.map((item) => (
-                                    <NavLink
-                                        key={item.path}
-                                        to={item.path}
-                                        end={item.path === '/'}
-                                        onClick={sidebarKapat}
-                                        className={({ isActive }) =>
-                                            `nav-item${isActive ? ' active' : ''}`
-                                        }
+                                {grup.items.map((item) => {
+                                    const isActive = item.path === '/'
+                                        ? location.pathname === '/'
+                                        : location.pathname.startsWith(item.path);
 
-                                    >
-                                        {({ isActive }) => (
-                                            <span
-                                                ref={isActive ? aktifRef : null}
-                                                style={{ display: 'contents' }}
-                                            >
-                                                <span className="text-base">{item.icon}</span>
-                                                <span className="truncate">{item.label}</span>
-                                            </span>
-                                        )}
-                                    </NavLink>
-                                ))}
+                                    return (
+                                        <NavLink
+                                            key={item.path}
+                                            to={item.path}
+                                            end={item.path === '/'}
+                                            onClick={sidebarKapat}
+                                            ref={isActive ? aktifRef : null}
+                                            className={({ isActive }) =>
+                                                `nav-item${isActive ? ' active' : ''}`
+                                            }
+                                        >
+                                            <span className="text-base">{item.icon}</span>
+                                            <span className="truncate">{item.label}</span>
+                                        </NavLink>
+                                    );
+                                })}
                             </div>
                         )}
                     </div>

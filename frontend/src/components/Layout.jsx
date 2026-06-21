@@ -106,21 +106,24 @@ export default function Layout({ children }) {
 
     // Aktif item'a scroll et — sayfa değişince
     useEffect(() => {
-        if (aktifRef.current && navRef.current) {
-            const nav = navRef.current;
-            const item = aktifRef.current;
-            const navTop = nav.scrollTop;
-            const navBottom = navTop + nav.clientHeight;
-            const itemTop = item.offsetTop;
-            const itemBottom = itemTop + item.clientHeight;
+        const id = requestAnimationFrame(() => {
+            if (aktifRef.current && navRef.current) {
+                const nav = navRef.current;
+                const item = aktifRef.current;
+                const navTop = nav.scrollTop;
+                const navBottom = navTop + nav.clientHeight;
+                const itemTop = item.offsetTop;
+                const itemBottom = itemTop + item.clientHeight;
 
-            if (itemTop < navTop || itemBottom > navBottom) {
-                nav.scrollTo({
-                    top: itemTop - nav.clientHeight / 2 + item.clientHeight / 2,
-                    behavior: 'smooth'
-                });
+                if (itemTop < navTop || itemBottom > navBottom) {
+                    nav.scrollTo({
+                        top: itemTop - nav.clientHeight / 2 + item.clientHeight / 2,
+                        behavior: 'auto'
+                    });
+                }
             }
-        }
+        });
+        return () => cancelAnimationFrame(id);
     }, [location.pathname]);
 
     const toggleGrup = (baslik) => {

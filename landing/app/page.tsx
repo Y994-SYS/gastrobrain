@@ -431,7 +431,7 @@ export default function Home() {
                     {p.ozellikler.map(o => <li key={o}>{o}</li>)}
                   </ul>
                   <a
-                    href={p.aylik === 'Teklif Al' ? 'mailto:info@gastrobrain.com' : APP_URL}
+                    href={p.aylik === 'Teklif Al' ? 'mailto:alkan.yazilim.dev@gmail.com' : APP_URL}
                     className="plan-btn"
                     style={{ background: p.populer ? '#a3e635' : '#27272a', color: p.populer ? '#000' : '#fff' }}
                   >

@@ -22,6 +22,24 @@ const authController = {
         }
     },
 
+    async sifreSifirlamaTalep(req, res) {
+        try {
+            const sonuc = await authService.sifreSifirlamaTalep(req.body);
+            res.json({ basarili: true, mesaj: sonuc.mesaj });
+        } catch (error) {
+            res.status(400).json({ basarili: false, mesaj: error.message });
+        }
+    },
+
+    async sifreSifirla(req, res) {
+        try {
+            const sonuc = await authService.sifreSifirla(req.body);
+            res.json({ basarili: true, mesaj: sonuc.mesaj });
+        } catch (error) {
+            res.status(400).json({ basarili: false, mesaj: error.message });
+        }
+    },
+
     async beniKontrolEt(req, res) {
         res.json({ basarili: true, data: req.kullanici });
     },

@@ -78,6 +78,19 @@ enum Rol {
   PERSONEL
 }
 
+model SifreToken {
+  id        Int      @id @default(autoincrement())
+  token     String   @unique
+  email     String
+  tenantId  Int?
+  kullanildi Boolean @default(false)
+  sonTarih  DateTime
+  createdAt DateTime @default(now())
+
+  @@index([token])
+  @@index([email])
+}
+
 // ─────────────────────────────────────────
 // ŞUBE
 // ─────────────────────────────────────────

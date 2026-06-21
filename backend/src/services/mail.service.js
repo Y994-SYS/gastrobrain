@@ -88,7 +88,39 @@ const mailService = {
                 </div>
             `
         });
-    }
+    },
+
+    async sifreSifirlamaMailGonder(email, ad, firmaAd, resetUrl) {
+        await transporter.sendMail({
+            from: `"GastroBrain" <${process.env.SMTP_USER}>`,
+            to: email,
+            subject: `GastroBrain — Şifre Sıfırlama`,
+            html: `
+            <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+                <div style="background: #0a0a0a; padding: 32px; text-align: center;">
+                    <h1 style="color: #a3e635; font-size: 28px; margin: 0;">GastroBrain</h1>
+                    <p style="color: #888; margin: 8px 0 0;">Restoran Yönetim Sistemi</p>
+                </div>
+                <div style="padding: 32px; background: #f9f9f9;">
+                    <h2 style="color: #111;">Merhaba ${ad},</h2>
+                    <p style="color: #444; line-height: 1.6;">
+                        <strong>${firmaAd}</strong> hesabınız için şifre sıfırlama talebinde bulunuldu.
+                    </p>
+                    <div style="text-align: center; margin: 32px 0;">
+                        <a href="${resetUrl}" 
+                           style="background: #a3e635; color: #0a0a0a; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 16px;">
+                            Şifremi Sıfırla →
+                        </a>
+                    </div>
+                    <p style="color: #666; font-size: 13px; text-align: center;">
+                        Bu bağlantı 1 saat geçerlidir. Talebi siz yapmadıysanız bu emaili görmezden gelin.
+                    </p>
+                </div>
+            </div>
+        `
+        });
+    },
 };
+
 
 module.exports = mailService;

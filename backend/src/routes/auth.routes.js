@@ -8,6 +8,8 @@ router.post('/giris', authController.girisYap);
 router.get('/ben', authMiddleware, authController.beniKontrolEt);
 router.post('/kayit-firma', authController.kayitFirma); // yeni firma kaydı
 router.post('/tenant-listesi', authController.tenantListesiGetir);
+router.post('/sifre-sifirlama-talep', authController.sifreSifirlamaTalep);
+router.post('/sifre-sifirla', authController.sifreSifirla);
 
 // 2. BURASI HATALIYDI: 'authenticate' yerine 'authMiddleware' yazdık.
 router.get('/lisans-durum', authMiddleware, authController.lisansDurum);

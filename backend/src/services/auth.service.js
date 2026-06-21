@@ -179,6 +179,68 @@ const authService = {
         });
     },
 
+
+    async sifreSifirlamaTalep({ email }) {
+        const crypto = require('crypto');
+
+        // Bu emaile sahip kullanıcıları bul
+        const kullanicilar = await prisma.kullanici.findMany({
+            where: { email, aktif: true },
+            include: { tenant: { select: { ad: true } } }
+        });
+
+        if (kullanicilar.length === 0) {
+            // Güvenlik: email bulunsun ya da bulunmasın aynı mesajı ver
+            return { mesaj: 'Email gönderildi' };
+        }
+
+        // Her tenant için ayrı token oluştur
+        for (const k of kullanicilar) {
+            // Eski tokenları iptal et
+            await prisma.sifreToken.updateMany({
+                where: { email, tenantId: k.tenantId, kullanildi: false },
+                data: { kullanildi: true }
+            });
+
+            const token = crypto.randomBytes(32).toString('hex');
+            const sonTarih = new Date(Date.now() + 60 * 60 * 1000); // 1 saat
+
+            await prisma.sifreToken.create({
+                data: { token, email, tenantId: k.tenantId, sonTarih }
+            });
+
+            const resetUrl = `${process.env.APP_URL}/sifre-sifirla?token=${token}`;
+            const { sifreSifirlamaMailGonder } = require('./mail.service');
+            await sifreSifirlamaMailGonder(email, k.ad, k.tenant?.ad || 'GastroBrain', resetUrl);
+        }
+
+        return { mesaj: 'Email gönderildi' };
+    },
+
+    async sifreSifirla({ token, yeniSifre }) {
+        const kayit = await prisma.sifreToken.findUnique({ where: { token } });
+
+        if (!kayit) throw new Error('Geçersiz veya süresi dolmuş bağlantı');
+        if (kayit.kullanildi) throw new Error('Bu bağlantı daha önce kullanılmış');
+        if (new Date() > kayit.sonTarih) throw new Error('Bağlantının süresi dolmuş');
+        if (yeniSifre.length < 6) throw new Error('Şifre en az 6 karakter olmalı');
+
+        const hash = await bcrypt.hash(yeniSifre, 10);
+
+        await prisma.kullanici.updateMany({
+            where: { email: kayit.email, tenantId: kayit.tenantId },
+            data: { sifre: hash }
+        });
+
+        await prisma.sifreToken.update({
+            where: { token },
+            data: { kullanildi: true }
+        });
+
+        return { mesaj: 'Şifre güncellendi' };
+    },
 };
+
+
 
 module.exports = authService;

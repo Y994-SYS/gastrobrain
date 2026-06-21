@@ -29,6 +29,8 @@ import Yardim from './pages/Yardim';
 import Abonelik from './pages/Abonelik';
 import Profil from './pages/Profil';
 import Yetkisiz from './pages/Yetkisiz';
+import SifremiUnuttum from './pages/SifremiUnuttum'
+import SifreSifirla from './pages/SifreSifirla'
 
 // ─── Rol Grupları ────────────────────────────────────────────────────────────
 // NOT: SUPER_ADMIN bilerek bu gruplarda YOK. Süper admin hiçbir tenant'a bağlı
@@ -90,6 +92,8 @@ export default function App() {
         {/* ── Public ─────────────────────────────────────────────────── */}
         <Route path="/giris" element={<Login />} />
         <Route path="/kayit" element={<KayitFirma />} />
+        <Route path="/sifremi-unuttum" element={<SifremiUnuttum />} />
+        <Route path="/sifre-sifirla" element={<SifreSifirla />} />
         <Route path="/yetkisiz" element={<Yetkisiz />} />
 
         {/* ── Süper Admin (Layout dışında, ama rol korumalı) ──────────── */}

@@ -129,7 +129,7 @@ export default function Layout({ children }) {
 
     const sidebarKapat = () => setSidebarAcik(false);
 
-    const SidebarIcerik = () => (
+    const SidebarIcerik = ({ refAktar }) => (
         <>
             <style>{`
                 .nav-item {
@@ -195,7 +195,7 @@ export default function Layout({ children }) {
                 </button>
             </div>
 
-            <nav ref={navRef} className="flex-1 overflow-y-auto p-2 space-y-1 scrollbar-thin">
+            <nav ref={refAktar ? navRef : null} className="flex-1 overflow-y-auto p-2 space-y-1 scrollbar-thin">
                 {gorunurMenu.map((grup) => (
                     <div key={grup.baslik}>
                         <button
@@ -219,7 +219,7 @@ export default function Layout({ children }) {
                                             to={item.path}
                                             end={item.path === '/'}
                                             onClick={sidebarKapat}
-                                            ref={isActive ? aktifRef : null}
+                                            ref={isActive && refAktar ? aktifRef : null}
                                             className={({ isActive }) =>
                                                 `nav-item${isActive ? ' active' : ''}`
                                             }
@@ -252,7 +252,7 @@ export default function Layout({ children }) {
     return (
         <div className="min-h-screen bg-zinc-950 flex">
             <aside className="hidden md:flex w-56 bg-zinc-900 border-r border-zinc-800 flex-col fixed h-full z-30">
-                <SidebarIcerik />
+                <SidebarIcerik refAktar={true} />
             </aside>
 
             {sidebarAcik && (

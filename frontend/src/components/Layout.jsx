@@ -217,7 +217,7 @@ export default function Layout({ children }) {
                                         className={({ isActive }) =>
                                             `nav-item${isActive ? ' active' : ''}`
                                         }
-                                        ref={({ isActive }) => isActive ? aktifRef : null}
+
                                     >
                                         {({ isActive }) => (
                                             <span

@@ -170,6 +170,11 @@ export default function Login() {
                                 />
                             </div>
 
+                            <div className="text-right mt-1">
+                                <Link to="/sifremi-unuttum" className="text-xs text-zinc-500 hover:text-lime-400 transition-colors">
+                                    Şifremi unuttum
+                                </Link>
+                            </div>
                             <button
                                 type="button"
                                 onClick={girisYapHandle}

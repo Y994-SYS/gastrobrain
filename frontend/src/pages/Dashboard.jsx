@@ -91,18 +91,31 @@ function YonetimDashboard() {
     useEffect(() => {
         const getir = async () => {
             try {
-                const [stokRes, satisRes, cariRes, gunlukRes] = await Promise.all([
-                    api.get('/api/stok/durum?subeId=1'),
-                    api.get('/api/satislar?subeId=1'),
-                    api.get('/api/cari-hareketler/bakiyeler'),
-                    api.get('/api/satislar/gunluk-toplam?subeId=1'),
-                ]);
+                const stokRes = await api.get('/api/stok/durum?subeId=1');
                 setStoklar(stokRes.data.data);
+            } catch (err) {
+                console.error('Stok verisi alınamadı:', err);
+            }
+
+            try {
+                const satisRes = await api.get('/api/satislar?subeId=1');
                 setSatislar(satisRes.data.data.slice(0, 5));
+            } catch (err) {
+                console.error('Satış verisi alınamadı:', err);
+            }
+
+            try {
+                const cariRes = await api.get('/api/cari-hareketler/bakiyeler');
                 setCariler(cariRes.data.data.filter(c => c.bakiye > 0).slice(0, 5));
+            } catch (err) {
+                console.error('Cari verisi alınamadı:', err);
+            }
+
+            try {
+                const gunlukRes = await api.get('/api/satislar/gunluk-toplam?subeId=1');
                 setGunlukToplam(gunlukRes.data.data.toplam);
             } catch (err) {
-                console.error(err);
+                console.error('Günlük toplam alınamadı:', err);
             }
         };
         getir();

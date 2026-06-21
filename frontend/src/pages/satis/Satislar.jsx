@@ -4,6 +4,8 @@ import api from '../../services/api';
 import Modal from '../../components/Modal';
 import useAuthStore from '../../store/auth.store';
 
+const fmt = (n) => Number(n || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
 export default function Satislar() {
     const { kullanici } = useAuthStore();
 
@@ -84,8 +86,8 @@ export default function Satislar() {
     };
 
     const toplam = form.adet && form.birimFiyat
-        ? (Number(form.adet) * Number(form.birimFiyat)).toFixed(2)
-        : '0.00';
+        ? fmt(Number(form.adet) * Number(form.birimFiyat))
+        : '0,00';
 
     return (
         <div>
@@ -97,7 +99,7 @@ export default function Satislar() {
                 <div className="flex items-center gap-3">
                     <div className="bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-2 text-right">
                         <div className="text-xs text-zinc-500">Günlük Toplam</div>
-                        <div className="text-lime-400 font-bold">₺{gunlukToplam.toFixed(2)}</div>
+                        <div className="text-lime-400 font-bold">₺{fmt(gunlukToplam)}</div>
                     </div>
                     <button
                         onClick={() => { setForm(bos); setModal(true); }}
@@ -132,8 +134,8 @@ export default function Satislar() {
                                 <tr key={s.id} className="border-b border-zinc-800/50 hover:bg-zinc-800/30 transition-colors">
                                     <td className="py-3 px-4 text-sm text-white">{s.recete?.ad}</td>
                                     <td className="py-3 px-4 text-right text-sm font-mono text-zinc-300 hidden sm:table-cell">{s.adet}</td>
-                                    <td className="py-3 px-4 text-right text-sm font-mono text-zinc-300 hidden sm:table-cell">₺{s.birimFiyat}</td>
-                                    <td className="py-3 px-4 text-right text-sm font-mono font-bold text-lime-400">₺{s.toplam}</td>
+                                    <td className="py-3 px-4 text-right text-sm font-mono text-zinc-300 hidden sm:table-cell">₺{fmt(s.birimFiyat)}</td>
+                                    <td className="py-3 px-4 text-right text-sm font-mono font-bold text-lime-400">₺{fmt(s.toplam)}</td>
                                     <td className="py-3 px-4 text-sm text-zinc-400 hidden sm:table-cell">
                                         {new Date(s.tarih).toLocaleDateString('tr-TR')}
                                     </td>

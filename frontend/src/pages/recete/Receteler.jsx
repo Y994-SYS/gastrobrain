@@ -216,7 +216,7 @@ export default function Receteler() {
                         </div>
 
                         <div>
-                            <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center justify-between mb-1">
                                 <label className="text-zinc-400 text-sm">Kalemler *</label>
                                 <button
                                     onClick={kalemEkle}
@@ -225,56 +225,72 @@ export default function Receteler() {
                                     + Kalem Ekle
                                 </button>
                             </div>
+                            <p className="text-zinc-600 text-xs mb-2">
+                                Çarpan/Bölen genelde 1 kalır — sadece birim dönüşümü gerektiğinde değiştir (örn. gramı litreye çevirmek için).
+                            </p>
                             <div className="space-y-2">
-                                {form.kalemler.map((k, idx) => (
-                                    <div key={idx} className="bg-zinc-800 rounded-lg p-3 space-y-2">
-                                        <select
-                                            value={k.stokKartId}
-                                            onChange={(e) => kalemGuncelle(idx, 'stokKartId', e.target.value)}
-                                            className="w-full bg-zinc-700 border border-zinc-600 text-white rounded-lg px-3 py-2 text-sm outline-none focus:border-lime-400"
-                                        >
-                                            <option value="">Stok seç</option>
-                                            {stokKartlari.map((s) => (
-                                                <option key={s.id} value={s.id}>{s.ad} ({s.birim?.kisaltma})</option>
-                                            ))}
-                                        </select>
-                                        <div className="grid grid-cols-4 gap-2">
-                                            <div className="col-span-2">
-                                                <input
-                                                    type="number"
-                                                    value={k.miktar}
-                                                    onChange={(e) => kalemGuncelle(idx, 'miktar', e.target.value)}
-                                                    placeholder="Miktar"
-                                                    className="w-full bg-zinc-700 border border-zinc-600 text-white rounded-lg px-3 py-2 text-sm outline-none focus:border-lime-400"
-                                                />
+                                {form.kalemler.map((k, idx) => {
+                                    const seciliStok = stokKartlari.find(s => s.id === Number(k.stokKartId));
+                                    const birim = seciliStok?.birim?.kisaltma || '';
+                                    return (
+                                        <div key={idx} className="bg-zinc-800 rounded-lg p-3 space-y-2">
+                                            <select
+                                                value={k.stokKartId}
+                                                onChange={(e) => kalemGuncelle(idx, 'stokKartId', e.target.value)}
+                                                className="w-full bg-zinc-700 border border-zinc-600 text-white rounded-lg px-3 py-2 text-sm outline-none focus:border-lime-400"
+                                            >
+                                                <option value="">Stok seç</option>
+                                                {stokKartlari.map((s) => (
+                                                    <option key={s.id} value={s.id}>{s.ad} ({s.birim?.kisaltma})</option>
+                                                ))}
+                                            </select>
+                                            <div className="grid grid-cols-4 gap-2 items-end">
+                                                <div className="col-span-2">
+                                                    <label className="text-zinc-500 text-[11px] mb-1 block">
+                                                        Miktar {birim && `(${birim})`}
+                                                    </label>
+                                                    <input
+                                                        type="number"
+                                                        value={k.miktar}
+                                                        onChange={(e) => kalemGuncelle(idx, 'miktar', e.target.value)}
+                                                        placeholder="Miktar"
+                                                        className="w-full bg-zinc-700 border border-zinc-600 text-white rounded-lg px-3 py-2 text-sm outline-none focus:border-lime-400"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="text-zinc-500 text-[11px] mb-1 block" title="Birim dönüşümü için çarpan — genelde 1 kalır">
+                                                        Çarpan ×
+                                                    </label>
+                                                    <input
+                                                        type="number"
+                                                        value={k.carpan}
+                                                        onChange={(e) => kalemGuncelle(idx, 'carpan', e.target.value)}
+                                                        placeholder="1"
+                                                        className="w-full bg-zinc-700 border border-zinc-600 text-white rounded-lg px-3 py-2 text-sm outline-none focus:border-lime-400"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="text-zinc-500 text-[11px] mb-1 block" title="Birim dönüşümü için bölen — genelde 1 kalır">
+                                                        Bölen ÷
+                                                    </label>
+                                                    <input
+                                                        type="number"
+                                                        value={k.bolen}
+                                                        onChange={(e) => kalemGuncelle(idx, 'bolen', e.target.value)}
+                                                        placeholder="1"
+                                                        className="w-full bg-zinc-700 border border-zinc-600 text-white rounded-lg px-3 py-2 text-sm outline-none focus:border-lime-400"
+                                                    />
+                                                </div>
                                             </div>
-                                            <div>
-                                                <input
-                                                    type="number"
-                                                    value={k.carpan}
-                                                    onChange={(e) => kalemGuncelle(idx, 'carpan', e.target.value)}
-                                                    placeholder="×"
-                                                    className="w-full bg-zinc-700 border border-zinc-600 text-white rounded-lg px-3 py-2 text-sm outline-none focus:border-lime-400"
-                                                />
-                                            </div>
-                                            <div>
-                                                <input
-                                                    type="number"
-                                                    value={k.bolen}
-                                                    onChange={(e) => kalemGuncelle(idx, 'bolen', e.target.value)}
-                                                    placeholder="÷"
-                                                    className="w-full bg-zinc-700 border border-zinc-600 text-white rounded-lg px-3 py-2 text-sm outline-none focus:border-lime-400"
-                                                />
-                                            </div>
+                                            <button
+                                                onClick={() => kalemSil(idx)}
+                                                className="text-xs text-red-400 hover:text-red-300"
+                                            >
+                                                Kalemi Sil
+                                            </button>
                                         </div>
-                                        <button
-                                            onClick={() => kalemSil(idx)}
-                                            className="text-xs text-red-400 hover:text-red-300"
-                                        >
-                                            Kalemi Sil
-                                        </button>
-                                    </div>
-                                ))}
+                                    );
+                                })}
                                 {form.kalemler.length === 0 && (
                                     <div className="text-center py-4 text-zinc-500 text-xs border border-dashed border-zinc-700 rounded-lg">
                                         Henüz kalem yok — yukarıdan ekle

@@ -89,18 +89,22 @@ function YonetimDashboard() {
     const navigate = useNavigate();
     const { kullanici } = useAuthStore();
     const rol = kullanici?.rol;
+    const subeId = kullanici?.subeId;
 
     useEffect(() => {
+        // subeId parametresini sadece varsa ekle — yoksa backend tüm tenant verisini döner
+        const subeQuery = subeId ? `?subeId=${subeId}` : '';
+
         const getir = async () => {
             try {
-                const stokRes = await api.get('/api/stok/durum?subeId=1');
+                const stokRes = await api.get(`/api/stok/durum${subeQuery}`);
                 setStoklar(stokRes.data.data);
             } catch (err) {
                 console.error('Stok verisi alınamadı:', err);
             }
 
             try {
-                const satisRes = await api.get('/api/satislar?subeId=1');
+                const satisRes = await api.get(`/api/satislar${subeQuery}`);
                 setSatislar(satisRes.data.data.slice(0, 5));
             } catch (err) {
                 console.error('Satış verisi alınamadı:', err);
@@ -114,14 +118,14 @@ function YonetimDashboard() {
             }
 
             try {
-                const gunlukRes = await api.get('/api/satislar/gunluk-toplam?subeId=1');
+                const gunlukRes = await api.get(`/api/satislar/gunluk-toplam${subeQuery}`);
                 setGunlukToplam(gunlukRes.data.data.toplam);
             } catch (err) {
                 console.error('Günlük toplam alınamadı:', err);
             }
         };
         getir();
-    }, []);
+    }, [subeId]);
 
     const kritikStoklar = stoklar.filter(s => s.kritik);
     const toplamBorc = cariler.reduce((t, c) => t + c.bakiye, 0);
@@ -269,13 +273,17 @@ function KasaDashboard() {
     const [satislar, setSatislar] = useState([]);
     const [gunlukToplam, setGunlukToplam] = useState(0);
     const navigate = useNavigate();
+    const { kullanici } = useAuthStore();
+    const subeId = kullanici?.subeId;
 
     useEffect(() => {
+        const subeQuery = subeId ? `?subeId=${subeId}` : '';
+
         const getir = async () => {
             try {
                 const [satisRes, gunlukRes] = await Promise.all([
-                    api.get('/api/satislar?subeId=1'),
-                    api.get('/api/satislar/gunluk-toplam?subeId=1'),
+                    api.get(`/api/satislar${subeQuery}`),
+                    api.get(`/api/satislar/gunluk-toplam${subeQuery}`),
                 ]);
                 setSatislar(satisRes.data.data.slice(0, 5));
                 setGunlukToplam(gunlukRes.data.data.toplam);
@@ -284,7 +292,7 @@ function KasaDashboard() {
             }
         };
         getir();
-    }, []);
+    }, [subeId]);
 
     const bugunSatisSayisi = satislar.filter(s => {
         const bugun = new Date().toDateString();
@@ -361,18 +369,22 @@ function KasaDashboard() {
 function DepoDashboard() {
     const [stoklar, setStoklar] = useState([]);
     const navigate = useNavigate();
+    const { kullanici } = useAuthStore();
+    const subeId = kullanici?.subeId;
 
     useEffect(() => {
+        const subeQuery = subeId ? `?subeId=${subeId}` : '';
+
         const getir = async () => {
             try {
-                const stokRes = await api.get('/api/stok/durum?subeId=1');
+                const stokRes = await api.get(`/api/stok/durum${subeQuery}`);
                 setStoklar(stokRes.data.data);
             } catch (err) {
                 console.error(err);
             }
         };
         getir();
-    }, []);
+    }, [subeId]);
 
     const kritikStoklar = stoklar.filter(s => s.kritik);
 

@@ -267,7 +267,7 @@ export default function Layout({ children }) {
                 flex flex-col z-50 transform transition-transform duration-300 md:hidden
                 ${sidebarAcik ? 'translate-x-0' : '-translate-x-full'}
             `}>
-                <SidebarIcerik />
+                <SidebarIcerik refAktar={false} />
             </aside>
 
             <main className="flex-1 md:ml-56 flex flex-col min-h-screen">

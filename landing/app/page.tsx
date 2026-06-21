@@ -488,7 +488,7 @@ export default function Home() {
               <a href="#fiyatlar">Fiyatlar</a>
               <a href="#sss">SSS</a>
               <a href="/rehber">Kullanım Kılavuzu</a>
-              <a href="mailto:info@gastrobrain.com">İletişim</a>
+              <a href="mailto:alkan.yazilim.dev@gmail.com">İletişim</a>
             </div>
             <p className="footer-copy">© 2026 GastroBrain. Tüm hakları saklıdır.</p>
           </div>

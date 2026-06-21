@@ -66,12 +66,14 @@ const menuGruplari = [
             { path: '/tanimlamalar/cari-kartlar', label: 'Cari Kartlar', icon: '🏢', roller: R.YONETIM },
             { path: '/tanimlamalar/subeler', label: 'Şubeler', icon: '🏪', roller: R.ADMIN },
             { path: '/tanimlamalar/kullanicilar', label: 'Kullanıcılar', icon: '👤', roller: R.ADMIN },
+
         ]
     },
     {
         baslik: 'Yardım',
         roller: R.HERKES,
         items: [
+            { path: '/islem-gecmisi', label: 'İşlem Geçmişi', icon: '📜', roller: R.ADMIN },
             { path: '/abonelik', label: 'Abonelik', icon: '💳', roller: R.HERKES },
             { path: '/yardim', label: 'Yardım', icon: '❓', roller: R.HERKES },
             { path: '/profil', label: 'Profil', icon: '🙍', roller: R.HERKES },

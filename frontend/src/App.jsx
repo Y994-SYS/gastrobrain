@@ -31,6 +31,7 @@ import Profil from './pages/Profil';
 import Yetkisiz from './pages/Yetkisiz';
 import SifremiUnuttum from './pages/SifremiUnuttum'
 import SifreSifirla from './pages/SifreSifirla'
+import AuditLog from './pages/AuditLog'
 
 // ─── Rol Grupları ────────────────────────────────────────────────────────────
 // NOT: SUPER_ADMIN bilerek bu gruplarda YOK. Süper admin hiçbir tenant'a bağlı
@@ -135,6 +136,7 @@ export default function App() {
         <Route path="/yardim" element={<PrivateRoute roller={R.HERKES}><Yardim /></PrivateRoute>} />
         <Route path="/abonelik" element={<PrivateRoute roller={R.HERKES}><Abonelik /></PrivateRoute>} />
         <Route path="/profil" element={<PrivateRoute roller={R.HERKES}><Profil /></PrivateRoute>} />
+        <Route path="/islem-gecmisi" element={<PrivateRoute><AuditLog></AuditLog></PrivateRoute>} />
 
       </Routes>
     </BrowserRouter>

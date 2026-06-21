@@ -209,7 +209,8 @@ const authService = {
                 data: { token, email, tenantId: k.tenantId, sonTarih }
             });
 
-            const resetUrl = `${process.env.APP_URL}/sifre-sifirla?token=${token}`;
+            const appUrl = process.env.APP_URL || 'https://app.gastrobrain.com.tr';
+            const resetUrl = `${appUrl}/sifre-sifirla?token=${token}`;
             const { sifreSifirlamaMailGonder } = require('./mail.service');
             await sifreSifirlamaMailGonder(email, k.ad, k.tenant?.ad || 'GastroBrain', resetUrl);
         }

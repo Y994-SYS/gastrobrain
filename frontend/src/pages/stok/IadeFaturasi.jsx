@@ -10,6 +10,7 @@ export default function IadeFaturasi() {
         aciklama: '', tarih: new Date().toISOString().split('T')[0], cariKartId: ''
     };
     const [form, setForm] = useState(bos);
+    const [odeme, setOdeme] = useState('cari'); // 'cari' | 'nakit'
     const [stokKartlari, setStokKartlari] = useState([]);
     const [cariKartlar, setCariKartlar] = useState([]);
     const [yukleniyor, setYukleniyor] = useState(false);
@@ -26,15 +27,25 @@ export default function IadeFaturasi() {
         getir();
     }, []);
 
+    const odemeSecimi = (tip) => {
+        setOdeme(tip);
+        if (tip === 'nakit') setForm(f => ({ ...f, cariKartId: '' }));
+    };
+
     const kaydet = async () => {
         if (!form.stokKartId || !form.miktar || !form.birimFiyat) {
             return toast.error('Stok, miktar ve birim fiyat zorunlu');
         }
         setYukleniyor(true);
         try {
-            await api.post('/api/stok/iade-faturasi', form);
+            const payload = {
+                ...form,
+                cariKartId: odeme === 'nakit' ? '' : form.cariKartId,
+            };
+            await api.post('/api/stok/iade-faturasi', payload);
             toast.success('İade faturası kaydedildi');
             setForm(bos);
+            setOdeme('cari');
         } catch (err) {
             toast.error(err.response?.data?.mesaj || 'Hata oluştu');
         } finally {
@@ -56,6 +67,37 @@ export default function IadeFaturasi() {
                 <p className="text-amber-400 text-sm">⚠️ İade faturası stoktan düşer ve seçilen tedarikçiye alacak olarak yansır.</p>
             </div>
             <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 space-y-4">
+
+                {/* İade Tipi Toggle */}
+                <div>
+                    <label className="text-zinc-400 text-sm mb-2 block">İade Tipi</label>
+                    <div className="flex gap-2">
+                        <button
+                            onClick={() => odemeSecimi('cari')}
+                            className={`flex-1 py-2.5 rounded-lg text-sm font-semibold transition-all ${odeme === 'cari'
+                                    ? 'bg-orange-500/20 border border-orange-500/60 text-orange-300'
+                                    : 'bg-zinc-800 border border-zinc-700 text-zinc-400 hover:border-zinc-500'
+                                }`}
+                        >
+                            📋 Cariye Alacak
+                        </button>
+                        <button
+                            onClick={() => odemeSecimi('nakit')}
+                            className={`flex-1 py-2.5 rounded-lg text-sm font-semibold transition-all ${odeme === 'nakit'
+                                    ? 'bg-lime-400/20 border border-lime-400/60 text-lime-300'
+                                    : 'bg-zinc-800 border border-zinc-700 text-zinc-400 hover:border-zinc-500'
+                                }`}
+                        >
+                            💵 Nakit İade
+                        </button>
+                    </div>
+                    <p className="text-xs text-zinc-500 mt-1.5">
+                        {odeme === 'cari'
+                            ? 'Tedarikçi cari hesabına alacak olarak işlenir'
+                            : 'Nakit iade alındı — cari hesaba işlenmez'}
+                    </p>
+                </div>
+
                 <div className="grid grid-cols-2 gap-4">
                     <div className="col-span-2">
                         <label className="text-zinc-400 text-sm mb-1.5 block">Stok Kartı *</label>
@@ -66,7 +108,9 @@ export default function IadeFaturasi() {
                         </select>
                     </div>
                     <div>
-                        <label className="text-zinc-400 text-sm mb-1.5 block">Miktar {seciliStok && <span className="text-zinc-500">({seciliStok.birim?.kisaltma})</span>}</label>
+                        <label className="text-zinc-400 text-sm mb-1.5 block">
+                            Miktar {seciliStok && <span className="text-zinc-500">({seciliStok.birim?.kisaltma})</span>}
+                        </label>
                         <input type="number" value={form.miktar} onChange={(e) => setForm({ ...form, miktar: e.target.value })} placeholder="0"
                             className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-4 py-2.5 text-sm outline-none focus:border-lime-400 transition-colors" />
                     </div>
@@ -80,24 +124,31 @@ export default function IadeFaturasi() {
                         <input type="date" value={form.tarih} onChange={(e) => setForm({ ...form, tarih: e.target.value })}
                             className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-4 py-2.5 text-sm outline-none focus:border-lime-400 transition-colors" />
                     </div>
-                    <div>
-                        <label className="text-zinc-400 text-sm mb-1.5 block">Tedarikçi (Cari) *</label>
-                        <select value={form.cariKartId} onChange={(e) => setForm({ ...form, cariKartId: e.target.value })}
-                            className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-4 py-2.5 text-sm outline-none focus:border-lime-400 transition-colors">
-                            <option value="">Seç</option>
-                            {cariKartlar.map((c) => <option key={c.id} value={c.id}>{c.ad}</option>)}
-                        </select>
-                    </div>
+
+                    {/* Cari seçiliyse tedarikçi alanı görünür */}
+                    {odeme === 'cari' && (
+                        <div>
+                            <label className="text-zinc-400 text-sm mb-1.5 block">Tedarikçi (Cari)</label>
+                            <select value={form.cariKartId} onChange={(e) => setForm({ ...form, cariKartId: e.target.value })}
+                                className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-4 py-2.5 text-sm outline-none focus:border-lime-400 transition-colors">
+                                <option value="">Seç (isteğe bağlı)</option>
+                                {cariKartlar.map((c) => <option key={c.id} value={c.id}>{c.ad}</option>)}
+                            </select>
+                        </div>
+                    )}
+
                     <div className="col-span-2">
                         <label className="text-zinc-400 text-sm mb-1.5 block">Açıklama</label>
                         <input value={form.aciklama} onChange={(e) => setForm({ ...form, aciklama: e.target.value })} placeholder="İade fatura no veya not"
                             className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-4 py-2.5 text-sm outline-none focus:border-lime-400 transition-colors" />
                     </div>
                 </div>
+
                 <div className="bg-zinc-800 rounded-xl p-4 flex justify-between items-center">
                     <span className="text-zinc-400 text-sm">Alacak Tutarı</span>
                     <span className="text-amber-400 font-bold text-lg">₺{toplam}</span>
                 </div>
+
                 <button onClick={kaydet} disabled={yukleniyor}
                     className="w-full bg-lime-400 hover:bg-lime-300 disabled:opacity-50 text-black font-bold rounded-lg py-2.5 text-sm transition-colors">
                     {yukleniyor ? 'Kaydediliyor...' : 'İadeyi Kaydet'}

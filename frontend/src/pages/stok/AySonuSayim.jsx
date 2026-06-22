@@ -82,7 +82,7 @@ export default function AySonuSayim() {
                                             <div className="text-xs text-zinc-500">{s.kod}</div>
                                         </td>
                                         <td className="py-3 px-4 text-right text-sm font-mono text-zinc-300 hidden sm:table-cell">
-                                            {s.mevcutStok.toFixed(2)} <span className="text-zinc-500">{s.birim?.kisaltma}</span>
+                                            {Number(s.mevcutStok).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span className="text-zinc-500">{s.birim?.kisaltma}</span>
                                         </td>
                                         <td className="py-3 px-4 text-right">
                                             <input type="number" value={sayimlar[s.id] || ''}
@@ -92,7 +92,7 @@ export default function AySonuSayim() {
                                         </td>
                                         <td className="py-3 px-4 text-right text-sm font-mono">
                                             {fark !== null
-                                                ? <span className={Number(fark) >= 0 ? 'text-lime-400' : 'text-red-400'}>{Number(fark) >= 0 ? '+' : ''}{fark}</span>
+                                                ? <span className={Number(fark) >= 0 ? 'text-lime-400' : 'text-red-400'}>{Number(fark) >= 0 ? '+' : ''}{Number(fark).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                                                 : <span className="text-zinc-600">—</span>
                                             }
                                         </td>

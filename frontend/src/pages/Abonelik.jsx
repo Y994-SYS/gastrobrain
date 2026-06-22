@@ -236,6 +236,16 @@ export default function Abonelik() {
                                     </p>
                                 </div>
 
+                                <div className="bg-zinc-800/60 border border-zinc-700 rounded-lg p-4">
+                                    <p className="text-xs text-zinc-400 leading-relaxed">
+                                        ℹ️ Plan seçiminiz ödeme sonrası hesabınıza manuel olarak yansıtılır. Şube ve kullanıcı limitleri aktif plan doğrultusunda belirlenir. Sorularınız için{' '}
+                                        <a href={`mailto:${DESTEK_EMAIL}`} className="text-lime-400 underline hover:text-lime-300">
+                                            {DESTEK_EMAIL}
+                                        </a>
+                                        {' '}adresine yazabilirsiniz.
+                                    </p>
+                                </div>
+
                                 <div className="bg-zinc-800/80 rounded-lg p-4 border border-zinc-700 flex justify-between items-center">
                                     <div>
                                         <p className="text-xs text-zinc-400">Seçilen Dönem</p>

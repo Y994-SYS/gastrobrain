@@ -163,7 +163,7 @@ export default function Abonelik() {
 
             {/* Dinamik Ödeme Talimatları & Kurumsal Alanı */}
             {secilenPlan && (
-                <div className="border border-zinc-800 rounded-xl p-6 bg-zinc-900 transition-all">
+                <div className="... border-2 border-zinc-800 hover:border-lime-400 transition-all duration-300 cursor-pointer ...">
                     {secilenPlan === 'kurumsal' ? (
                         /* Kurumsal Paket İçeriği */
                         <div>

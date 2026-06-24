@@ -8,18 +8,28 @@ const fmt = (n) => Number(n || 0).toLocaleString('tr-TR', { minimumFractionDigit
 export default function StokDurumu() {
     const [veri, setVeri] = useState([]);
     const [aramaText, setAramaText] = useState('');
-    const { seciliSubeId, subeParam } = useSubeStore();
+    const { seciliSubeId } = useSubeStore();
+
+    // subeParam'ı component içinde hesapla
+    const subeParam = seciliSubeId ? `?subeId=${seciliSubeId}` : '';
 
     const getir = async () => {
-        const res = await api.get(`/api/stok/durum${subeParam()}`);
-        setVeri(res.data.data);
+        try {
+            const res = await api.get(`/api/stok/durum${subeParam}`);
+            setVeri(res.data?.data || []);
+        } catch (err) {
+            console.error('Stok durumu alınamadı:', err);
+            setVeri([]);
+        }
     };
 
-    useEffect(() => { getir(); }, [seciliSubeId]);
+    useEffect(() => {
+        getir();
+    }, [seciliSubeId]);
 
     const filtrelenmis = veri.filter((s) =>
-        s.ad.toLowerCase().includes(aramaText.toLowerCase()) ||
-        s.kod.toLowerCase().includes(aramaText.toLowerCase())
+        s.ad?.toLowerCase().includes(aramaText.toLowerCase()) ||
+        s.kod?.toLowerCase().includes(aramaText.toLowerCase())
     );
 
     return (
@@ -65,7 +75,7 @@ export default function StokDurumu() {
                             {filtrelenmis.length === 0 ? (
                                 <tr>
                                     <td colSpan={6} className="text-center py-16 text-zinc-500 text-sm">
-                                        Henüz stok kaydı yok
+                                        {veri.length === 0 ? 'Stok kaydı bulunamadı' : 'Arama kriterlerine uygun kayıt bulunamadı'}
                                     </td>
                                 </tr>
                             ) : filtrelenmis.map((s) => (
@@ -76,15 +86,15 @@ export default function StokDurumu() {
                                     <td className="py-3 px-4 text-sm text-white">{s.ad}</td>
                                     <td className="py-3 px-4 hidden sm:table-cell">
                                         <div className="flex items-center gap-2">
-                                            <div className="w-2 h-2 rounded-full" style={{ background: s.kategori?.renk }}></div>
-                                            <span className="text-sm text-zinc-300">{s.kategori?.ad}</span>
+                                            {s.kategori?.renk && <div className="w-2 h-2 rounded-full" style={{ background: s.kategori.renk }}></div>}
+                                            <span className="text-sm text-zinc-300">{s.kategori?.ad || '-'}</span>
                                         </div>
                                     </td>
                                     <td className="py-3 px-4 text-right text-sm font-mono font-semibold text-white">
-                                        {fmt(s.mevcutStok)} <span className="text-zinc-500 font-normal">{s.birim?.kisaltma}</span>
+                                        {fmt(s.mevcutStok)} <span className="text-zinc-500 font-normal">{s.birim?.kisaltma || ''}</span>
                                     </td>
                                     <td className="py-3 px-4 text-right text-sm font-mono text-zinc-400 hidden sm:table-cell">
-                                        {fmt(s.minStok)} <span className="text-zinc-600">{s.birim?.kisaltma}</span>
+                                        {fmt(s.minStok)} <span className="text-zinc-600">{s.birim?.kisaltma || ''}</span>
                                     </td>
                                     <td className="py-3 px-4 text-center">
                                         {s.kritik ? (

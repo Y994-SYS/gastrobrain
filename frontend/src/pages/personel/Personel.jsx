@@ -12,7 +12,11 @@ const bosPersonel = {
 };
 
 export default function Personel() {
-    const { seciliSubeId, subeParam } = useSubeStore();
+    const { seciliSubeId } = useSubeStore();
+
+    // subeParam'ı component içinde hesapla
+    const subeParam = seciliSubeId ? `?subeId=${seciliSubeId}` : '';
+
     const [veri, setVeri] = useState([]);
     const [secili, setSecili] = useState(null);
     const [personelModal, setPersonelModal] = useState(false);
@@ -41,23 +45,27 @@ export default function Personel() {
 
     const getir = async () => {
         try {
-            const res = await api.get(`/api/personel${subeParam()}`);
-            setVeri(res.data.data);
+            const res = await api.get(`/api/personel${subeParam}`);
+            setVeri(res.data?.data || []);
         } catch (err) {
             console.error('Personel listesi alınamadı:', err);
+            toast.error('Personel listesi yüklenemedi');
         }
     };
 
     const personelDetay = async (p) => {
         try {
             const res = await api.get(`/api/personel/${p.id}`);
-            setSecili(res.data.data);
+            setSecili(res.data?.data || null);
         } catch (err) {
             console.error('Personel detayı alınamadı:', err);
+            toast.error('Personel detayı yüklenemedi');
         }
     };
 
-    useEffect(() => { getir(); }, [seciliSubeId]);
+    useEffect(() => {
+        getir();
+    }, [seciliSubeId]);
 
     const kaydet = async () => {
         if (!form.ad || !form.soyad || !form.maas) return toast.error('Ad, soyad ve maaş zorunlu');
@@ -74,7 +82,7 @@ export default function Personel() {
                 toast.success('Güncellendi');
             } else {
                 const res = await api.post('/api/personel', form);
-                setVeri(prev => [...prev, res.data.data]);
+                setVeri(prev => [...prev, res.data?.data]);
                 toast.success('Personel eklendi');
             }
             setPersonelModal(false);
@@ -121,7 +129,7 @@ export default function Personel() {
             const res = await api.post('/api/personel/maas', { ...maasForm, personelId: secili.id });
             setSecili(prev => ({
                 ...prev,
-                maaslar: prev.maaslar.map(m => m.id === yeniMaas.id ? res.data.data : m)
+                maaslar: prev.maaslar.map(m => m.id === yeniMaas.id ? res.data?.data : m)
             }));
             toast.success('Maaş kaydedildi');
         } catch (err) {
@@ -143,7 +151,7 @@ export default function Personel() {
             const res = await api.post('/api/personel/avans', { ...avansForm, personelId: secili.id });
             setSecili(prev => ({
                 ...prev,
-                avanslar: prev.avanslar.map(a => a.id === yeniAvans.id ? res.data.data : a)
+                avanslar: prev.avanslar.map(a => a.id === yeniAvans.id ? res.data?.data : a)
             }));
             toast.success('Avans kaydedildi');
         } catch (err) {
@@ -164,7 +172,7 @@ export default function Personel() {
             const res = await api.post('/api/personel/devam', { ...devamForm, personelId: secili.id });
             setSecili(prev => ({
                 ...prev,
-                devamlar: prev.devamlar.map(d => d.id === yeniDevam.id ? res.data.data : d)
+                devamlar: prev.devamlar.map(d => d.id === yeniDevam.id ? res.data?.data : d)
             }));
             toast.success('Devam kaydedildi');
         } catch (err) {

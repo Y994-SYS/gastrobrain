@@ -10,7 +10,10 @@ const fmt = (n) => Number(n || 0).toLocaleString('tr-TR', { minimumFractionDigit
 
 export default function Satislar() {
     const { kullanici } = useAuthStore();
-    const { seciliSubeId, subeParam } = useSubeStore();
+    const { seciliSubeId } = useSubeStore();
+
+    // subeParam'ı component içinde hesapla
+    const subeParam = seciliSubeId ? `?subeId=${seciliSubeId}` : '';
 
     const bos = {
         receteId: '',
@@ -31,29 +34,31 @@ export default function Satislar() {
     const getir = async () => {
         try {
             const receteRes = await api.get('/api/receteler');
-            setReceteler(receteRes.data.data);
+            setReceteler(receteRes.data?.data || []);
         } catch (err) {
             console.error('Reçeteler çekilemedi:', err.response?.data || err.message);
             toast.error('Reçeteler yüklenemedi: ' + (err.response?.data?.mesaj || err.message));
         }
 
         try {
-            const satisRes = await api.get(`/api/satislar${subeParam()}`);
-            setVeri(satisRes.data.data);
+            const satisRes = await api.get(`/api/satislar${subeParam}`);
+            setVeri(satisRes.data?.data || []);
         } catch (err) {
             console.error('Satışlar çekilemedi:', err.response?.data || err.message);
             toast.error('Satışlar yüklenemedi: ' + (err.response?.data?.mesaj || err.message));
         }
 
         try {
-            const gunlukRes = await api.get(`/api/satislar/gunluk-toplam${subeParam()}`);
-            setGunlukToplam(gunlukRes.data.data.toplam);
+            const gunlukRes = await api.get(`/api/satislar/gunluk-toplam${subeParam}`);
+            setGunlukToplam(gunlukRes.data?.data?.toplam || 0);
         } catch (err) {
             console.error('Günlük toplam çekilemedi:', err.response?.data || err.message);
         }
     };
 
-    useEffect(() => { getir(); }, [seciliSubeId]);
+    useEffect(() => {
+        getir();
+    }, [seciliSubeId]);
 
     const kaydet = async () => {
         if (!form.receteId || !form.adet || !form.birimFiyat) {

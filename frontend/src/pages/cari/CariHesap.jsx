@@ -32,17 +32,45 @@ export default function CariHesap() {
     const odemeKaydet = async () => {
         if (!odemeForm.tutar) return toast.error('Tutar zorunlu');
         setYukleniyor(true);
+
+        const tutar = Number(odemeForm.tutar);
+
+        // Optimistic: anında güncelle
+        const yeniHareket = {
+            id: Date.now(),
+            tip: 'ODEME',
+            tutar,
+            aciklama: odemeForm.aciklama,
+            belgeNo: odemeForm.belgeNo,
+            tarih: odemeForm.tarih,
+            _gecici: true
+        };
+        setHareketler(prev => [yeniHareket, ...prev]);
+        setCariler(prev => prev.map(c =>
+            c.id === seciliCari.id ? { ...c, bakiye: c.bakiye - tutar } : c
+        ));
+        setSeciliCari(prev => ({ ...prev, bakiye: prev.bakiye - tutar }));
+        setOdemeModal(false);
+        setOdemeForm({ tutar: '', aciklama: '', belgeNo: '', tarih: new Date().toISOString().split('T')[0] });
+
         try {
-            await api.post('/api/cari-hareketler/odeme', {
+            const res = await api.post('/api/cari-hareketler/odeme', {
                 ...odemeForm,
                 cariKartId: seciliCari.id
             });
+            // Geçici kaydı gerçek veriyle değiştir
+            setHareketler(prev => prev.map(h =>
+                h.id === yeniHareket.id ? res.data.data : h
+            ));
             toast.success('Ödeme kaydedildi');
-            setOdemeModal(false);
-            setOdemeForm({ tutar: '', aciklama: '', belgeNo: '', tarih: new Date().toISOString().split('T')[0] });
-            getir();
-            cariSec(seciliCari);
         } catch (err) {
+            // Hata varsa geri al
+            setHareketler(prev => prev.filter(h => h.id !== yeniHareket.id));
+            setCariler(prev => prev.map(c =>
+                c.id === seciliCari.id ? { ...c, bakiye: c.bakiye + tutar } : c
+            ));
+            setSeciliCari(prev => ({ ...prev, bakiye: prev.bakiye + tutar }));
+            setOdemeModal(true);
             toast.error(err.response?.data?.mesaj || 'Hata oluştu');
         } finally {
             setYukleniyor(false);
@@ -70,7 +98,6 @@ export default function CariHesap() {
                 <p className="text-zinc-500 text-sm mt-0.5">Tedarikçi bakiyeleri ve ödeme takibi</p>
             </div>
 
-            {/* Özet */}
             <div className="grid grid-cols-2 gap-4 mb-6">
                 <div className="bg-zinc-900 border border-red-500/20 rounded-2xl p-4">
                     <div className="text-xs text-zinc-500 mb-1">Toplam Borç</div>
@@ -83,7 +110,6 @@ export default function CariHesap() {
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-                {/* Sol — Cari Listesi */}
                 <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
                     <div className="p-4 border-b border-zinc-800">
                         <h2 className="text-sm font-bold text-white">Cariler</h2>
@@ -111,7 +137,6 @@ export default function CariHesap() {
                     </div>
                 </div>
 
-                {/* Sağ — Hareketler */}
                 <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
                     {seciliCari ? (
                         <>
@@ -133,10 +158,11 @@ export default function CariHesap() {
                                 {hareketler.length === 0 ? (
                                     <div className="text-center py-10 text-zinc-500 text-sm">Hareket yok</div>
                                 ) : hareketler.map((h) => (
-                                    <div key={h.id} className="p-3 flex justify-between items-start">
+                                    <div key={h.id} className={`p-3 flex justify-between items-start ${h._gecici ? 'opacity-60' : ''}`}>
                                         <div>
                                             <div className="flex items-center gap-2">
                                                 <span className={`text-xs font-semibold ${tipRenk(h.tip)}`}>{tipEtiket(h.tip)}</span>
+                                                {h._gecici && <span className="text-xs text-zinc-600">kaydediliyor...</span>}
                                                 {h.belgeNo && <span className="text-xs text-zinc-500 font-mono">{h.belgeNo}</span>}
                                             </div>
                                             <div className="text-xs text-zinc-500 mt-0.5">{h.aciklama}</div>

@@ -2,14 +2,17 @@ import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import api from '../../services/api';
 import Modal from '../../components/Modal';
+import SubeSecici from '../../components/SubeSecici';
+import useSubeStore from '../../store/subeStore';
 
 const bosPersonel = {
     ad: '', soyad: '', telefon: '', tcKimlik: '',
     baslangicTarihi: new Date().toISOString().split('T')[0],
-    maas: '', subeId: '1'
+    maas: '', subeId: ''
 };
 
 export default function Personel() {
+    const { seciliSubeId, subeParam } = useSubeStore();
     const [veri, setVeri] = useState([]);
     const [secili, setSecili] = useState(null);
     const [personelModal, setPersonelModal] = useState(false);
@@ -37,16 +40,24 @@ export default function Personel() {
     });
 
     const getir = async () => {
-        const res = await api.get('/api/personel');
-        setVeri(res.data.data);
+        try {
+            const res = await api.get(`/api/personel${subeParam()}`);
+            setVeri(res.data.data);
+        } catch (err) {
+            console.error('Personel listesi alınamadı:', err);
+        }
     };
 
     const personelDetay = async (p) => {
-        const res = await api.get(`/api/personel/${p.id}`);
-        setSecili(res.data.data);
+        try {
+            const res = await api.get(`/api/personel/${p.id}`);
+            setSecili(res.data.data);
+        } catch (err) {
+            console.error('Personel detayı alınamadı:', err);
+        }
     };
 
-    useEffect(() => { getir(); }, []);
+    useEffect(() => { getir(); }, [seciliSubeId]);
 
     const kaydet = async () => {
         if (!form.ad || !form.soyad || !form.maas) return toast.error('Ad, soyad ve maaş zorunlu');
@@ -54,15 +65,21 @@ export default function Personel() {
         try {
             if (duzenleId) {
                 await api.put(`/api/personel/${duzenleId}`, form);
+                setVeri(prev => prev.map(p =>
+                    p.id === duzenleId ? { ...p, ...form, maas: Number(form.maas) } : p
+                ));
+                if (secili?.id === duzenleId) {
+                    setSecili(prev => ({ ...prev, ...form, maas: Number(form.maas) }));
+                }
                 toast.success('Güncellendi');
             } else {
-                await api.post('/api/personel', form);
+                const res = await api.post('/api/personel', form);
+                setVeri(prev => [...prev, res.data.data]);
                 toast.success('Personel eklendi');
             }
             setPersonelModal(false);
             setForm(bosPersonel);
             setDuzenleId(null);
-            getir();
         } catch (err) {
             toast.error(err.response?.data?.mesaj || 'Hata oluştu');
         } finally {
@@ -82,12 +99,14 @@ export default function Personel() {
 
     const sil = async (id) => {
         if (!confirm('Personeli silmek istediğine emin misin?')) return;
+        const silinen = veri.find(p => p.id === id);
+        setVeri(prev => prev.filter(p => p.id !== id));
+        if (secili?.id === id) setSecili(null);
         try {
             await api.delete(`/api/personel/${id}`);
             toast.success('Silindi');
-            if (secili?.id === id) setSecili(null);
-            getir();
         } catch (err) {
+            setVeri(prev => [...prev, silinen]);
             toast.error(err.response?.data?.mesaj || 'Silinemedi');
         }
     };
@@ -95,12 +114,19 @@ export default function Personel() {
     const maasKaydet = async () => {
         if (!maasForm.tutar) return toast.error('Tutar zorunlu');
         setYukleniyor(true);
+        const yeniMaas = { id: Date.now(), ...maasForm, tutar: Number(maasForm.tutar), _gecici: true };
+        setSecili(prev => ({ ...prev, maaslar: [yeniMaas, ...(prev.maaslar || [])] }));
+        setMaasModal(false);
         try {
-            await api.post('/api/personel/maas', { ...maasForm, personelId: secili.id });
+            const res = await api.post('/api/personel/maas', { ...maasForm, personelId: secili.id });
+            setSecili(prev => ({
+                ...prev,
+                maaslar: prev.maaslar.map(m => m.id === yeniMaas.id ? res.data.data : m)
+            }));
             toast.success('Maaş kaydedildi');
-            setMaasModal(false);
-            personelDetay(secili);
         } catch (err) {
+            setSecili(prev => ({ ...prev, maaslar: prev.maaslar.filter(m => m.id !== yeniMaas.id) }));
+            setMaasModal(true);
             toast.error(err.response?.data?.mesaj || 'Hata oluştu');
         } finally {
             setYukleniyor(false);
@@ -110,12 +136,19 @@ export default function Personel() {
     const avansKaydet = async () => {
         if (!avansForm.tutar) return toast.error('Tutar zorunlu');
         setYukleniyor(true);
+        const yeniAvans = { id: Date.now(), ...avansForm, tutar: Number(avansForm.tutar), _gecici: true };
+        setSecili(prev => ({ ...prev, avanslar: [yeniAvans, ...(prev.avanslar || [])] }));
+        setAvansModal(false);
         try {
-            await api.post('/api/personel/avans', { ...avansForm, personelId: secili.id });
+            const res = await api.post('/api/personel/avans', { ...avansForm, personelId: secili.id });
+            setSecili(prev => ({
+                ...prev,
+                avanslar: prev.avanslar.map(a => a.id === yeniAvans.id ? res.data.data : a)
+            }));
             toast.success('Avans kaydedildi');
-            setAvansModal(false);
-            personelDetay(secili);
         } catch (err) {
+            setSecili(prev => ({ ...prev, avanslar: prev.avanslar.filter(a => a.id !== yeniAvans.id) }));
+            setAvansModal(true);
             toast.error(err.response?.data?.mesaj || 'Hata oluştu');
         } finally {
             setYukleniyor(false);
@@ -124,12 +157,19 @@ export default function Personel() {
 
     const devamKaydet = async () => {
         setYukleniyor(true);
+        const yeniDevam = { id: Date.now(), ...devamForm, mesai: Number(devamForm.mesai), _gecici: true };
+        setSecili(prev => ({ ...prev, devamlar: [yeniDevam, ...(prev.devamlar || [])] }));
+        setDevamModal(false);
         try {
-            await api.post('/api/personel/devam', { ...devamForm, personelId: secili.id });
+            const res = await api.post('/api/personel/devam', { ...devamForm, personelId: secili.id });
+            setSecili(prev => ({
+                ...prev,
+                devamlar: prev.devamlar.map(d => d.id === yeniDevam.id ? res.data.data : d)
+            }));
             toast.success('Devam kaydedildi');
-            setDevamModal(false);
-            personelDetay(secili);
         } catch (err) {
+            setSecili(prev => ({ ...prev, devamlar: prev.devamlar.filter(d => d.id !== yeniDevam.id) }));
+            setDevamModal(true);
             toast.error(err.response?.data?.mesaj || 'Hata oluştu');
         } finally {
             setYukleniyor(false);
@@ -158,9 +198,9 @@ export default function Personel() {
                 </button>
             </div>
 
-            {/* Mobilde alt alta, masaüstünde yan yana */}
+            <SubeSecici />
+
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {/* Personel Listesi */}
                 <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
                     <div className="p-4 border-b border-zinc-800">
                         <h2 className="text-sm font-bold text-white">Personeller</h2>
@@ -178,6 +218,7 @@ export default function Personel() {
                                     <div>
                                         <div className="text-sm font-semibold text-white">{p.ad} {p.soyad}</div>
                                         <div className="text-xs text-zinc-500 mt-0.5">₺{p.maas} / ay</div>
+                                        {p.sube && <div className="text-xs text-zinc-600 mt-0.5">{p.sube.ad}</div>}
                                     </div>
                                     <div className="flex gap-1">
                                         <button onClick={(e) => { e.stopPropagation(); duzenle(p); }} className="text-xs text-zinc-500 hover:text-white px-2 py-1 rounded transition-colors">✏️</button>
@@ -189,7 +230,6 @@ export default function Personel() {
                     </div>
                 </div>
 
-                {/* Detay */}
                 <div className="md:col-span-2">
                     {secili ? (
                         <div className="space-y-4">
@@ -201,6 +241,7 @@ export default function Personel() {
                                             {secili.telefon && <span>📞 {secili.telefon}</span>}
                                             <span>💰 ₺{secili.maas} / ay</span>
                                             <span>📅 {new Date(secili.baslangicTarihi).toLocaleDateString('tr-TR')}'den beri</span>
+                                            {secili.sube && <span>🏪 {secili.sube.ad}</span>}
                                         </div>
                                     </div>
                                     <div className="flex flex-wrap gap-2">
@@ -219,8 +260,11 @@ export default function Personel() {
                                     {secili.maaslar?.length === 0 ? (
                                         <div className="text-center py-6 text-zinc-500 text-xs">Maaş kaydı yok</div>
                                     ) : secili.maaslar?.map((m) => (
-                                        <div key={m.id} className="px-4 py-2.5 flex justify-between items-center">
-                                            <span className="text-sm text-zinc-300">{aylar[m.ay]} {m.yil}</span>
+                                        <div key={m.id} className={`px-4 py-2.5 flex justify-between items-center ${m._gecici ? 'opacity-60' : ''}`}>
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-sm text-zinc-300">{aylar[m.ay]} {m.yil}</span>
+                                                {m._gecici && <span className="text-xs text-zinc-600">kaydediliyor...</span>}
+                                            </div>
                                             <div className="flex items-center gap-3">
                                                 <span className="text-sm font-mono text-white">₺{m.tutar}</span>
                                                 <span className={`text-xs px-2 py-0.5 rounded-full ${m.odendi ? 'bg-lime-400/10 text-lime-400' : 'bg-red-400/10 text-red-400'}`}>
@@ -240,9 +284,12 @@ export default function Personel() {
                                     {secili.avanslar?.length === 0 ? (
                                         <div className="text-center py-6 text-zinc-500 text-xs">Avans kaydı yok</div>
                                     ) : secili.avanslar?.map((a) => (
-                                        <div key={a.id} className="px-4 py-2.5 flex justify-between items-center">
+                                        <div key={a.id} className={`px-4 py-2.5 flex justify-between items-center ${a._gecici ? 'opacity-60' : ''}`}>
                                             <div>
-                                                <span className="text-sm text-zinc-300">{a.aciklama || 'Avans'}</span>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-sm text-zinc-300">{a.aciklama || 'Avans'}</span>
+                                                    {a._gecici && <span className="text-xs text-zinc-600">kaydediliyor...</span>}
+                                                </div>
                                                 <div className="text-xs text-zinc-500">{new Date(a.tarih).toLocaleDateString('tr-TR')}</div>
                                             </div>
                                             <span className="text-sm font-mono text-orange-400">₺{a.tutar}</span>
@@ -259,9 +306,10 @@ export default function Personel() {
                                     {secili.devamlar?.length === 0 ? (
                                         <div className="text-center py-6 text-zinc-500 text-xs">Devam kaydı yok</div>
                                     ) : secili.devamlar?.map((d) => (
-                                        <div key={d.id} className="px-4 py-2.5 flex justify-between items-center">
+                                        <div key={d.id} className={`px-4 py-2.5 flex justify-between items-center ${d._gecici ? 'opacity-60' : ''}`}>
                                             <div className="flex items-center gap-3">
                                                 <span className={`text-xs font-semibold ${durumRenk(d.durum)}`}>{d.durum}</span>
+                                                {d._gecici && <span className="text-xs text-zinc-600">kaydediliyor...</span>}
                                                 {d.mesai > 0 && <span className="text-xs text-zinc-500">{d.mesai} saat mesai</span>}
                                             </div>
                                             <span className="text-xs text-zinc-500">{new Date(d.tarih).toLocaleDateString('tr-TR')}</span>

@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import api from '../../services/api';
+import SubeSecici from '../../components/SubeSecici';
+import useSubeStore from '../../store/subeStore';
 
 const TABS = [
     { key: 'satis', label: 'Satış Raporu' },
@@ -17,6 +19,7 @@ export default function Raporlar() {
     const [veri, setVeri] = useState(null);
     const [yukleniyor, setYukleniyor] = useState(false);
     const [hata, setHata] = useState('');
+    const { seciliSubeId } = useSubeStore();
 
     const raporGetir = async () => {
         setYukleniyor(true);
@@ -26,8 +29,8 @@ export default function Raporlar() {
             const params = new URLSearchParams();
             if (baslangic) params.append('baslangic', baslangic);
             if (bitis) params.append('bitis', bitis);
+            if (seciliSubeId) params.append('subeId', seciliSubeId);
             const res = await api.get(`/api/raporlar/${aktifTab}?${params}`);
-
             setVeri(res.data);
         } catch (e) {
             setHata(e.response?.data?.hata || 'Rapor alınamadı');
@@ -37,17 +40,18 @@ export default function Raporlar() {
     };
 
     const excelIndir = () => {
-        const token = localStorage.getItem('gastroiq_token');
+        const token = localStorage.getItem('gastrobrain_token');
         const params = new URLSearchParams({ tip: aktifTab });
         if (baslangic) params.append('baslangic', baslangic);
         if (bitis) params.append('bitis', bitis);
+        if (seciliSubeId) params.append('subeId', seciliSubeId);
         const url = `${import.meta.env.VITE_API_URL}/api/raporlar/excel?${params}`;
         fetch(url, { headers: { Authorization: `Bearer ${token}` } })
             .then(r => r.blob())
             .then(blob => {
                 const a = document.createElement('a');
                 a.href = URL.createObjectURL(blob);
-                a.download = `gastroiq_${aktifTab}_${new Date().toISOString().slice(0, 10)}.xlsx`;
+                a.download = `gastrobrain_${aktifTab}_${new Date().toISOString().slice(0, 10)}.xlsx`;
                 a.click();
             });
     };
@@ -55,6 +59,9 @@ export default function Raporlar() {
     return (
         <div className="space-y-6">
             <h1 className="text-xl font-bold text-white">Raporlar</h1>
+
+            <SubeSecici />
+
             {/* Tab Menü */}
             <div className="flex gap-2 flex-wrap">
                 {TABS.map(t => (
@@ -117,14 +124,43 @@ export default function Raporlar() {
             {/* SATIŞ RAPORU */}
             {aktifTab === 'satis' && veri && (
                 <div className="space-y-4">
-                    {/* Özet Kartlar */}
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                         <OzetKart baslik="Toplam Ciro" deger={`₺${fmt(veri.ozet.toplamCiro)}`} renk="lime" />
                         <OzetKart baslik="Toplam Adet" deger={veri.ozet.toplamAdet} renk="blue" />
                         <OzetKart baslik="Satış Kaydı" deger={veri.ozet.satisAdedi} renk="purple" />
                     </div>
 
-                    {/* Reçete Bazlı */}
+                    {/* Şube bazlı — sadece birden fazla şube varsa göster */}
+                    {veri.ozet.subeGrup?.length > 1 && (
+                        <div className="bg-zinc-900 rounded-xl p-4">
+                            <h3 className="text-white font-semibold mb-3">Şube Bazlı Satışlar</h3>
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-sm">
+                                    <thead>
+                                        <tr className="text-zinc-400 border-b border-zinc-800">
+                                            <th className="text-left py-2">Şube</th>
+                                            <th className="text-right py-2">Adet</th>
+                                            <th className="text-right py-2">Ciro</th>
+                                            <th className="text-right py-2">Pay %</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {veri.ozet.subeGrup.map((s, i) => (
+                                            <tr key={i} className="border-b border-zinc-800/50 text-zinc-300">
+                                                <td className="py-2">{s.ad}</td>
+                                                <td className="text-right">{s.adet}</td>
+                                                <td className="text-right text-lime-400">₺{fmt(s.ciro)}</td>
+                                                <td className="text-right">
+                                                    {veri.ozet.toplamCiro > 0 ? ((s.ciro / veri.ozet.toplamCiro) * 100).toFixed(1) : 0}%
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    )}
+
                     {veri.ozet.receteGrup.length > 0 && (
                         <div className="bg-zinc-900 rounded-xl p-4">
                             <h3 className="text-white font-semibold mb-3">Reçete Bazlı Satışlar</h3>
@@ -155,7 +191,6 @@ export default function Raporlar() {
                         </div>
                     )}
 
-                    {/* Satış Listesi */}
                     <div className="bg-zinc-900 rounded-xl p-4">
                         <h3 className="text-white font-semibold mb-3">Satış Detayları</h3>
                         <div className="overflow-x-auto">
@@ -200,10 +235,7 @@ export default function Raporlar() {
                     <div className="bg-zinc-900 rounded-xl p-4">
                         <div className="flex justify-between items-center mb-3">
                             <h3 className="text-white font-semibold">Stok Durumu</h3>
-                            <button
-                                onClick={() => raporGetir()}
-                                className="text-xs text-zinc-400 hover:text-white"
-                            >
+                            <button onClick={() => raporGetir()} className="text-xs text-zinc-400 hover:text-white">
                                 Tümünü Göster
                             </button>
                         </div>
@@ -229,8 +261,7 @@ export default function Raporlar() {
                                             <td className="text-right">{s.mevcutStok} {s.birim}</td>
                                             <td className="text-right text-zinc-500">{s.minStok}</td>
                                             <td className="text-right">
-                                                <span className={`px-2 py-0.5 rounded text-xs font-medium ${s.kritikMi ? 'bg-red-900/50 text-red-400' : 'bg-green-900/50 text-green-400'
-                                                    }`}>
+                                                <span className={`px-2 py-0.5 rounded text-xs font-medium ${s.kritikMi ? 'bg-red-900/50 text-red-400' : 'bg-green-900/50 text-green-400'}`}>
                                                     {s.kritikMi ? 'KRİTİK' : 'NORMAL'}
                                                 </span>
                                             </td>
@@ -272,8 +303,7 @@ export default function Raporlar() {
                                             <td>{c.ad}</td>
                                             <td className="text-zinc-400">{c.telefon || '-'}</td>
                                             <td className="text-right">{c.hareketSayisi}</td>
-                                            <td className={`text-right font-medium ${c.bakiye < 0 ? 'text-red-400' : c.bakiye > 0 ? 'text-green-400' : 'text-zinc-400'
-                                                }`}>
+                                            <td className={`text-right font-medium ${c.bakiye < 0 ? 'text-red-400' : c.bakiye > 0 ? 'text-green-400' : 'text-zinc-400'}`}>
                                                 ₺{fmt(c.bakiye)}
                                             </td>
                                         </tr>
@@ -317,8 +347,7 @@ export default function Raporlar() {
                                             <td className="text-right">
                                                 <span className={`px-2 py-0.5 rounded text-xs font-medium ${m.karMarji >= 60 ? 'bg-green-900/50 text-green-400' :
                                                     m.karMarji >= 40 ? 'bg-yellow-900/50 text-yellow-400' :
-                                                        'bg-red-900/50 text-red-400'
-                                                    }`}>
+                                                        'bg-red-900/50 text-red-400'}`}>
                                                     %{m.karMarji}
                                                 </span>
                                             </td>

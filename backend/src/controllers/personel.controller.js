@@ -1,10 +1,20 @@
 const personelService = require('../services/personel.service');
 
+// Şube ID'sini belirle
+const subeIdBelirle = (req) => {
+    const rol = req.kullanici.rol;
+    if (rol === 'MUDUR' || rol === 'PERSONEL') {
+        return req.kullanici.subeId;
+    }
+    return req.query.subeId ? Number(req.query.subeId) : null;
+};
+
 const personelController = {
 
     async hepsiniGetir(req, res) {
         try {
-            const data = await personelService.hepsiniGetir(req.kullanici.tenantId);
+            const subeId = subeIdBelirle(req);
+            const data = await personelService.hepsiniGetir(req.kullanici.tenantId, subeId);
             res.json({ basarili: true, data });
         } catch (error) {
             res.status(500).json({ basarili: false, mesaj: error.message });
@@ -22,6 +32,7 @@ const personelController = {
 
     async olustur(req, res) {
         try {
+            if (!req.body.subeId) req.body.subeId = req.kullanici.subeId;
             const data = await personelService.olustur(req.body, req.kullanici.tenantId);
             res.status(201).json({ basarili: true, data });
         } catch (error) {
@@ -82,7 +93,6 @@ const personelController = {
             res.status(400).json({ basarili: false, mesaj: error.message });
         }
     }
-
 };
 
 module.exports = personelController;

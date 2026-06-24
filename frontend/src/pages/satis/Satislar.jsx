@@ -3,15 +3,22 @@ import toast from 'react-hot-toast';
 import api from '../../services/api';
 import Modal from '../../components/Modal';
 import useAuthStore from '../../store/auth.store';
+import SubeSecici from '../../components/SubeSecici';
+import useSubeStore from '../../store/subeStore';
 
 const fmt = (n) => Number(n || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 export default function Satislar() {
     const { kullanici } = useAuthStore();
+    const { seciliSubeId, subeParam } = useSubeStore();
 
     const bos = {
-        receteId: '', subeId: kullanici?.subeId || '', adet: '1', birimFiyat: '',
-        aciklama: '', tarih: new Date().toISOString().split('T')[0]
+        receteId: '',
+        subeId: kullanici?.subeId || '',
+        adet: '1',
+        birimFiyat: '',
+        aciklama: '',
+        tarih: new Date().toISOString().split('T')[0]
     };
 
     const [veri, setVeri] = useState([]);
@@ -22,12 +29,6 @@ export default function Satislar() {
     const [gunlukToplam, setGunlukToplam] = useState(0);
 
     const getir = async () => {
-        const subeId = kullanici?.subeId || '';
-
-        // Her isteği ayrı ayrı yönetiyoruz — biri patlasa bile diğerleri çalışmaya devam etsin
-        // ve gerçek hatayı konsola/toast'a basalım (önceki haliyle tüm Promise.all sessizce
-        // boş kalıyordu, teşhis imkansızdı).
-
         try {
             const receteRes = await api.get('/api/receteler');
             setReceteler(receteRes.data.data);
@@ -37,7 +38,7 @@ export default function Satislar() {
         }
 
         try {
-            const satisRes = await api.get(`/api/satislar?subeId=${subeId}`);
+            const satisRes = await api.get(`/api/satislar${subeParam()}`);
             setVeri(satisRes.data.data);
         } catch (err) {
             console.error('Satışlar çekilemedi:', err.response?.data || err.message);
@@ -45,16 +46,14 @@ export default function Satislar() {
         }
 
         try {
-            const gunlukRes = await api.get(`/api/satislar/gunluk-toplam?subeId=${subeId}`);
+            const gunlukRes = await api.get(`/api/satislar/gunluk-toplam${subeParam()}`);
             setGunlukToplam(gunlukRes.data.data.toplam);
         } catch (err) {
             console.error('Günlük toplam çekilemedi:', err.response?.data || err.message);
         }
     };
 
-    useEffect(() => { getir(); }, []);
-
-    const seciliRecete = receteler.find(r => r.id === Number(form.receteId));
+    useEffect(() => { getir(); }, [seciliSubeId]);
 
     const kaydet = async () => {
         if (!form.receteId || !form.adet || !form.birimFiyat) {
@@ -109,6 +108,8 @@ export default function Satislar() {
                     </button>
                 </div>
             </div>
+
+            <SubeSecici />
 
             <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
                 <div className="overflow-x-auto">
@@ -169,11 +170,6 @@ export default function Satislar() {
                                     <option key={r.id} value={r.id}>{r.ad}</option>
                                 ))}
                             </select>
-                            {receteler.length === 0 && (
-                                <p className="text-amber-400 text-xs mt-1">
-                                    Reçete listesi boş geldi — konsolda hata mesajını kontrol et.
-                                </p>
-                            )}
                         </div>
 
                         <div className="grid grid-cols-2 gap-3">

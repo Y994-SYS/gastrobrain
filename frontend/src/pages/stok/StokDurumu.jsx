@@ -1,20 +1,21 @@
 import { useState, useEffect } from 'react';
 import api from '../../services/api';
-import useAuthStore from '../../store/auth.store';
+import SubeSecici from '../../components/SubeSecici';
+import useSubeStore from '../../store/subeStore';
 
 const fmt = (n) => Number(n || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 export default function StokDurumu() {
-    const { kullanici } = useAuthStore();
     const [veri, setVeri] = useState([]);
     const [aramaText, setAramaText] = useState('');
+    const { seciliSubeId, subeParam } = useSubeStore();
 
     const getir = async () => {
-        const res = await api.get(`/api/stok/durum?subeId=${kullanici?.subeId || ''}`);
+        const res = await api.get(`/api/stok/durum${subeParam()}`);
         setVeri(res.data.data);
     };
 
-    useEffect(() => { getir(); }, []);
+    useEffect(() => { getir(); }, [seciliSubeId]);
 
     const filtrelenmis = veri.filter((s) =>
         s.ad.toLowerCase().includes(aramaText.toLowerCase()) ||
@@ -35,6 +36,8 @@ export default function StokDurumu() {
                     🔄 Yenile
                 </button>
             </div>
+
+            <SubeSecici />
 
             <div className="mb-4">
                 <input

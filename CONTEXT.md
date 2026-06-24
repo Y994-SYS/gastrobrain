@@ -7,17 +7,16 @@
 - **Son Güncelleme:** Haziran 2026
 
 ## STACK
-- **Backend:** Node.js v22 + Express + Prisma ORM v6 + PostgreSQL 18
+- **Backend:** Node.js v22 + Express + Prisma ORM v6 + PostgreSQL
 - **Frontend:** React + Vite + Tailwind CSS v4
 - **Landing:** Next.js v16 (App Router, static export)
-- **Veritabanı:** gastroiq_dev (PostgreSQL, localhost:5432)
+- **Veritabanı:** Supabase PostgreSQL (production), localhost:5432 (local)
 - **Auth:** JWT (bcryptjs + jsonwebtoken)
 - **Mail:** Nodemailer (SMTP/Gmail)
 - **Cron:** node-cron (lisans uyarı job'ları)
-- **Veritabanı:** Supabase PostgreSQL (production), localhost:5432 (local)
 - **Error Monitoring:** Sentry (@sentry/node)
-Hosting: Render.com (backend + frontend + landing, ayrı servisler)
-DNS: Cloudflare (gastrobrain.com.tr, İsimtescil'den alındı)
+- **Hosting:** Render.com (backend + frontend + landing, ayrı servisler)
+- **DNS:** Cloudflare (gastrobrain.com.tr, İsimtescil'den alındı)
 
 ## ÖNEMLİ NOTLAR
 - Prisma v6 kullanılıyor (v7 DEĞİL — prisma.config.ts olmadan çalışıyor)
@@ -28,8 +27,9 @@ DNS: Cloudflare (gastrobrain.com.tr, İsimtescil'den alındı)
 - PowerShell'de `$disconnect` ve `$transaction` inline node -e komutlarında sorun çıkarıyor → dosya olarak çalıştır
 - landing klasörü gastroiq/landing altında (submodule değil, normal klasör)
 - auth.store.js'de setKullanici fonksiyonu var — profil güncellemede kullanılıyor
--Şema değişikliklerinde npx prisma migrate dev DEĞİL npx prisma db push kullan — migration history Supabase'de tutulmuyor, migrate dev "drift detected" deyip reset istiyor (VERİ KAYBI RİSKİ). db push veriyi koruyarak şemayı senkronize eder.
--Render Build Command'ı npm install && npx prisma generate olmalı — sadece npm install Prisma Client'ı eski şemadan üretilmiş halde bırakabilir
+- Şema değişikliklerinde `npx prisma migrate dev` DEĞİL `npx prisma db push` kullan — migration history Supabase'de tutulmuyor, migrate dev "drift detected" deyip reset istiyor (VERİ KAYBI RİSKİ). db push veriyi koruyarak şemayı senkronize eder.
+- Render Build Command'ı `npm install && npx prisma generate` olmalı — sadece npm install Prisma Client'ı eski şemadan üretilmiş halde bırakabilir
+- Render free PostgreSQL (e-ticaret-db / eski "eticaretdb_94wj") KULLANILMIYOR — production veritabanı tamamen Supabase'e taşındı
 
 ## PORT & URL
 - Frontend: http://localhost:5173
@@ -223,32 +223,27 @@ Yetkisiz.jsx — yetkisiz erişim sayfası (mevcut rolü gösterir, geri dön/an
 Login.jsx — giriş sonrası rol bazlı yönlendirme: SUPER_ADMIN → /super-admin, diğerleri → /
 
 
-Faz 8 — Süper Admin Tam İzolasyonu ✅
-
-Sorun 1: SUPER_ADMIN hesabı başlangıçta bir tenant'a (tenantId: 1) bağlıydı.
-Çözüm:
-
-
-schema.prisma: Kullanici.tenantId opsiyonel yapıldı (Int?), tenant ilişkisi de opsiyonel (Tenant?)
-npx prisma db push ile Supabase'e veri kaybı olmadan uygulandı
-auth.service.js → girisYap: tenantSlug verilmemişse tenantId: null + rol: SUPER_ADMIN kaydını arıyor
-auth.service.js → tenantListesiGetir: tenantId null kullanıcılar için "Süper Admin Paneli" seçeneği dönüyor
-Mevcut süper admin kaydı UPDATE ... SET tenantId = null, subeId = null ile izole edildi
+### Faz 8 — SUPER_ADMIN İzolasyonu ✅
+- Kullanici.tenantId → Int? (opsiyonel)
+- SUPER_ADMIN tenant-scoped route'lardan çıkarıldı
+- PrivateRoute: SUPER_ADMIN → /super-admin yönlendirmesi
 
 
-Sorun 2 (kritik): İzolasyon sonrası SUPER_ADMIN normal tenant sayfalarına (Şubeler, Stok Kartları vb.) girmeye çalışınca Argument tenant is missing / Invalid prisma.X.create() hataları aldı — çünkü bu sayfalar req.kullanici.tenantId'yi kullanıyor ve artık null geliyor.
-Çözüm: SUPER_ADMIN, tüm tenant-scoped backend route'larının rolKontrol(...) listelerinden VE frontend R rol gruplarından (App.jsx, Layout.jsx) tamamen çıkarıldı. PrivateRoute'a şu kural eklendi: SUPER_ADMIN hangi route'a gitmeye çalışırsa çalışsın otomatik /super-admin'e yönlendirilir.
+### Faz 9 — Küçük İyileştirmeler ✅
+- Kullanıcı Yönetimi mobil uyumlu
+- Rol bilgi kutusu (ROL_ACIKLAMA map)
+- Yardım sayfasına "Roller ve Yetkiler" bölümü
+- Logo eklendi (Layout.jsx + Login.jsx)
+- Satislar.jsx hata yönetimi düzeltildi
 
-Sonuç: SUPER_ADMIN artık mimari olarak da pratikte de tamamen izole — hiçbir firmanın verisine/kullanıcı sayısına dahil değil, hiçbir tenant CRUD işlemine erişemez, sadece kendi global panelini kullanır.
+### Faz 10 — Performance (Optimistic UI) ✅
+- **Satislar.jsx:** kaydet + sil → optimistic update (getir() kaldırıldı, state direkt güncelleniyor)
+- **CariHesap.jsx:** odemeKaydet → optimistic update (bakiye + hareket listesi anında güncelleniyor, hata varsa geri alınıyor)
+- **Personel.jsx:** kaydet + sil + maasKaydet + avansKaydet + devamKaydet → optimistic update (personelDetay() + getir() kaldırıldı)
+- **Dashboard.jsx (YonetimDashboard):** 4 API isteği sıralı await'ten Promise.allSettled'a geçirildi (paralel, ~4x hızlanma), her biri ayrı hata yönetimiyle
+- **Geçici kayıt göstergesi:** optimistic eklenen kayıtlar opacity-60 + "kaydediliyor..." yazısıyla gösteriliyor, API cevabı gelince gerçek veriyle değiştiriliyor
+- **Hata geri alma:** API hatası durumunda tüm optimistic değişiklikler otomatik geri alınıyor, modal yeniden açılıyor
 
-Faz 9 — Küçük İyileştirmeler ✅
-
-
-Kullanıcı Yönetimi mobil uyumlu hale getirildi (Kullanicilar.jsx): sm altında tablo yerine kart görünümü, modal max-h-[90vh] overflow-y-auto ile taşma engellendi, alt butonlar sticky
-Kullanıcı eklerken rol bilgi kutusu: Rol seçilince dropdown altında o rolün tam yetki açıklaması renkli kutu olarak gösteriliyor (ROL_ACIKLAMA map'i)
-Yardım sayfasına "Roller ve Yetkiler" bölümü eklendi (Yardim.jsx): rollerin tanımları, hangi rolün hangi sayfayı gördüğü tablosu, rol değiştirme talimatı
-Logo eklendi: frontend/public/logo.png (şeffaf arka planlı PNG, landing'deki logodan üretildi), Layout.jsx (sidebar header + mobil header) ve Login.jsx'e (giriş ekranı başlığı) logo+yazı yan yana eklendi
-Satislar.jsx hata yönetimi düzeltildi: Önceden 3 API isteği tek Promise.all içindeydi, biri patlarsa hepsi sessizce boş kalıyordu (reçete dropdown'u boş geliyordu, hata görünmüyordu). Artık her istek ayrı try/catch ile yönetiliyor, gerçek hata mesajı toast olarak gösteriliyor, dropdown boşsa uyarı metni çıkıyor.
 
 ## BACKEND API ENDPOINTLERİ (tam liste)
 

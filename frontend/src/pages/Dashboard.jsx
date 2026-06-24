@@ -92,38 +92,29 @@ function YonetimDashboard() {
     const subeId = kullanici?.subeId;
 
     useEffect(() => {
-        // subeId parametresini sadece varsa ekle — yoksa backend tüm tenant verisini döner
         const subeQuery = subeId ? `?subeId=${subeId}` : '';
 
         const getir = async () => {
-            try {
-                const stokRes = await api.get(`/api/stok/durum${subeQuery}`);
-                setStoklar(stokRes.data.data);
-            } catch (err) {
-                console.error('Stok verisi alınamadı:', err);
-            }
+            const [stokRes, satisRes, cariRes, gunlukRes] = await Promise.allSettled([
+                api.get(`/api/stok/durum${subeQuery}`),
+                api.get(`/api/satislar${subeQuery}`),
+                api.get('/api/cari-hareketler/bakiyeler'),
+                api.get(`/api/satislar/gunluk-toplam${subeQuery}`),
+            ]);
 
-            try {
-                const satisRes = await api.get(`/api/satislar${subeQuery}`);
-                setSatislar(satisRes.data.data.slice(0, 5));
-            } catch (err) {
-                console.error('Satış verisi alınamadı:', err);
-            }
+            if (stokRes.status === 'fulfilled') setStoklar(stokRes.value.data.data);
+            else console.error('Stok verisi alınamadı:', stokRes.reason);
 
-            try {
-                const cariRes = await api.get('/api/cari-hareketler/bakiyeler');
-                setCariler(cariRes.data.data.filter(c => c.bakiye > 0).slice(0, 5));
-            } catch (err) {
-                console.error('Cari verisi alınamadı:', err);
-            }
+            if (satisRes.status === 'fulfilled') setSatislar(satisRes.value.data.data.slice(0, 5));
+            else console.error('Satış verisi alınamadı:', satisRes.reason);
 
-            try {
-                const gunlukRes = await api.get(`/api/satislar/gunluk-toplam${subeQuery}`);
-                setGunlukToplam(gunlukRes.data.data.toplam);
-            } catch (err) {
-                console.error('Günlük toplam alınamadı:', err);
-            }
+            if (cariRes.status === 'fulfilled') setCariler(cariRes.value.data.data.filter(c => c.bakiye > 0).slice(0, 5));
+            else console.error('Cari verisi alınamadı:', cariRes.reason);
+
+            if (gunlukRes.status === 'fulfilled') setGunlukToplam(gunlukRes.value.data.data.toplam);
+            else console.error('Günlük toplam alınamadı:', gunlukRes.reason);
         };
+
         getir();
     }, [subeId]);
 

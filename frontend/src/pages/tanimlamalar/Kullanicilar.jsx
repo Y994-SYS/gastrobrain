@@ -251,7 +251,7 @@ export default function Kullanicilar() {
                                 <label className="text-zinc-400 text-xs block mb-1">Email *</label>
                                 <input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })}
                                     className="w-full bg-zinc-800 text-white px-3 py-2.5 rounded-lg text-sm border border-zinc-700 focus:outline-none focus:border-lime-400"
-                                    placeholder="ali@gastroiq.com"
+                                    placeholder="ali@gastrobrain.com"
                                     autoCapitalize="none" autoCorrect="off" />
                             </div>
                             <div>

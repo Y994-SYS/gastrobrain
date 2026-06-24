@@ -1,11 +1,21 @@
 const satisService = require('../services/satis.service');
 const auditLog = require('../services/auditLog.service');
 
+// Şube ID'sini belirle
+const subeIdBelirle = (req) => {
+    const rol = req.kullanici.rol;
+    if (rol === 'MUDUR' || rol === 'DEPO' || rol === 'KASA' || rol === 'PERSONEL') {
+        return req.kullanici.subeId;
+    }
+    return req.query.subeId ? Number(req.query.subeId) : null;
+};
+
 const satisController = {
 
     async hepsiniGetir(req, res) {
         try {
-            const { subeId = 1, tarihBaslangic, tarihBitis } = req.query;
+            const subeId = subeIdBelirle(req);
+            const { tarihBaslangic, tarihBitis } = req.query;
             const data = await satisService.hepsiniGetir(subeId, tarihBaslangic, tarihBitis, req.kullanici.tenantId);
             res.json({ basarili: true, data });
         } catch (error) {
@@ -15,7 +25,7 @@ const satisController = {
 
     async gunlukToplam(req, res) {
         try {
-            const subeId = req.query.subeId || 1;
+            const subeId = subeIdBelirle(req);
             const toplam = await satisService.gunlukToplam(subeId, req.kullanici.tenantId);
             res.json({ basarili: true, data: { toplam } });
         } catch (error) {
@@ -25,8 +35,9 @@ const satisController = {
 
     async ekle(req, res) {
         try {
+            // Şube: body'den gelirse onu kullan, yoksa kullanıcının şubesi
+            if (!req.body.subeId) req.body.subeId = req.kullanici.subeId;
             const data = await satisService.ekle(req.body, req.kullanici.tenantId);
-
             await auditLog.kaydet({
                 eylem: 'SATIS_EKLE',
                 detay: {
@@ -39,7 +50,6 @@ const satisController = {
                 tenantId: req.kullanici.tenantId,
                 ip: req.ip
             });
-
             res.status(201).json({ basarili: true, data });
         } catch (error) {
             res.status(400).json({ basarili: false, mesaj: error.message });
@@ -49,7 +59,6 @@ const satisController = {
     async sil(req, res) {
         try {
             await satisService.sil(Number(req.params.id), req.kullanici.tenantId);
-
             await auditLog.kaydet({
                 eylem: 'SATIS_SIL',
                 detay: { satisId: Number(req.params.id) },
@@ -57,13 +66,11 @@ const satisController = {
                 tenantId: req.kullanici.tenantId,
                 ip: req.ip
             });
-
             res.json({ basarili: true, mesaj: 'Silindi' });
         } catch (error) {
             res.status(400).json({ basarili: false, mesaj: error.message });
         }
     }
-
 };
 
 module.exports = satisController;

@@ -1,6 +1,16 @@
 const stokService = require('../services/stok.service');
 const auditLog = require('../services/auditLog.service');
 
+// Şube ID'sini belirle — MUDUR kendi şubesini görür, ADMIN query'den alır
+const subeIdBelirle = (req) => {
+    const rol = req.kullanici.rol;
+    if (rol === 'MUDUR' || rol === 'DEPO' || rol === 'KASA' || rol === 'PERSONEL') {
+        return req.kullanici.subeId;
+    }
+    // TENANT_ADMIN — query'den gelirse onu kullan, gelmezse null (tüm şubeler)
+    return req.query.subeId ? Number(req.query.subeId) : null;
+};
+
 const stokController = {
 
     async hareketleriGetir(req, res) {
@@ -14,7 +24,7 @@ const stokController = {
 
     async tumStokDurumu(req, res) {
         try {
-            const subeId = req.query.subeId || 1;
+            const subeId = subeIdBelirle(req);
             const data = await stokService.tumStokDurumu(subeId, req.kullanici.tenantId);
             res.json({ basarili: true, data });
         } catch (error) {
@@ -34,6 +44,8 @@ const stokController = {
 
     async girisFaturasiEkle(req, res) {
         try {
+            // Şube: body'den gelirse onu kullan, yoksa kullanıcının şubesi
+            if (!req.body.subeId) req.body.subeId = req.kullanici.subeId;
             const data = await stokService.girisFaturasiEkle(req.body, req.kullanici.tenantId);
             await auditLog.kaydet({
                 eylem: 'STOK_GIRIS_FATURA',
@@ -50,6 +62,7 @@ const stokController = {
 
     async iadeFaturasiEkle(req, res) {
         try {
+            if (!req.body.subeId) req.body.subeId = req.kullanici.subeId;
             const data = await stokService.iadeFaturasiEkle(req.body, req.kullanici.tenantId);
             await auditLog.kaydet({
                 eylem: 'STOK_IADE_FATURA',
@@ -66,6 +79,7 @@ const stokController = {
 
     async zayiEkle(req, res) {
         try {
+            if (!req.body.subeId) req.body.subeId = req.kullanici.subeId;
             const data = await stokService.zayiEkle(req.body, req.kullanici.tenantId);
             await auditLog.kaydet({
                 eylem: 'STOK_ZAYI',
@@ -82,6 +96,7 @@ const stokController = {
 
     async tuketimEkle(req, res) {
         try {
+            if (!req.body.subeId) req.body.subeId = req.kullanici.subeId;
             const data = await stokService.tuketimEkle(req.body, req.kullanici.tenantId);
             await auditLog.kaydet({
                 eylem: 'STOK_TUKETIM',
@@ -98,6 +113,7 @@ const stokController = {
 
     async aySonuSayimEkle(req, res) {
         try {
+            if (!req.body.subeId) req.body.subeId = req.kullanici.subeId;
             const data = await stokService.aySonuSayimEkle(req.body, req.kullanici.tenantId);
             await auditLog.kaydet({
                 eylem: 'STOK_AY_SONU_SAYIM',

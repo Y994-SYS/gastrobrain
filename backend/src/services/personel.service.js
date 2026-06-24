@@ -3,9 +3,11 @@ const prisma = new PrismaClient();
 
 const personelService = {
 
-    async hepsiniGetir(tenantId) {
+    async hepsiniGetir(tenantId, subeId = null) {
+        const where = { tenantId };
+        if (subeId) where.subeId = Number(subeId);
         return prisma.personel.findMany({
-            where: { tenantId },
+            where,
             include: { sube: true },
             orderBy: { ad: 'asc' }
         });
@@ -58,7 +60,6 @@ const personelService = {
     },
 
     async maasEkle({ personelId, yil, ay, tutar, odendi, tarih }, tenantId) {
-        // Personelin bu tenant'a ait olduğunu doğrula
         await this.biriniGetir(Number(personelId), tenantId);
         return prisma.personelMaas.create({
             data: {
@@ -73,7 +74,6 @@ const personelService = {
     },
 
     async maasOdendi(id, tenantId) {
-        // Maaş kaydının tenant'a ait personele ait olduğunu doğrula
         const maas = await prisma.personelMaas.findFirst({
             where: { id },
             include: { personel: true }

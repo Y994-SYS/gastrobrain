@@ -8,7 +8,7 @@ const useSubeStore = create((set) => ({
     subeleriYukle: async () => {
         try {
             const res = await api.get('/api/subeler');
-            set({ subeler: res.data.data || [] });
+            set({ subeler: res.data?.data || [] });
         } catch (err) {
             console.error('Şubeler yüklenemedi:', err);
         }

@@ -11,16 +11,11 @@ const fmt = (n) => Number(n || 0).toLocaleString('tr-TR', { minimumFractionDigit
 export default function Satislar() {
     const { kullanici } = useAuthStore();
     const { seciliSubeId } = useSubeStore();
-
-    // subeParam'ı component içinde hesapla
     const subeParam = seciliSubeId ? `?subeId=${seciliSubeId}` : '';
 
     const bos = {
-        receteId: '',
-        subeId: kullanici?.subeId || '',
-        adet: '1',
-        birimFiyat: '',
-        aciklama: '',
+        receteId: '', subeId: kullanici?.subeId || '',
+        adet: '1', birimFiyat: '', aciklama: '',
         tarih: new Date().toISOString().split('T')[0]
     };
 
@@ -36,34 +31,28 @@ export default function Satislar() {
             const receteRes = await api.get('/api/receteler');
             setReceteler(receteRes.data?.data || []);
         } catch (err) {
-            console.error('Reçeteler çekilemedi:', err.response?.data || err.message);
-            toast.error('Reçeteler yüklenemedi: ' + (err.response?.data?.mesaj || err.message));
+            console.error('Reçeteler çekilemedi:', err);
         }
-
         try {
             const satisRes = await api.get(`/api/satislar${subeParam}`);
             setVeri(satisRes.data?.data || []);
         } catch (err) {
-            console.error('Satışlar çekilemedi:', err.response?.data || err.message);
-            toast.error('Satışlar yüklenemedi: ' + (err.response?.data?.mesaj || err.message));
+            console.error('Satışlar çekilemedi:', err);
+            toast.error('Satışlar yüklenemedi');
         }
-
         try {
             const gunlukRes = await api.get(`/api/satislar/gunluk-toplam${subeParam}`);
             setGunlukToplam(gunlukRes.data?.data?.toplam || 0);
         } catch (err) {
-            console.error('Günlük toplam çekilemedi:', err.response?.data || err.message);
+            console.error('Günlük toplam çekilemedi:', err);
         }
     };
 
-    useEffect(() => {
-        getir();
-    }, [seciliSubeId]);
+    useEffect(() => { getir(); }, [seciliSubeId]);
 
     const kaydet = async () => {
-        if (!form.receteId || !form.adet || !form.birimFiyat) {
+        if (!form.receteId || !form.adet || !form.birimFiyat)
             return toast.error('Reçete, adet ve fiyat zorunlu');
-        }
         setYukleniyor(true);
         try {
             await api.post('/api/satislar', form);
@@ -79,7 +68,7 @@ export default function Satislar() {
     };
 
     const sil = async (id) => {
-        if (!confirm('Satışı silmek istediğine emin misin? Stok geri yüklenmez!')) return;
+        if (!confirm('Satışı silmek istediğine emin misin?')) return;
         try {
             await api.delete(`/api/satislar/${id}`);
             toast.success('Silindi');
@@ -132,9 +121,7 @@ export default function Satislar() {
                         <tbody>
                             {veri.length === 0 ? (
                                 <tr>
-                                    <td colSpan={6} className="text-center py-16 text-zinc-500 text-sm">
-                                        Henüz satış kaydı yok
-                                    </td>
+                                    <td colSpan={6} className="text-center py-16 text-zinc-500 text-sm">Henüz satış kaydı yok</td>
                                 </tr>
                             ) : veri.map((s) => (
                                 <tr key={s.id} className="border-b border-zinc-800/50 hover:bg-zinc-800/30 transition-colors">
@@ -146,9 +133,7 @@ export default function Satislar() {
                                         {new Date(s.tarih).toLocaleDateString('tr-TR')}
                                     </td>
                                     <td className="py-3 px-4 text-right">
-                                        <button onClick={() => sil(s.id)} className="text-xs text-zinc-400 hover:text-red-400 transition-colors">
-                                            Sil
-                                        </button>
+                                        <button onClick={() => sil(s.id)} className="text-xs text-zinc-400 hover:text-red-400 transition-colors">Sil</button>
                                     </td>
                                 </tr>
                             ))}
@@ -176,7 +161,6 @@ export default function Satislar() {
                                 ))}
                             </select>
                         </div>
-
                         <div className="grid grid-cols-2 gap-3">
                             <div>
                                 <label className="text-zinc-400 text-sm mb-1.5 block">Adet *</label>
@@ -191,7 +175,6 @@ export default function Satislar() {
                                     className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-4 py-2.5 text-sm outline-none focus:border-lime-400 transition-colors" />
                             </div>
                         </div>
-
                         <div className="grid grid-cols-2 gap-3">
                             <div>
                                 <label className="text-zinc-400 text-sm mb-1.5 block">Tarih</label>
@@ -207,12 +190,10 @@ export default function Satislar() {
                                     className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-4 py-2.5 text-sm outline-none focus:border-lime-400 transition-colors" />
                             </div>
                         </div>
-
                         <div className="bg-zinc-800 rounded-xl p-4 flex justify-between items-center">
                             <span className="text-zinc-400 text-sm">Toplam</span>
                             <span className="text-lime-400 font-bold text-lg">₺{toplam}</span>
                         </div>
-
                         <button onClick={kaydet} disabled={yukleniyor}
                             className="w-full bg-lime-400 hover:bg-lime-300 disabled:opacity-50 text-black font-bold rounded-lg py-2.5 text-sm transition-colors">
                             {yukleniyor ? 'Kaydediliyor...' : 'Satışı Kaydet'}

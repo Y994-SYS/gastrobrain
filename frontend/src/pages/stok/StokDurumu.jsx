@@ -9,8 +9,6 @@ export default function StokDurumu() {
     const [veri, setVeri] = useState([]);
     const [aramaText, setAramaText] = useState('');
     const { seciliSubeId } = useSubeStore();
-
-    // subeParam'ı component içinde hesapla
     const subeParam = seciliSubeId ? `?subeId=${seciliSubeId}` : '';
 
     const getir = async () => {
@@ -18,14 +16,11 @@ export default function StokDurumu() {
             const res = await api.get(`/api/stok/durum${subeParam}`);
             setVeri(res.data?.data || []);
         } catch (err) {
-            console.error('Stok durumu alınamadı:', err);
-            setVeri([]);
+            console.error('Stok verisi alınamadı:', err);
         }
     };
 
-    useEffect(() => {
-        getir();
-    }, [seciliSubeId]);
+    useEffect(() => { getir(); }, [seciliSubeId]);
 
     const filtrelenmis = veri.filter((s) =>
         s.ad?.toLowerCase().includes(aramaText.toLowerCase()) ||
@@ -39,10 +34,7 @@ export default function StokDurumu() {
                     <h1 className="text-xl font-bold text-white">Stok Durumu</h1>
                     <p className="text-zinc-500 text-sm mt-0.5">{veri.length} stok kalemi</p>
                 </div>
-                <button
-                    onClick={getir}
-                    className="text-zinc-400 hover:text-white text-sm border border-zinc-700 px-4 py-2 rounded-lg transition-colors"
-                >
+                <button onClick={getir} className="text-zinc-400 hover:text-white text-sm border border-zinc-700 px-4 py-2 rounded-lg transition-colors">
                     🔄 Yenile
                 </button>
             </div>
@@ -74,9 +66,7 @@ export default function StokDurumu() {
                         <tbody>
                             {filtrelenmis.length === 0 ? (
                                 <tr>
-                                    <td colSpan={6} className="text-center py-16 text-zinc-500 text-sm">
-                                        {veri.length === 0 ? 'Stok kaydı bulunamadı' : 'Arama kriterlerine uygun kayıt bulunamadı'}
-                                    </td>
+                                    <td colSpan={6} className="text-center py-16 text-zinc-500 text-sm">Henüz stok kaydı yok</td>
                                 </tr>
                             ) : filtrelenmis.map((s) => (
                                 <tr key={s.id} className="border-b border-zinc-800/50 hover:bg-zinc-800/30 transition-colors">
@@ -86,15 +76,15 @@ export default function StokDurumu() {
                                     <td className="py-3 px-4 text-sm text-white">{s.ad}</td>
                                     <td className="py-3 px-4 hidden sm:table-cell">
                                         <div className="flex items-center gap-2">
-                                            {s.kategori?.renk && <div className="w-2 h-2 rounded-full" style={{ background: s.kategori.renk }}></div>}
-                                            <span className="text-sm text-zinc-300">{s.kategori?.ad || '-'}</span>
+                                            <div className="w-2 h-2 rounded-full" style={{ background: s.kategori?.renk }}></div>
+                                            <span className="text-sm text-zinc-300">{s.kategori?.ad}</span>
                                         </div>
                                     </td>
                                     <td className="py-3 px-4 text-right text-sm font-mono font-semibold text-white">
-                                        {fmt(s.mevcutStok)} <span className="text-zinc-500 font-normal">{s.birim?.kisaltma || ''}</span>
+                                        {fmt(s.mevcutStok)} <span className="text-zinc-500 font-normal">{s.birim?.kisaltma}</span>
                                     </td>
                                     <td className="py-3 px-4 text-right text-sm font-mono text-zinc-400 hidden sm:table-cell">
-                                        {fmt(s.minStok)} <span className="text-zinc-600">{s.birim?.kisaltma || ''}</span>
+                                        {fmt(s.minStok)} <span className="text-zinc-600">{s.birim?.kisaltma}</span>
                                     </td>
                                     <td className="py-3 px-4 text-center">
                                         {s.kritik ? (

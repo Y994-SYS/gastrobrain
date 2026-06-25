@@ -13,8 +13,6 @@ const bosPersonel = {
 
 export default function Personel() {
     const { seciliSubeId } = useSubeStore();
-
-    // subeParam'ı component içinde hesapla
     const subeParam = seciliSubeId ? `?subeId=${seciliSubeId}` : '';
 
     const [veri, setVeri] = useState([]);
@@ -30,18 +28,9 @@ export default function Personel() {
     const buAy = new Date().getMonth() + 1;
     const buYil = new Date().getFullYear();
 
-    const [maasForm, setMaasForm] = useState({
-        yil: buYil, ay: buAy, tutar: '', odendi: false,
-        tarih: new Date().toISOString().split('T')[0]
-    });
-    const [avansForm, setAvansForm] = useState({
-        tutar: '', aciklama: '',
-        tarih: new Date().toISOString().split('T')[0]
-    });
-    const [devamForm, setDevamForm] = useState({
-        tarih: new Date().toISOString().split('T')[0],
-        durum: 'CALISTI', mesai: '', aciklama: ''
-    });
+    const [maasForm, setMaasForm] = useState({ yil: buYil, ay: buAy, tutar: '', odendi: false, tarih: new Date().toISOString().split('T')[0] });
+    const [avansForm, setAvansForm] = useState({ tutar: '', aciklama: '', tarih: new Date().toISOString().split('T')[0] });
+    const [devamForm, setDevamForm] = useState({ tarih: new Date().toISOString().split('T')[0], durum: 'CALISTI', mesai: '', aciklama: '' });
 
     const getir = async () => {
         try {
@@ -49,7 +38,6 @@ export default function Personel() {
             setVeri(res.data?.data || []);
         } catch (err) {
             console.error('Personel listesi alınamadı:', err);
-            toast.error('Personel listesi yüklenemedi');
         }
     };
 
@@ -59,13 +47,10 @@ export default function Personel() {
             setSecili(res.data?.data || null);
         } catch (err) {
             console.error('Personel detayı alınamadı:', err);
-            toast.error('Personel detayı yüklenemedi');
         }
     };
 
-    useEffect(() => {
-        getir();
-    }, [seciliSubeId]);
+    useEffect(() => { getir(); }, [seciliSubeId]);
 
     const kaydet = async () => {
         if (!form.ad || !form.soyad || !form.maas) return toast.error('Ad, soyad ve maaş zorunlu');
@@ -73,16 +58,12 @@ export default function Personel() {
         try {
             if (duzenleId) {
                 await api.put(`/api/personel/${duzenleId}`, form);
-                setVeri(prev => prev.map(p =>
-                    p.id === duzenleId ? { ...p, ...form, maas: Number(form.maas) } : p
-                ));
-                if (secili?.id === duzenleId) {
-                    setSecili(prev => ({ ...prev, ...form, maas: Number(form.maas) }));
-                }
+                setVeri(prev => prev.map(p => p.id === duzenleId ? { ...p, ...form, maas: Number(form.maas) } : p));
+                if (secili?.id === duzenleId) setSecili(prev => ({ ...prev, ...form, maas: Number(form.maas) }));
                 toast.success('Güncellendi');
             } else {
                 const res = await api.post('/api/personel', form);
-                setVeri(prev => [...prev, res.data?.data]);
+                setVeri(prev => [...prev, res.data.data]);
                 toast.success('Personel eklendi');
             }
             setPersonelModal(false);
@@ -96,11 +77,7 @@ export default function Personel() {
     };
 
     const duzenle = (p) => {
-        setForm({
-            ad: p.ad, soyad: p.soyad, telefon: p.telefon || '',
-            tcKimlik: p.tcKimlik || '', maas: p.maas, subeId: p.subeId,
-            baslangicTarihi: new Date(p.baslangicTarihi).toISOString().split('T')[0]
-        });
+        setForm({ ad: p.ad, soyad: p.soyad, telefon: p.telefon || '', tcKimlik: p.tcKimlik || '', maas: p.maas, subeId: p.subeId, baslangicTarihi: new Date(p.baslangicTarihi).toISOString().split('T')[0] });
         setDuzenleId(p.id);
         setPersonelModal(true);
     };
@@ -127,18 +104,13 @@ export default function Personel() {
         setMaasModal(false);
         try {
             const res = await api.post('/api/personel/maas', { ...maasForm, personelId: secili.id });
-            setSecili(prev => ({
-                ...prev,
-                maaslar: prev.maaslar.map(m => m.id === yeniMaas.id ? res.data?.data : m)
-            }));
+            setSecili(prev => ({ ...prev, maaslar: prev.maaslar.map(m => m.id === yeniMaas.id ? res.data.data : m) }));
             toast.success('Maaş kaydedildi');
         } catch (err) {
             setSecili(prev => ({ ...prev, maaslar: prev.maaslar.filter(m => m.id !== yeniMaas.id) }));
             setMaasModal(true);
             toast.error(err.response?.data?.mesaj || 'Hata oluştu');
-        } finally {
-            setYukleniyor(false);
-        }
+        } finally { setYukleniyor(false); }
     };
 
     const avansKaydet = async () => {
@@ -149,18 +121,13 @@ export default function Personel() {
         setAvansModal(false);
         try {
             const res = await api.post('/api/personel/avans', { ...avansForm, personelId: secili.id });
-            setSecili(prev => ({
-                ...prev,
-                avanslar: prev.avanslar.map(a => a.id === yeniAvans.id ? res.data?.data : a)
-            }));
+            setSecili(prev => ({ ...prev, avanslar: prev.avanslar.map(a => a.id === yeniAvans.id ? res.data.data : a) }));
             toast.success('Avans kaydedildi');
         } catch (err) {
             setSecili(prev => ({ ...prev, avanslar: prev.avanslar.filter(a => a.id !== yeniAvans.id) }));
             setAvansModal(true);
             toast.error(err.response?.data?.mesaj || 'Hata oluştu');
-        } finally {
-            setYukleniyor(false);
-        }
+        } finally { setYukleniyor(false); }
     };
 
     const devamKaydet = async () => {
@@ -170,25 +137,16 @@ export default function Personel() {
         setDevamModal(false);
         try {
             const res = await api.post('/api/personel/devam', { ...devamForm, personelId: secili.id });
-            setSecili(prev => ({
-                ...prev,
-                devamlar: prev.devamlar.map(d => d.id === yeniDevam.id ? res.data?.data : d)
-            }));
+            setSecili(prev => ({ ...prev, devamlar: prev.devamlar.map(d => d.id === yeniDevam.id ? res.data.data : d) }));
             toast.success('Devam kaydedildi');
         } catch (err) {
             setSecili(prev => ({ ...prev, devamlar: prev.devamlar.filter(d => d.id !== yeniDevam.id) }));
             setDevamModal(true);
             toast.error(err.response?.data?.mesaj || 'Hata oluştu');
-        } finally {
-            setYukleniyor(false);
-        }
+        } finally { setYukleniyor(false); }
     };
 
-    const durumRenk = (durum) => {
-        const renkler = { CALISTI: 'text-lime-400', IZIN: 'text-blue-400', RAPOR: 'text-orange-400', DEVAMSIZ: 'text-red-400' };
-        return renkler[durum] || 'text-zinc-400';
-    };
-
+    const durumRenk = (durum) => ({ CALISTI: 'text-lime-400', IZIN: 'text-blue-400', RAPOR: 'text-orange-400', DEVAMSIZ: 'text-red-400' }[durum] || 'text-zinc-400');
     const aylar = ['', 'Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'];
 
     return (
@@ -198,10 +156,7 @@ export default function Personel() {
                     <h1 className="text-xl font-bold text-white">Personel</h1>
                     <p className="text-zinc-500 text-sm mt-0.5">{veri.length} personel</p>
                 </div>
-                <button
-                    onClick={() => { setForm(bosPersonel); setDuzenleId(null); setPersonelModal(true); }}
-                    className="bg-lime-400 hover:bg-lime-300 text-black font-bold text-sm px-4 py-2 rounded-lg transition-colors"
-                >
+                <button onClick={() => { setForm(bosPersonel); setDuzenleId(null); setPersonelModal(true); }} className="bg-lime-400 hover:bg-lime-300 text-black font-bold text-sm px-4 py-2 rounded-lg transition-colors">
                     + Yeni Personel
                 </button>
             </div>
@@ -210,18 +165,12 @@ export default function Personel() {
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
-                    <div className="p-4 border-b border-zinc-800">
-                        <h2 className="text-sm font-bold text-white">Personeller</h2>
-                    </div>
+                    <div className="p-4 border-b border-zinc-800"><h2 className="text-sm font-bold text-white">Personeller</h2></div>
                     <div className="divide-y divide-zinc-800">
                         {veri.length === 0 ? (
                             <div className="text-center py-10 text-zinc-500 text-sm">Personel yok</div>
                         ) : veri.map((p) => (
-                            <div
-                                key={p.id}
-                                onClick={() => personelDetay(p)}
-                                className={`p-4 cursor-pointer hover:bg-zinc-800/50 transition-colors ${secili?.id === p.id ? 'bg-zinc-800' : ''}`}
-                            >
+                            <div key={p.id} onClick={() => personelDetay(p)} className={`p-4 cursor-pointer hover:bg-zinc-800/50 transition-colors ${secili?.id === p.id ? 'bg-zinc-800' : ''}`}>
                                 <div className="flex justify-between items-start">
                                     <div>
                                         <div className="text-sm font-semibold text-white">{p.ad} {p.soyad}</div>
@@ -260,14 +209,9 @@ export default function Personel() {
                                 </div>
                             </div>
 
-                            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
-                                <div className="p-4 border-b border-zinc-800">
-                                    <h3 className="text-sm font-bold text-white">Maaş Geçmişi</h3>
-                                </div>
-                                <div className="divide-y divide-zinc-800 max-h-40 overflow-y-auto">
-                                    {secili.maaslar?.length === 0 ? (
-                                        <div className="text-center py-6 text-zinc-500 text-xs">Maaş kaydı yok</div>
-                                    ) : secili.maaslar?.map((m) => (
+                            {[
+                                {
+                                    baslik: 'Maaş Geçmişi', liste: secili.maaslar, bos: 'Maaş kaydı yok', render: (m) => (
                                         <div key={m.id} className={`px-4 py-2.5 flex justify-between items-center ${m._gecici ? 'opacity-60' : ''}`}>
                                             <div className="flex items-center gap-2">
                                                 <span className="text-sm text-zinc-300">{aylar[m.ay]} {m.yil}</span>
@@ -275,23 +219,13 @@ export default function Personel() {
                                             </div>
                                             <div className="flex items-center gap-3">
                                                 <span className="text-sm font-mono text-white">₺{m.tutar}</span>
-                                                <span className={`text-xs px-2 py-0.5 rounded-full ${m.odendi ? 'bg-lime-400/10 text-lime-400' : 'bg-red-400/10 text-red-400'}`}>
-                                                    {m.odendi ? 'Ödendi' : 'Bekliyor'}
-                                                </span>
+                                                <span className={`text-xs px-2 py-0.5 rounded-full ${m.odendi ? 'bg-lime-400/10 text-lime-400' : 'bg-red-400/10 text-red-400'}`}>{m.odendi ? 'Ödendi' : 'Bekliyor'}</span>
                                             </div>
                                         </div>
-                                    ))}
-                                </div>
-                            </div>
-
-                            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
-                                <div className="p-4 border-b border-zinc-800">
-                                    <h3 className="text-sm font-bold text-white">Avans Geçmişi</h3>
-                                </div>
-                                <div className="divide-y divide-zinc-800 max-h-40 overflow-y-auto">
-                                    {secili.avanslar?.length === 0 ? (
-                                        <div className="text-center py-6 text-zinc-500 text-xs">Avans kaydı yok</div>
-                                    ) : secili.avanslar?.map((a) => (
+                                    )
+                                },
+                                {
+                                    baslik: 'Avans Geçmişi', liste: secili.avanslar, bos: 'Avans kaydı yok', render: (a) => (
                                         <div key={a.id} className={`px-4 py-2.5 flex justify-between items-center ${a._gecici ? 'opacity-60' : ''}`}>
                                             <div>
                                                 <div className="flex items-center gap-2">
@@ -302,18 +236,10 @@ export default function Personel() {
                                             </div>
                                             <span className="text-sm font-mono text-orange-400">₺{a.tutar}</span>
                                         </div>
-                                    ))}
-                                </div>
-                            </div>
-
-                            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
-                                <div className="p-4 border-b border-zinc-800">
-                                    <h3 className="text-sm font-bold text-white">Devam Durumu</h3>
-                                </div>
-                                <div className="divide-y divide-zinc-800 max-h-40 overflow-y-auto">
-                                    {secili.devamlar?.length === 0 ? (
-                                        <div className="text-center py-6 text-zinc-500 text-xs">Devam kaydı yok</div>
-                                    ) : secili.devamlar?.map((d) => (
+                                    )
+                                },
+                                {
+                                    baslik: 'Devam Durumu', liste: secili.devamlar, bos: 'Devam kaydı yok', render: (d) => (
                                         <div key={d.id} className={`px-4 py-2.5 flex justify-between items-center ${d._gecici ? 'opacity-60' : ''}`}>
                                             <div className="flex items-center gap-3">
                                                 <span className={`text-xs font-semibold ${durumRenk(d.durum)}`}>{d.durum}</span>
@@ -322,9 +248,18 @@ export default function Personel() {
                                             </div>
                                             <span className="text-xs text-zinc-500">{new Date(d.tarih).toLocaleDateString('tr-TR')}</span>
                                         </div>
-                                    ))}
+                                    )
+                                }
+                            ].map(({ baslik, liste, bos, render }) => (
+                                <div key={baslik} className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
+                                    <div className="p-4 border-b border-zinc-800"><h3 className="text-sm font-bold text-white">{baslik}</h3></div>
+                                    <div className="divide-y divide-zinc-800 max-h-40 overflow-y-auto">
+                                        {!liste?.length ? (
+                                            <div className="text-center py-6 text-zinc-500 text-xs">{bos}</div>
+                                        ) : liste.map(render)}
+                                    </div>
                                 </div>
-                            </div>
+                            ))}
                         </div>
                     ) : (
                         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl flex items-center justify-center h-48 text-zinc-500 text-sm">
@@ -338,22 +273,12 @@ export default function Personel() {
                 <Modal baslik={duzenleId ? 'Personel Düzenle' : 'Yeni Personel'} onKapat={() => setPersonelModal(false)}>
                     <div className="space-y-4">
                         <div className="grid grid-cols-2 gap-3">
-                            <div>
-                                <label className="text-zinc-400 text-sm mb-1.5 block">Ad *</label>
-                                <input value={form.ad} onChange={(e) => setForm({ ...form, ad: e.target.value })} className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-3 py-2.5 text-sm outline-none focus:border-lime-400 transition-colors" />
-                            </div>
-                            <div>
-                                <label className="text-zinc-400 text-sm mb-1.5 block">Soyad *</label>
-                                <input value={form.soyad} onChange={(e) => setForm({ ...form, soyad: e.target.value })} className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-3 py-2.5 text-sm outline-none focus:border-lime-400 transition-colors" />
-                            </div>
-                            <div>
-                                <label className="text-zinc-400 text-sm mb-1.5 block">Telefon</label>
-                                <input value={form.telefon} onChange={(e) => setForm({ ...form, telefon: e.target.value })} className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-3 py-2.5 text-sm outline-none focus:border-lime-400 transition-colors" />
-                            </div>
-                            <div>
-                                <label className="text-zinc-400 text-sm mb-1.5 block">TC Kimlik</label>
-                                <input value={form.tcKimlik} onChange={(e) => setForm({ ...form, tcKimlik: e.target.value })} className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-3 py-2.5 text-sm outline-none focus:border-lime-400 transition-colors" />
-                            </div>
+                            {[['Ad *', 'ad'], ['Soyad *', 'soyad'], ['Telefon', 'telefon'], ['TC Kimlik', 'tcKimlik']].map(([lbl, key]) => (
+                                <div key={key}>
+                                    <label className="text-zinc-400 text-sm mb-1.5 block">{lbl}</label>
+                                    <input value={form[key]} onChange={(e) => setForm({ ...form, [key]: e.target.value })} className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-3 py-2.5 text-sm outline-none focus:border-lime-400 transition-colors" />
+                                </div>
+                            ))}
                             <div>
                                 <label className="text-zinc-400 text-sm mb-1.5 block">Maaş (₺) *</label>
                                 <input type="number" value={form.maas} onChange={(e) => setForm({ ...form, maas: e.target.value })} className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-3 py-2.5 text-sm outline-none focus:border-lime-400 transition-colors" />

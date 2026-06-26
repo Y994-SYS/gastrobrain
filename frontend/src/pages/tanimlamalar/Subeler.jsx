@@ -4,6 +4,9 @@ import toast from 'react-hot-toast';
 
 const BOŞ_FORM = { ad: '', adres: '', telefon: '', aktif: true };
 
+const paraFormat = (tutar) =>
+    tutar.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
 export default function Subeler() {
     const [subeler, setSubeler] = useState([]);
     const [yukleniyor, setYukleniyor] = useState(true);
@@ -32,7 +35,12 @@ export default function Subeler() {
     };
 
     const duzenleAc = (sube) => {
-        setForm({ ad: sube.ad, adres: sube.adres || '', telefon: sube.telefon || '', aktif: sube.aktif });
+        setForm({
+            ad: sube.ad,
+            adres: sube.adres || '',
+            telefon: sube.telefon || '',
+            aktif: sube.aktif,
+        });
         setDuzenleId(sube.id);
         setModalAcik(true);
     };
@@ -59,6 +67,7 @@ export default function Subeler() {
 
     return (
         <div className="p-6 space-y-6">
+            {/* Başlık */}
             <div className="flex justify-between items-center">
                 <h1 className="text-2xl font-bold text-white">Şube Yönetimi</h1>
                 <button
@@ -69,48 +78,89 @@ export default function Subeler() {
                 </button>
             </div>
 
+            {/* Liste */}
             {yukleniyor ? (
                 <div className="text-zinc-400 text-center py-12">Yükleniyor...</div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                     {subeler.map(sube => (
-                        <div key={sube.id} className="bg-zinc-900 rounded-xl p-5 border border-zinc-800 space-y-3">
+                        <div
+                            key={sube.id}
+                            className="bg-zinc-900 rounded-xl p-5 border border-zinc-800 space-y-3"
+                        >
+                            {/* Başlık satırı */}
                             <div className="flex justify-between items-start">
-                                <div>
-                                    <h3 className="text-white font-semibold text-lg">{sube.ad}</h3>
-                                    <span className={`text-xs px-2 py-0.5 rounded-full ${sube.aktif ? 'bg-green-900/50 text-green-400' : 'bg-red-900/50 text-red-400'
+                                <div className="space-y-1">
+                                    <h3 className="text-white font-semibold text-lg leading-tight">
+                                        {sube.ad}
+                                    </h3>
+                                    <span className={`inline-block text-xs px-2 py-0.5 rounded-full ${sube.aktif
+                                            ? 'bg-green-900/50 text-green-400'
+                                            : 'bg-red-900/50 text-red-400'
                                         }`}>
                                         {sube.aktif ? 'Aktif' : 'Pasif'}
                                     </span>
                                 </div>
                                 <button
                                     onClick={() => duzenleAc(sube)}
-                                    className="text-zinc-400 hover:text-white text-sm bg-zinc-800 px-3 py-1 rounded-lg"
+                                    className="text-zinc-400 hover:text-white text-sm bg-zinc-800 px-3 py-1 rounded-lg shrink-0"
                                 >
                                     Düzenle
                                 </button>
                             </div>
 
+                            {/* İletişim bilgileri */}
                             {sube.telefon && (
                                 <div className="flex items-center gap-2 text-zinc-400 text-sm">
-                                    <span>📞</span> {sube.telefon}
+                                    <span>📞</span>
+                                    <span>{sube.telefon}</span>
                                 </div>
                             )}
                             {sube.adres && (
                                 <div className="flex items-center gap-2 text-zinc-400 text-sm">
-                                    <span>📍</span> {sube.adres}
+                                    <span>📍</span>
+                                    <span>{sube.adres}</span>
                                 </div>
                             )}
 
+                            {/* Kullanıcı / Personel sayısı */}
                             <div className="flex gap-4 pt-2 border-t border-zinc-800 text-xs text-zinc-500">
                                 <span>👤 {sube._count.kullanicilar} kullanıcı</span>
                                 <span>👥 {sube._count.personeller} personel</span>
+                            </div>
+
+                            {/* Bugünkü özet */}
+                            <div className="flex items-center justify-between pt-2 border-t border-zinc-800">
+                                {/* Bugünkü satış */}
+                                <div className="flex items-center gap-1.5">
+                                    <span className="text-zinc-500 text-xs">Bugün</span>
+                                    <span className={`text-sm font-semibold ${sube.bugunSatis > 0 ? 'text-emerald-400' : 'text-zinc-500'
+                                        }`}>
+                                        ₺{paraFormat(sube.bugunSatis)}
+                                    </span>
+                                </div>
+
+                                {/* Kritik stok */}
+                                {sube.kritikStok > 0 ? (
+                                    <div className="flex items-center gap-1.5 bg-red-950/50 border border-red-800/40 px-2 py-0.5 rounded-full">
+                                        <span className="text-red-400 text-xs">⚠</span>
+                                        <span className="text-red-400 text-xs font-medium">
+                                            {sube.kritikStok} kritik stok
+                                        </span>
+                                    </div>
+                                ) : (
+                                    <div className="flex items-center gap-1.5">
+                                        <span className="text-zinc-600 text-xs">✓ Stok normal</span>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     ))}
 
                     {subeler.length === 0 && (
-                        <div className="col-span-3 text-center text-zinc-500 py-12">Henüz şube eklenmemiş</div>
+                        <div className="col-span-3 text-center text-zinc-500 py-12">
+                            Henüz şube eklenmemiş
+                        </div>
                     )}
                 </div>
             )}
@@ -125,7 +175,9 @@ export default function Subeler() {
 
                         <div className="space-y-3">
                             <div>
-                                <label className="text-zinc-400 text-xs block mb-1">Şube Adı *</label>
+                                <label className="text-zinc-400 text-xs block mb-1">
+                                    Şube Adı *
+                                </label>
                                 <input
                                     value={form.ad}
                                     onChange={e => setForm({ ...form, ad: e.target.value })}
@@ -134,7 +186,9 @@ export default function Subeler() {
                                 />
                             </div>
                             <div>
-                                <label className="text-zinc-400 text-xs block mb-1">Telefon</label>
+                                <label className="text-zinc-400 text-xs block mb-1">
+                                    Telefon
+                                </label>
                                 <input
                                     value={form.telefon}
                                     onChange={e => setForm({ ...form, telefon: e.target.value })}
@@ -143,7 +197,9 @@ export default function Subeler() {
                                 />
                             </div>
                             <div>
-                                <label className="text-zinc-400 text-xs block mb-1">Adres</label>
+                                <label className="text-zinc-400 text-xs block mb-1">
+                                    Adres
+                                </label>
                                 <textarea
                                     value={form.adres}
                                     onChange={e => setForm({ ...form, adres: e.target.value })}
@@ -161,7 +217,9 @@ export default function Subeler() {
                                         onChange={e => setForm({ ...form, aktif: e.target.checked })}
                                         className="accent-lime-400"
                                     />
-                                    <label htmlFor="aktif" className="text-zinc-300 text-sm">Aktif</label>
+                                    <label htmlFor="aktif" className="text-zinc-300 text-sm">
+                                        Aktif
+                                    </label>
                                 </div>
                             )}
                         </div>

@@ -32,6 +32,7 @@ import Yetkisiz from './pages/Yetkisiz';
 import SifremiUnuttum from './pages/SifremiUnuttum'
 import SifreSifirla from './pages/SifreSifirla'
 import AuditLog from './pages/AuditLog'
+import Transfer from './pages/Transfer';
 
 // ─── Rol Grupları ────────────────────────────────────────────────────────────
 // NOT: SUPER_ADMIN bilerek bu gruplarda YOK. Süper admin hiçbir tenant'a bağlı
@@ -112,6 +113,7 @@ export default function App() {
         <Route path="/stok/zayi" element={<PrivateRoute roller={R.STOK}><ZayiGideri /></PrivateRoute>} />
         <Route path="/stok/tuketim" element={<PrivateRoute roller={R.STOK}><TuketimGideri /></PrivateRoute>} />
         <Route path="/stok/ay-sonu-sayim" element={<PrivateRoute roller={R.STOK}><AySonuSayim /></PrivateRoute>} />
+        <Route path="/stok/transfer" element={<PrivateRoute roller={R.YONETIM}><Transfer /></PrivateRoute>} />
 
         {/* ── Satış — KASA dahil ──────────────────────────────────────── */}
         <Route path="/satislar" element={<PrivateRoute roller={R.SATIS}><Satislar /></PrivateRoute>} />
@@ -130,6 +132,7 @@ export default function App() {
         <Route path="/tanimlamalar/stok-kartlari" element={<PrivateRoute roller={R.STOK}><StokKartlari /></PrivateRoute>} />
         <Route path="/tanimlamalar/cari-kartlar" element={<PrivateRoute roller={R.YONETIM}><CariKartlar /></PrivateRoute>} />
         <Route path="/tanimlamalar/subeler" element={<PrivateRoute roller={R.ADMIN}><Subeler /></PrivateRoute>} />
+
         <Route path="/tanimlamalar/kullanicilar" element={<PrivateRoute roller={R.ADMIN}><Kullanicilar /></PrivateRoute>} />
 
         {/* ── Diğer — tüm roller ──────────────────────────────────────── */}

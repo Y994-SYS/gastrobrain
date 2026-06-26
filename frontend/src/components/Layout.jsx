@@ -67,6 +67,7 @@ const menuGruplari = [
             { path: '/tanimlamalar/cari-kartlar', label: 'Cari Kartlar', icon: '🏢', roller: R.YONETIM },
             { path: '/tanimlamalar/subeler', label: 'Şubeler', icon: '🏪', roller: R.ADMIN },
             { path: '/tanimlamalar/kullanicilar', label: 'Kullanıcılar', icon: '👤', roller: R.ADMIN },
+            { path: '/stok/transfer', label: 'Şube Transferi', icon: '🔀', roller: R.YONETIM },
         ]
     },
     {

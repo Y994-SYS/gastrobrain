@@ -5,10 +5,11 @@ const auditLog = require('./auditLog.service');
 const satisService = {
 
     async hepsiniGetir(subeId, tarihBaslangic, tarihBitis, tenantId) {
-        const where = {
-            subeId: Number(subeId),
-            sube: { tenantId }
-        };
+        // subeId null ise tüm şubeler (TENANT_ADMIN), değilse o şube
+        const where = subeId
+            ? { subeId: Number(subeId), sube: { tenantId } }
+            : { sube: { tenantId } };
+
         if (tarihBaslangic && tarihBitis) {
             where.tarih = {
                 gte: new Date(tarihBaslangic),
@@ -28,13 +29,12 @@ const satisService = {
         const yarin = new Date(bugun);
         yarin.setDate(yarin.getDate() + 1);
 
-        const satislar = await prisma.satis.findMany({
-            where: {
-                subeId: Number(subeId),
-                sube: { tenantId },
-                tarih: { gte: bugun, lt: yarin }
-            }
-        });
+        // subeId null ise tüm şubeler
+        const where = subeId
+            ? { subeId: Number(subeId), sube: { tenantId }, tarih: { gte: bugun, lt: yarin } }
+            : { sube: { tenantId }, tarih: { gte: bugun, lt: yarin } };
+
+        const satislar = await prisma.satis.findMany({ where });
         return satislar.reduce((t, s) => t + s.toplam, 0);
     },
 
@@ -53,7 +53,7 @@ const satisService = {
         if (!sube) throw new Error('Şube bulunamadı');
 
         return prisma.$transaction(async (tx) => {
-            // ✅ Stok kontrolü — transaction içinde, atomik
+            // Stok kontrolü — transaction içinde, atomik
             for (const kalem of recete.kalemler) {
                 const gercekMiktar = ((kalem.miktar * kalem.carpan) / kalem.bolen) * Number(adet);
 
@@ -84,7 +84,6 @@ const satisService = {
                 }
             }
 
-            // ✅ Kontrol geçtiyse satışı kaydet
             const satis = await tx.satis.create({
                 data: {
                     receteId: Number(receteId),

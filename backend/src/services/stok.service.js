@@ -27,13 +27,14 @@ const stokService = {
     },
 
     async mevcutStokGetir(stokKartId, subeId, tenantId) {
-        const hareketler = await prisma.stokHareket.findMany({
-            where: {
-                stokKartId: Number(stokKartId),
-                subeId: Number(subeId),
-                stokKart: { tenantId }
-            }
-        });
+        // subeId null ise tüm şubelerin toplamını getir
+        const where = {
+            stokKartId: Number(stokKartId),
+            stokKart: { tenantId },
+            ...(subeId ? { subeId: Number(subeId) } : {})
+        };
+
+        const hareketler = await prisma.stokHareket.findMany({ where });
         return hareketler.reduce((toplam, h) => {
             const girisler = ['GIRIS_FATURA', 'AY_SONU_SAYIM', 'SUBE_TRANSFER_IN'];
             const cikislar = ['IADE_FATURA', 'SATIS', 'ZAYI', 'TUKETIM', 'SUBE_TRANSFER_OUT'];
@@ -48,9 +49,11 @@ const stokService = {
             where: { tenantId },
             include: { birim: true, kategori: true }
         });
+
         const sonuc = await Promise.all(
             stokKartlari.map(async (kart) => {
-                const miktar = await this.mevcutStokGetir(kart.id, subeId, tenantId);
+                // subeId null ise tüm şubelerin toplamı
+                const miktar = await this.mevcutStokGetir(kart.id, subeId || null, tenantId);
                 return { ...kart, mevcutStok: miktar, kritik: miktar <= kart.minStok };
             })
         );
@@ -138,7 +141,6 @@ const stokService = {
 
         const gercekSubeId = await getSubeId(subeId, tenantId);
 
-        // ✅ Stok kontrolü
         const mevcutStok = await stokService.mevcutStokGetir(stokKartId, gercekSubeId, tenantId);
         if (mevcutStok < Number(miktar)) {
             throw new Error(`Yetersiz stok: ${stokKart.ad} (mevcut: ${mevcutStok.toFixed(2)}, girilen: ${miktar})`);
@@ -162,7 +164,6 @@ const stokService = {
 
         const gercekSubeId = await getSubeId(subeId, tenantId);
 
-        // ✅ Stok kontrolü
         const mevcutStok = await stokService.mevcutStokGetir(stokKartId, gercekSubeId, tenantId);
         if (mevcutStok < Number(miktar)) {
             throw new Error(`Yetersiz stok: ${stokKart.ad} (mevcut: ${mevcutStok.toFixed(2)}, girilen: ${miktar})`);

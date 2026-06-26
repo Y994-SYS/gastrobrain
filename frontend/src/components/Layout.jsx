@@ -40,6 +40,7 @@ const menuGruplari = [
             { path: '/stok/zayi', label: 'Zayi Gideri', icon: '🗑️', roller: R.STOK },
             { path: '/stok/tuketim', label: 'Tüketim Gideri', icon: '🍽️', roller: R.STOK },
             { path: '/stok/ay-sonu-sayim', label: 'Ay Sonu Sayım', icon: '📋', roller: R.STOK },
+            { path: '/stok/transfer', label: 'Şube Transferi', icon: '🔀', roller: R.YONETIM },
         ]
     },
     {
@@ -67,7 +68,7 @@ const menuGruplari = [
             { path: '/tanimlamalar/cari-kartlar', label: 'Cari Kartlar', icon: '🏢', roller: R.YONETIM },
             { path: '/tanimlamalar/subeler', label: 'Şubeler', icon: '🏪', roller: R.ADMIN },
             { path: '/tanimlamalar/kullanicilar', label: 'Kullanıcılar', icon: '👤', roller: R.ADMIN },
-            { path: '/stok/transfer', label: 'Şube Transferi', icon: '🔀', roller: R.YONETIM },
+
         ]
     },
     {

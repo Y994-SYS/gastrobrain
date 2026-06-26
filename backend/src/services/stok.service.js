@@ -1,6 +1,42 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
+// Giriş tipleri — bakiyeye eklenir
+const GIRIS_TIPLER = new Set([
+    'GIRIS_FATURA',
+    'SUBE_TRANSFER_IN',
+]);
+
+// Çıkış tipleri — bakiyeden düşülür
+const CIKIS_TIPLER = new Set([
+    'IADE_FATURA',
+    'SATIS',
+    'ZAYI',
+    'TUKETIM',
+    'SUBE_TRANSFER_OUT',
+]);
+
+// AY_SONU_SAYIM özel: fark hareketi olarak kaydedilir.
+// Fark pozitifse miktar pozitif (giriş gibi), negatifse miktar Math.abs() ile
+// kaydedilip negatif işlenmesi gerekir. Acıklama içindeki fark işaretine bakılır.
+// Daha temiz çözüm: AY_SONU_SAYIM her zaman "hedef miktar" olarak işlenir —
+// mevcut stoku sıfırlar ve yeni miktarı ekler. Bunun için ayrı hesaplama gerekir.
+// Şimdilik: acıklamadaki fark işaretine göre giriş/çıkış say.
+const bakiyeHesapla = (hareketler) => {
+    return hareketler.reduce((toplam, h) => {
+        if (GIRIS_TIPLER.has(h.tip)) return toplam + h.miktar;
+        if (CIKIS_TIPLER.has(h.tip)) return toplam - h.miktar;
+        if (h.tip === 'AY_SONU_SAYIM') {
+            // acıklama "fark: +X" ya da "fark: -X" içerir
+            const eslesme = h.aciklama?.match(/fark:\s*([+-]?\d+(\.\d+)?)/);
+            if (eslesme) return toplam + Number(eslesme[1]);
+            // acıklama yoksa pozitif say (eski davranış)
+            return toplam + h.miktar;
+        }
+        return toplam;
+    }, 0);
+};
+
 const getSubeId = async (subeId, tenantId) => {
     if (subeId) {
         const sube = await prisma.sube.findFirst({ where: { id: Number(subeId), tenantId } });
@@ -27,21 +63,13 @@ const stokService = {
     },
 
     async mevcutStokGetir(stokKartId, subeId, tenantId) {
-        // subeId null ise tüm şubelerin toplamını getir
         const where = {
             stokKartId: Number(stokKartId),
             stokKart: { tenantId },
             ...(subeId ? { subeId: Number(subeId) } : {})
         };
-
         const hareketler = await prisma.stokHareket.findMany({ where });
-        return hareketler.reduce((toplam, h) => {
-            const girisler = ['GIRIS_FATURA', 'AY_SONU_SAYIM', 'SUBE_TRANSFER_IN'];
-            const cikislar = ['IADE_FATURA', 'SATIS', 'ZAYI', 'TUKETIM', 'SUBE_TRANSFER_OUT'];
-            if (girisler.includes(h.tip)) return toplam + h.miktar;
-            if (cikislar.includes(h.tip)) return toplam - h.miktar;
-            return toplam;
-        }, 0);
+        return bakiyeHesapla(hareketler);
     },
 
     async tumStokDurumu(subeId, tenantId) {
@@ -50,14 +78,28 @@ const stokService = {
             include: { birim: true, kategori: true }
         });
 
-        const sonuc = await Promise.all(
-            stokKartlari.map(async (kart) => {
-                // subeId null ise tüm şubelerin toplamı
-                const miktar = await this.mevcutStokGetir(kart.id, subeId || null, tenantId);
-                return { ...kart, mevcutStok: miktar, kritik: miktar <= kart.minStok };
-            })
-        );
-        return sonuc;
+        // Tüm hareketleri tek sorguda çek — N+1 önlemi
+        const hareketler = await prisma.stokHareket.findMany({
+            where: {
+                stokKart: { tenantId },
+                ...(subeId ? { subeId: Number(subeId) } : {})
+            }
+        });
+
+        // Kart bazında grupla
+        const kartHareketMap = new Map();
+        for (const h of hareketler) {
+            if (!kartHareketMap.has(h.stokKartId)) {
+                kartHareketMap.set(h.stokKartId, []);
+            }
+            kartHareketMap.get(h.stokKartId).push(h);
+        }
+
+        return stokKartlari.map(kart => {
+            const kartHareketleri = kartHareketMap.get(kart.id) || [];
+            const miktar = bakiyeHesapla(kartHareketleri);
+            return { ...kart, mevcutStok: miktar, kritik: miktar <= kart.minStok };
+        });
     },
 
     async girisFaturasiEkle({ stokKartId, subeId, miktar, birimFiyat, aciklama, tarih, cariKartId }, tenantId) {
@@ -204,7 +246,6 @@ const stokService = {
             return { hareket, mevcutStok, sayimMiktari: Number(sayimMiktari), fark };
         });
     }
-
 };
 
 module.exports = stokService;

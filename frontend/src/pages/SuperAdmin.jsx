@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import useAuthStore from '../store/auth.store';
@@ -16,11 +16,40 @@ const PLAN_ETIKET = {
     KURUMSAL: 'Kurumsal',
 };
 
+// ─── Lisans durumu hesabı ─────────────────────────────────────────────────────
+function lisansKalanGun(bitis) {
+    if (!bitis) return null;
+    const fark = Math.ceil((new Date(bitis) - new Date()) / (1000 * 60 * 60 * 24));
+    return fark;
+}
+
+function LisansRozet({ bitis }) {
+    const gun = lisansKalanGun(bitis);
+    if (gun === null) return <span className="text-zinc-600 text-xs">—</span>;
+    if (gun < 0) return <span className="text-xs px-2 py-0.5 rounded-full bg-red-900/50 text-red-400">Süresi doldu</span>;
+    if (gun <= 7) return <span className="text-xs px-2 py-0.5 rounded-full bg-red-900/40 text-red-400">{gun} gün</span>;
+    if (gun <= 30) return <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-900/40 text-yellow-400">{gun} gün</span>;
+    return <span className="text-xs px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-400">{gun} gün</span>;
+}
+
+// ─── İstatistik Kart ──────────────────────────────────────────────────────────
+function IstatistikKart({ etiket, deger, renk }) {
+    return (
+        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4">
+            <p className="text-zinc-500 text-xs mb-1">{etiket}</p>
+            <p className={`text-2xl font-black ${renk}`}>{deger}</p>
+        </div>
+    );
+}
+
 export default function SuperAdmin() {
     const [istatistik, setIstatistik] = useState(null);
     const [tenantlar, setTenantlar] = useState([]);
     const [secili, setSecili] = useState(null);
     const [yukleniyor, setYukleniyor] = useState(true);
+    const [arama, setArama] = useState('');
+    const [lisansForm, setLisansForm] = useState({ lisansBitis: '', lisansNot: '' });
+
     const kullanici = useAuthStore(s => s.kullanici);
     const navigate = useNavigate();
 
@@ -29,7 +58,17 @@ export default function SuperAdmin() {
         veriGetir();
     }, []);
 
-    const veriGetir = async () => {
+    // Seçili tenant değişince lisans formunu senkronize et
+    useEffect(() => {
+        if (secili) {
+            setLisansForm({
+                lisansBitis: secili.lisansBitis ? new Date(secili.lisansBitis).toISOString().split('T')[0] : '',
+                lisansNot: secili.lisansNot || '',
+            });
+        }
+    }, [secili?.id]);
+
+    const veriGetir = useCallback(async () => {
         setYukleniyor(true);
         try {
             const [istat, tenantRes] = await Promise.all([
@@ -38,12 +77,12 @@ export default function SuperAdmin() {
             ]);
             setIstatistik(istat.data.data);
             setTenantlar(tenantRes.data.data);
-        } catch (err) {
+        } catch {
             toast.error('Veri yüklenemedi');
         } finally {
             setYukleniyor(false);
         }
-    };
+    }, []);
 
     const aktifPasifYap = async (id, aktif) => {
         try {
@@ -51,7 +90,7 @@ export default function SuperAdmin() {
             toast.success(aktif ? 'Firma aktif edildi' : 'Firma pasife alındı');
             setTenantlar(t => t.map(x => x.id === id ? { ...x, aktif } : x));
             if (secili?.id === id) setSecili(s => ({ ...s, aktif }));
-        } catch (err) {
+        } catch {
             toast.error('İşlem başarısız');
         }
     };
@@ -65,7 +104,7 @@ export default function SuperAdmin() {
 
             await api.patch(`/api/super-admin/tenantlar/${tenantId}/lisans`, {
                 lisansBitis: yeniBitis.toISOString(),
-                lisansNot: `${gun === 30 ? 'Aylık' : 'Yıllık'} uzatma - ${new Date().toLocaleDateString('tr-TR')}`
+                lisansNot: `${gun === 30 ? 'Aylık' : 'Yıllık'} uzatma - ${new Date().toLocaleDateString('tr-TR')}`,
             });
 
             toast.success(`Lisans ${gun === 30 ? '1 ay' : '1 yıl'} uzatıldı`);
@@ -74,7 +113,7 @@ export default function SuperAdmin() {
                 const res = await api.get(`/api/super-admin/tenantlar/${tenantId}`);
                 setSecili(res.data.data);
             }
-        } catch (e) {
+        } catch {
             toast.error('Lisans uzatılamadı');
         }
     };
@@ -85,28 +124,52 @@ export default function SuperAdmin() {
             toast.success('Plan güncellendi');
             setTenantlar(t => t.map(x => x.id === id ? { ...x, plan } : x));
             if (secili?.id === id) setSecili(s => ({ ...s, plan }));
-        } catch (err) {
+        } catch {
             toast.error('İşlem başarısız');
         }
     };
 
     const detayAc = async (id) => {
+        if (secili?.id === id) { setSecili(null); return; }
         try {
             const res = await api.get(`/api/super-admin/tenantlar/${id}`);
             setSecili(res.data.data);
-        } catch (err) {
+        } catch {
             toast.error('Detay yüklenemedi');
         }
     };
 
+    const lisansKaydet = async () => {
+        try {
+            await api.patch(`/api/super-admin/tenantlar/${secili.id}/lisans`, {
+                lisansBitis: lisansForm.lisansBitis || null,
+                lisansNot: lisansForm.lisansNot || null,
+            });
+            toast.success('Lisans güncellendi');
+            veriGetir();
+        } catch {
+            toast.error('Güncelleme başarısız');
+        }
+    };
+
+    const filtreliTenantlar = arama.trim()
+        ? tenantlar.filter(t =>
+            t.ad.toLowerCase().includes(arama.toLowerCase()) ||
+            t.slug.toLowerCase().includes(arama.toLowerCase())
+        )
+        : tenantlar;
+
     if (yukleniyor) return (
         <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
-            <p className="text-zinc-500">Yükleniyor...</p>
+            <div className="text-center">
+                <div className="w-8 h-8 border-2 border-lime-400/30 border-t-lime-400 rounded-full animate-spin mx-auto mb-3" />
+                <p className="text-zinc-500 text-sm">Yükleniyor...</p>
+            </div>
         </div>
     );
 
     return (
-        <div className="min-h-screen bg-zinc-950 text-white p-6">
+        <div className="min-h-screen bg-zinc-950 text-white p-4 md:p-6">
             <div className="max-w-7xl mx-auto">
 
                 {/* Başlık */}
@@ -114,12 +177,12 @@ export default function SuperAdmin() {
                     <div>
                         <h1 className="text-2xl font-black">
                             Gastro<span className="text-lime-400">BRAIN</span>
-                            <span className="text-zinc-500 font-normal ml-3 text-lg">Süper Admin</span>
+                            <span className="text-zinc-500 font-normal ml-3 text-base">Süper Admin</span>
                         </h1>
                         <p className="text-zinc-500 text-sm mt-1">Tüm firma hesaplarını yönet</p>
                     </div>
                     <button
-                        onClick={() => { useAuthStore.getState().cikisYap(); }}
+                        onClick={() => useAuthStore.getState().cikisYap()}
                         className="text-zinc-500 hover:text-white text-sm transition-colors"
                     >
                         Çıkış
@@ -129,17 +192,10 @@ export default function SuperAdmin() {
                 {/* İstatistik Kartları */}
                 {istatistik && (
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-                        {[
-                            { etiket: 'Toplam Firma', deger: istatistik.toplamTenant, renk: 'text-white' },
-                            { etiket: 'Aktif Firma', deger: istatistik.aktifTenant, renk: 'text-lime-400' },
-                            { etiket: 'Bu Ay Yeni', deger: istatistik.yeniKayitlar, renk: 'text-blue-400' },
-                            { etiket: 'Toplam Kullanıcı', deger: istatistik.toplamKullanici, renk: 'text-purple-400' },
-                        ].map(k => (
-                            <div key={k.etiket} className="bg-zinc-900 border border-zinc-800 rounded-xl p-4">
-                                <p className="text-zinc-500 text-xs mb-1">{k.etiket}</p>
-                                <p className={`text-2xl font-black ${k.renk}`}>{k.deger}</p>
-                            </div>
-                        ))}
+                        <IstatistikKart etiket="Toplam Firma" deger={istatistik.toplamTenant} renk="text-white" />
+                        <IstatistikKart etiket="Aktif Firma" deger={istatistik.aktifTenant} renk="text-lime-400" />
+                        <IstatistikKart etiket="Bu Ay Yeni" deger={istatistik.yeniKayitlar} renk="text-blue-400" />
+                        <IstatistikKart etiket="Toplam Kullanıcı" deger={istatistik.toplamKullanici} renk="text-purple-400" />
                     </div>
                 )}
 
@@ -147,41 +203,50 @@ export default function SuperAdmin() {
 
                     {/* Tenant Listesi */}
                     <div className="lg:col-span-2">
-                        <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
-                            <div className="px-4 py-3 border-b border-zinc-800 flex items-center justify-between">
-                                <h2 className="font-semibold text-sm">Firmalar ({tenantlar.length})</h2>
-                                <button onClick={veriGetir} className="text-zinc-500 hover:text-lime-400 text-xs transition-colors">
-                                    Yenile
-                                </button>
+                        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
+                            <div className="px-4 py-3 border-b border-zinc-800 flex items-center justify-between gap-3">
+                                <h2 className="font-semibold text-sm shrink-0">Firmalar ({filtreliTenantlar.length})</h2>
+                                <div className="flex items-center gap-2 flex-1 justify-end">
+                                    <div className="relative">
+                                        <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-500 text-xs">🔍</span>
+                                        <input
+                                            value={arama}
+                                            onChange={e => setArama(e.target.value)}
+                                            placeholder="Ara..."
+                                            className="bg-zinc-800 border border-zinc-700 text-white rounded-lg pl-7 pr-3 py-1.5 text-xs outline-none focus:border-lime-400 transition-colors w-36"
+                                        />
+                                    </div>
+                                    <button onClick={veriGetir} className="text-zinc-500 hover:text-lime-400 text-xs transition-colors shrink-0">
+                                        Yenile
+                                    </button>
+                                </div>
                             </div>
-                            <div className="divide-y divide-zinc-800">
-                                {tenantlar.map(t => (
+                            <div className="divide-y divide-zinc-800 max-h-[600px] overflow-y-auto">
+                                {filtreliTenantlar.length === 0 ? (
+                                    <p className="text-zinc-600 text-sm text-center py-10">Firma bulunamadı</p>
+                                ) : filtreliTenantlar.map(t => (
                                     <div
                                         key={t.id}
-                                        className={`px-4 py-3 flex items-center gap-3 hover:bg-zinc-800/50 cursor-pointer transition-colors ${secili?.id === t.id ? 'bg-zinc-800/50' : ''}`}
                                         onClick={() => detayAc(t.id)}
+                                        className={`px-4 py-3 flex items-center gap-3 cursor-pointer transition-colors ${secili?.id === t.id ? 'bg-lime-400/5 border-l-2 border-lime-400' : 'hover:bg-zinc-800/50'
+                                            }`}
                                     >
-                                        <div className={`w-2 h-2 rounded-full flex-shrink-0 ${t.aktif ? 'bg-lime-400' : 'bg-zinc-600'}`} />
+                                        <div className={`w-2 h-2 rounded-full shrink-0 ${t.aktif ? 'bg-lime-400' : 'bg-zinc-600'}`} />
                                         <div className="flex-1 min-w-0">
-                                            <div className="flex items-center gap-2">
+                                            <div className="flex items-center gap-2 flex-wrap">
                                                 <p className="font-medium text-sm truncate">{t.ad}</p>
-                                                <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${PLAN_RENK[t.plan]}`}>
+                                                <span className={`text-xs px-1.5 py-0.5 rounded font-medium shrink-0 ${PLAN_RENK[t.plan]}`}>
                                                     {PLAN_ETIKET[t.plan]}
                                                 </span>
                                             </div>
                                             <p className="text-zinc-500 text-xs font-mono">{t.slug}</p>
                                         </div>
-                                        <div className="text-right flex-shrink-0">
-                                            <p className="text-xs text-zinc-400">{t._count.kullanicilar} kullanıcı</p>
-                                            <p className="text-xs text-lime-400 font-mono">
-                                                ₺{(t.buAykiCiro || 0).toLocaleString('tr-TR', { minimumFractionDigits: 0 })}
-                                            </p>
+                                        <div className="text-right shrink-0 space-y-0.5">
+                                            <p className="text-xs text-zinc-400">{t._count?.kullanicilar ?? 0} kullanıcı</p>
+                                            <LisansRozet bitis={t.lisansBitis} />
                                         </div>
                                     </div>
                                 ))}
-                                {tenantlar.length === 0 && (
-                                    <p className="text-zinc-600 text-sm text-center py-8">Firma bulunamadı</p>
-                                )}
                             </div>
                         </div>
                     </div>
@@ -189,40 +254,44 @@ export default function SuperAdmin() {
                     {/* Detay Paneli */}
                     <div>
                         {secili ? (
-                            <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
+                            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
                                 <div className="px-4 py-3 border-b border-zinc-800 flex items-center justify-between">
                                     <h2 className="font-semibold text-sm truncate">{secili.ad}</h2>
-                                    <button onClick={() => setSecili(null)} className="text-zinc-600 hover:text-white text-lg leading-none">×</button>
+                                    <button onClick={() => setSecili(null)} className="text-zinc-600 hover:text-white text-xl leading-none ml-2 shrink-0">×</button>
                                 </div>
 
-                                <div className="p-4 space-y-4">
-                                    {/* Durum */}
-                                    <div className="flex items-center justify-between">
-                                        <span className="text-zinc-400 text-sm">Durum</span>
-                                        <button
-                                            onClick={() => aktifPasifYap(secili.id, !secili.aktif)}
-                                            className={`text-xs px-3 py-1 rounded-full font-medium transition-colors ${secili.aktif ? 'bg-lime-400/10 text-lime-400 hover:bg-red-400/10 hover:text-red-400' : 'bg-zinc-800 text-zinc-400 hover:bg-lime-400/10 hover:text-lime-400'}`}
-                                        >
-                                            {secili.aktif ? '✓ Aktif — Pasife Al' : '✗ Pasif — Aktif Et'}
-                                        </button>
-                                    </div>
+                                <div className="p-4 space-y-5 max-h-[calc(100vh-250px)] overflow-y-auto">
 
-                                    {/* Plan */}
-                                    <div className="flex items-center justify-between">
-                                        <span className="text-zinc-400 text-sm">Plan</span>
-                                        <select
-                                            value={secili.plan}
-                                            onChange={(e) => planGuncelle(secili.id, e.target.value)}
-                                            className="bg-zinc-800 border border-zinc-700 text-white text-xs rounded-lg px-2 py-1 outline-none focus:border-lime-400"
-                                        >
-                                            <option value="BASLANGIC">Başlangıç</option>
-                                            <option value="PROFESYONEL">Profesyonel</option>
-                                            <option value="KURUMSAL">Kurumsal</option>
-                                        </select>
+                                    {/* Durum + Plan */}
+                                    <div className="space-y-3">
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-zinc-400 text-xs">Durum</span>
+                                            <button
+                                                onClick={() => aktifPasifYap(secili.id, !secili.aktif)}
+                                                className={`text-xs px-3 py-1 rounded-full font-medium transition-colors ${secili.aktif
+                                                        ? 'bg-lime-400/10 text-lime-400 hover:bg-red-400/10 hover:text-red-400'
+                                                        : 'bg-zinc-800 text-zinc-400 hover:bg-lime-400/10 hover:text-lime-400'
+                                                    }`}
+                                            >
+                                                {secili.aktif ? '✓ Aktif — Pasife Al' : '✗ Pasif — Aktif Et'}
+                                            </button>
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-zinc-400 text-xs">Plan</span>
+                                            <select
+                                                value={secili.plan}
+                                                onChange={(e) => planGuncelle(secili.id, e.target.value)}
+                                                className="bg-zinc-800 border border-zinc-700 text-white text-xs rounded-lg px-2 py-1 outline-none focus:border-lime-400"
+                                            >
+                                                <option value="BASLANGIC">Başlangıç</option>
+                                                <option value="PROFESYONEL">Profesyonel</option>
+                                                <option value="KURUMSAL">Kurumsal</option>
+                                            </select>
+                                        </div>
                                     </div>
 
                                     {/* Bilgiler */}
-                                    <div className="space-y-2 pt-2 border-t border-zinc-800">
+                                    <div className="space-y-2 pt-3 border-t border-zinc-800">
                                         {[
                                             { etiket: 'Slug', deger: secili.slug, mono: true },
                                             { etiket: 'Email', deger: secili.email },
@@ -231,8 +300,8 @@ export default function SuperAdmin() {
                                             { etiket: 'Lisans Bitiş', deger: secili.lisansBitis ? new Date(secili.lisansBitis).toLocaleDateString('tr-TR') : '—' },
                                         ].map(b => (
                                             <div key={b.etiket} className="flex justify-between gap-2">
-                                                <span className="text-zinc-500 text-xs">{b.etiket}</span>
-                                                <span className={`text-xs text-right truncate max-w-[60%] ${b.mono ? 'font-mono text-lime-400' : 'text-zinc-300'}`}>
+                                                <span className="text-zinc-500 text-xs shrink-0">{b.etiket}</span>
+                                                <span className={`text-xs text-right truncate ${b.mono ? 'font-mono text-lime-400' : 'text-zinc-300'}`}>
                                                     {b.deger}
                                                 </span>
                                             </div>
@@ -240,14 +309,14 @@ export default function SuperAdmin() {
                                     </div>
 
                                     {/* Sayılar */}
-                                    <div className="grid grid-cols-2 gap-2 pt-2 border-t border-zinc-800">
+                                    <div className="grid grid-cols-2 gap-2 pt-3 border-t border-zinc-800">
                                         {[
-                                            { etiket: 'Şube', deger: secili.subeler?.length || 0 },
-                                            { etiket: 'Kullanıcı', deger: secili.kullanicilar?.length || 0 },
-                                            { etiket: 'Stok Kartı', deger: secili._count?.stokKartlari || 0 },
-                                            { etiket: 'Satış', deger: secili._count?.satislar || 0 },
+                                            { etiket: 'Şube', deger: secili.subeler?.length ?? 0 },
+                                            { etiket: 'Kullanıcı', deger: secili.kullanicilar?.length ?? 0 },
+                                            { etiket: 'Stok Kartı', deger: secili._count?.stokKartlari ?? 0 },
+                                            { etiket: 'Satış', deger: secili._count?.satislar ?? 0 },
                                         ].map(s => (
-                                            <div key={s.etiket} className="bg-zinc-800 rounded-lg p-2 text-center">
+                                            <div key={s.etiket} className="bg-zinc-800 rounded-xl p-2 text-center">
                                                 <p className="text-lg font-bold text-white">{s.deger}</p>
                                                 <p className="text-zinc-500 text-xs">{s.etiket}</p>
                                             </div>
@@ -256,16 +325,16 @@ export default function SuperAdmin() {
 
                                     {/* Kullanıcılar */}
                                     {secili.kullanicilar?.length > 0 && (
-                                        <div className="pt-2 border-t border-zinc-800">
-                                            <p className="text-zinc-500 text-xs mb-2">Kullanıcılar</p>
-                                            <div className="space-y-1.5">
+                                        <div className="pt-3 border-t border-zinc-800">
+                                            <p className="text-zinc-500 text-xs mb-2 font-semibold uppercase tracking-wider">Kullanıcılar</p>
+                                            <div className="space-y-2">
                                                 {secili.kullanicilar.map(k => (
-                                                    <div key={k.id} className="flex items-center justify-between">
-                                                        <div>
-                                                            <p className="text-xs text-white">{k.ad}</p>
-                                                            <p className="text-xs text-zinc-500">{k.email}</p>
+                                                    <div key={k.id} className="flex items-center justify-between gap-2">
+                                                        <div className="min-w-0">
+                                                            <p className="text-xs text-white truncate">{k.ad}</p>
+                                                            <p className="text-xs text-zinc-500 truncate">{k.email}</p>
                                                         </div>
-                                                        <span className="text-xs text-zinc-500 bg-zinc-800 px-1.5 py-0.5 rounded">
+                                                        <span className="text-xs text-zinc-500 bg-zinc-800 px-1.5 py-0.5 rounded shrink-0">
                                                             {k.rol}
                                                         </span>
                                                     </div>
@@ -275,60 +344,49 @@ export default function SuperAdmin() {
                                     )}
 
                                     {/* Lisans Yönetimi */}
-                                    <div className="pt-2 border-t border-zinc-800">
-                                        <p className="text-zinc-500 text-xs mb-2">Lisans Yönetimi</p>
+                                    <div className="pt-3 border-t border-zinc-800">
+                                        <p className="text-zinc-500 text-xs mb-3 font-semibold uppercase tracking-wider">Lisans Yönetimi</p>
+
+                                        {/* Hızlı uzatma */}
+                                        <div className="flex gap-2 mb-3">
+                                            <button
+                                                onClick={() => hizliUzat(secili.id, 30)}
+                                                className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-100 text-xs py-2 rounded-lg transition-colors"
+                                            >
+                                                +1 Ay
+                                            </button>
+                                            <button
+                                                onClick={() => hizliUzat(secili.id, 365)}
+                                                className="flex-1 bg-lime-400/10 hover:bg-lime-400/20 border border-lime-400/30 text-lime-400 text-xs py-2 rounded-lg transition-colors"
+                                            >
+                                                +1 Yıl
+                                            </button>
+                                        </div>
+
+                                        {/* Manuel tarih */}
                                         <div className="space-y-2">
-
-                                            {/* Hızlı uzatma butonları */}
-                                            <div className="flex gap-2">
-                                                <button
-                                                    onClick={() => hizliUzat(secili.id, 30)}
-                                                    className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-100 text-sm py-2 rounded-lg transition-colors"
-                                                >
-                                                    +1 Ay
-                                                </button>
-                                                <button
-                                                    onClick={() => hizliUzat(secili.id, 365)}
-                                                    className="flex-1 bg-lime-400/10 hover:bg-lime-400/20 border border-lime-400/30 text-lime-400 text-sm py-2 rounded-lg transition-colors"
-                                                >
-                                                    +1 Yıl
-                                                </button>
-                                            </div>
-
-                                            {/* Manuel tarih */}
                                             <div>
                                                 <label className="text-zinc-600 text-xs mb-1 block">Manuel Bitiş Tarihi</label>
                                                 <input
                                                     type="date"
-                                                    defaultValue={secili.lisansBitis ? new Date(secili.lisansBitis).toISOString().split('T')[0] : ''}
-                                                    onChange={(e) => setSecili(s => ({ ...s, lisansBitis: e.target.value }))}
-                                                    className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-3 py-1.5 text-xs outline-none focus:border-lime-400"
+                                                    value={lisansForm.lisansBitis}
+                                                    onChange={(e) => setLisansForm(f => ({ ...f, lisansBitis: e.target.value }))}
+                                                    className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-3 py-1.5 text-xs outline-none focus:border-lime-400 transition-colors"
                                                 />
                                             </div>
                                             <div>
                                                 <label className="text-zinc-600 text-xs mb-1 block">Not</label>
                                                 <input
                                                     type="text"
-                                                    defaultValue={secili.lisansNot || ''}
-                                                    onChange={(e) => setSecili(s => ({ ...s, lisansNot: e.target.value }))}
+                                                    value={lisansForm.lisansNot}
+                                                    onChange={(e) => setLisansForm(f => ({ ...f, lisansNot: e.target.value }))}
                                                     placeholder="Ödeme notu..."
-                                                    className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-3 py-1.5 text-xs outline-none focus:border-lime-400"
+                                                    className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-3 py-1.5 text-xs outline-none focus:border-lime-400 transition-colors"
                                                 />
                                             </div>
                                             <button
-                                                onClick={async () => {
-                                                    try {
-                                                        await api.patch(`/api/super-admin/tenantlar/${secili.id}/lisans`, {
-                                                            lisansBitis: secili.lisansBitis || null,
-                                                            lisansNot: secili.lisansNot || null,
-                                                        });
-                                                        toast.success('Lisans güncellendi');
-                                                        veriGetir();
-                                                    } catch {
-                                                        toast.error('Güncelleme başarısız');
-                                                    }
-                                                }}
-                                                className="w-full bg-zinc-700 hover:bg-zinc-600 text-white text-xs font-medium rounded-lg py-1.5 transition-colors"
+                                                onClick={lisansKaydet}
+                                                className="w-full bg-zinc-700 hover:bg-zinc-600 text-white text-xs font-semibold rounded-lg py-2 transition-colors"
                                             >
                                                 Lisansı Kaydet
                                             </button>
@@ -337,8 +395,9 @@ export default function SuperAdmin() {
                                 </div>
                             </div>
                         ) : (
-                            <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-8 text-center">
-                                <p className="text-zinc-600 text-sm">Detay görmek için<br />bir firmaya tıkla</p>
+                            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-8 text-center">
+                                <div className="text-3xl mb-2">👈</div>
+                                <p className="text-zinc-500 text-sm">Detaylar için bir firma seçin</p>
                             </div>
                         )}
                     </div>

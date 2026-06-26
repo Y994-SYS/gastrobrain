@@ -33,6 +33,7 @@ import SifremiUnuttum from './pages/SifremiUnuttum'
 import SifreSifirla from './pages/SifreSifirla'
 import AuditLog from './pages/AuditLog'
 import Transfer from './pages/Transfer';
+import SubeDetay from './pages/tanimlamalar/SubeDetay';
 
 // ─── Rol Grupları ────────────────────────────────────────────────────────────
 // NOT: SUPER_ADMIN bilerek bu gruplarda YOK. Süper admin hiçbir tenant'a bağlı
@@ -132,7 +133,7 @@ export default function App() {
         <Route path="/tanimlamalar/stok-kartlari" element={<PrivateRoute roller={R.STOK}><StokKartlari /></PrivateRoute>} />
         <Route path="/tanimlamalar/cari-kartlar" element={<PrivateRoute roller={R.YONETIM}><CariKartlar /></PrivateRoute>} />
         <Route path="/tanimlamalar/subeler" element={<PrivateRoute roller={R.ADMIN}><Subeler /></PrivateRoute>} />
-
+        <Route path="/tanimlamalar/subeler/:id" element={<PrivateRoute roller={R.ADMIN}><SubeDetay /></PrivateRoute>} />
         <Route path="/tanimlamalar/kullanicilar" element={<PrivateRoute roller={R.ADMIN}><Kullanicilar /></PrivateRoute>} />
 
         {/* ── Diğer — tüm roller ──────────────────────────────────────── */}

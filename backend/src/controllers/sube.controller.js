@@ -4,19 +4,14 @@ const prisma = new PrismaClient();
 // Türkiye saatiyle (UTC+3) bugünün başlangıcını döner
 const bugunBaslangicTR = () => {
     const now = new Date();
-    // UTC+3 offset: 3 saat * 60 dk * 60 sn * 1000 ms
     const trOffset = 3 * 60 * 60 * 1000;
     const trNow = new Date(now.getTime() + trOffset);
-
-    // TR saatiyle gün başlangıcı (00:00:00.000)
     const trBaslangic = new Date(Date.UTC(
         trNow.getUTCFullYear(),
         trNow.getUTCMonth(),
         trNow.getUTCDate(),
         0, 0, 0, 0
     ));
-
-    // Geri UTC'ye çevir (DB UTC saklar)
     return new Date(trBaslangic.getTime() - trOffset);
 };
 
@@ -27,12 +22,12 @@ const GIRIS_TIPLER = new Set([
     'SUBE_TRANSFER_IN',
 ]);
 
+// ─── hepsiniGetir ─────────────────────────────────────────────────────────────
 const hepsiniGetir = async (req, res) => {
     try {
         const tenantId = req.kullanici.tenantId;
         const bugun = bugunBaslangicTR();
 
-        // 1) Şubeler + sayımlar
         const subeler = await prisma.sube.findMany({
             where: { tenantId },
             include: {
@@ -45,58 +40,38 @@ const hepsiniGetir = async (req, res) => {
 
         const subeIdler = subeler.map(s => s.id);
 
-        // 2) Bugünkü satış toplamı — şube bazında
         const satisToplam = await prisma.satis.groupBy({
             by: ['subeId'],
-            where: {
-                subeId: { in: subeIdler },
-                tarih: { gte: bugun },
-            },
+            where: { subeId: { in: subeIdler }, tarih: { gte: bugun } },
             _sum: { toplam: true },
         });
+        const satisMap = new Map(satisToplam.map(s => [s.subeId, s._sum.toplam || 0]));
 
-        const satisMap = new Map(
-            satisToplam.map(s => [s.subeId, s._sum.toplam || 0])
-        );
-
-        // 3) minStok > 0 olan aktif stok kartları
         const stokKartlari = await prisma.stokKart.findMany({
             where: { tenantId, minStok: { gt: 0 }, aktif: true },
             select: { id: true, minStok: true },
         });
-
         const kritikMap = new Map(subeIdler.map(id => [id, 0]));
 
         if (stokKartlari.length > 0) {
             const kartIdler = stokKartlari.map(k => k.id);
             const minStokMap = new Map(stokKartlari.map(k => [k.id, k.minStok]));
 
-            // 4) Bu kartların tüm zamanlar stok hareketleri — şube + kart + tip bazında
             const hareketler = await prisma.stokHareket.groupBy({
                 by: ['subeId', 'stokKartId', 'tip'],
-                where: {
-                    subeId: { in: subeIdler },
-                    stokKartId: { in: kartIdler },
-                },
+                where: { subeId: { in: subeIdler }, stokKartId: { in: kartIdler } },
                 _sum: { miktar: true },
             });
 
-            // 5) Şube + kart bazında net bakiye: giriş tipleri +, çıkış tipleri -
-            // Yapı: { subeId -> Map<stokKartId, netBakiye> }
             const bakiyeMap = new Map();
-
             for (const h of hareketler) {
-                if (!bakiyeMap.has(h.subeId)) {
-                    bakiyeMap.set(h.subeId, new Map());
-                }
+                if (!bakiyeMap.has(h.subeId)) bakiyeMap.set(h.subeId, new Map());
                 const kartMap = bakiyeMap.get(h.subeId);
                 const mevcut = kartMap.get(h.stokKartId) || 0;
                 const miktar = h._sum.miktar || 0;
-                const carpan = GIRIS_TIPLER.has(h.tip) ? 1 : -1;
-                kartMap.set(h.stokKartId, mevcut + carpan * miktar);
+                kartMap.set(h.stokKartId, mevcut + (GIRIS_TIPLER.has(h.tip) ? miktar : -miktar));
             }
 
-            // 6) Her şube için kritik stok sayısı (bakiye <= minStok)
             for (const [subeId, kartMap] of bakiyeMap.entries()) {
                 let kritik = 0;
                 for (const [kartId, bakiye] of kartMap.entries()) {
@@ -107,19 +82,17 @@ const hepsiniGetir = async (req, res) => {
             }
         }
 
-        // 7) Şubelere özet verileri ekle
-        const sonuc = subeler.map(sube => ({
+        res.json(subeler.map(sube => ({
             ...sube,
             bugunSatis: satisMap.get(sube.id) || 0,
             kritikStok: kritikMap.get(sube.id) || 0,
-        }));
-
-        res.json(sonuc);
+        })));
     } catch (err) {
         res.status(500).json({ hata: err.message });
     }
 };
 
+// ─── tekiniGetir ──────────────────────────────────────────────────────────────
 const tekiniGetir = async (req, res) => {
     try {
         const sube = await prisma.sube.findFirst({
@@ -138,6 +111,115 @@ const tekiniGetir = async (req, res) => {
     }
 };
 
+// ─── detayGetir — YENİ ────────────────────────────────────────────────────────
+// GET /api/subeler/:id/detay
+const detayGetir = async (req, res) => {
+    try {
+        const tenantId = req.kullanici.tenantId;
+        const subeId = parseInt(req.params.id);
+        const bugun = bugunBaslangicTR();
+
+        const sube = await prisma.sube.findFirst({
+            where: { id: subeId, tenantId },
+            include: { _count: { select: { kullanicilar: true, personeller: true } } },
+        });
+        if (!sube) return res.status(404).json({ hata: 'Şube bulunamadı' });
+
+        // Bugün satış özeti
+        const bugunSatislar = await prisma.satis.aggregate({
+            where: { subeId, tarih: { gte: bugun } },
+            _sum: { toplam: true },
+            _count: { id: true },
+        });
+
+        // Bu ay satış özeti
+        const ayBaslangic = new Date(bugun);
+        ayBaslangic.setDate(1);
+        const buAySatislar = await prisma.satis.aggregate({
+            where: { subeId, tarih: { gte: ayBaslangic } },
+            _sum: { toplam: true },
+            _count: { id: true },
+        });
+
+        // Son 10 satış
+        const sonSatislar = await prisma.satis.findMany({
+            where: { subeId },
+            include: { recete: { select: { ad: true } } },
+            orderBy: { tarih: 'desc' },
+            take: 10,
+        });
+
+        // Stok durumu — bu şubeye ait bakiyeler
+        const stokKartlari = await prisma.stokKart.findMany({
+            where: { tenantId, aktif: true },
+            include: { birim: true, kategori: true },
+            orderBy: { ad: 'asc' },
+        });
+
+        const stokHareketleri = await prisma.stokHareket.groupBy({
+            by: ['stokKartId', 'tip'],
+            where: { subeId },
+            _sum: { miktar: true },
+        });
+
+        const bakiyeMap = new Map();
+        for (const h of stokHareketleri) {
+            const mevcut = bakiyeMap.get(h.stokKartId) || 0;
+            const miktar = h._sum.miktar || 0;
+            bakiyeMap.set(h.stokKartId, mevcut + (GIRIS_TIPLER.has(h.tip) ? miktar : -miktar));
+        }
+
+        const stokDurumu = stokKartlari
+            .map(k => ({
+                ...k,
+                mevcutStok: Math.round((bakiyeMap.get(k.id) || 0) * 1000) / 1000,
+                kritik: (bakiyeMap.get(k.id) || 0) <= k.minStok && k.minStok > 0,
+            }))
+            .filter(k => k.mevcutStok > 0 || k.minStok > 0);
+
+        // Personel listesi
+        const personeller = await prisma.personel.findMany({
+            where: { subeId, tenantId, aktif: true },
+            select: {
+                id: true, ad: true, soyad: true,
+                telefon: true, baslangicTarihi: true, maas: true,
+            },
+            orderBy: { ad: 'asc' },
+        });
+
+        // Son 20 transfer
+        const sonTransferler = await prisma.stokHareket.findMany({
+            where: {
+                subeId,
+                tip: { in: ['SUBE_TRANSFER_IN', 'SUBE_TRANSFER_OUT'] },
+            },
+            include: { stokKart: { select: { ad: true } } },
+            orderBy: { tarih: 'desc' },
+            take: 20,
+        });
+
+        res.json({
+            sube,
+            ozet: {
+                bugunSatisToplam: bugunSatislar._sum.toplam || 0,
+                bugunSatisAdet: bugunSatislar._count.id || 0,
+                buAySatisToplam: buAySatislar._sum.toplam || 0,
+                buAySatisAdet: buAySatislar._count.id || 0,
+                toplamStokKalem: stokDurumu.length,
+                kritikStokSayisi: stokDurumu.filter(s => s.kritik).length,
+                personelSayisi: personeller.length,
+            },
+            sonSatislar,
+            stokDurumu,
+            personeller,
+            sonTransferler,
+        });
+    } catch (err) {
+        res.status(500).json({ hata: err.message });
+    }
+};
+
+// ─── olustur ──────────────────────────────────────────────────────────────────
 const olustur = async (req, res) => {
     try {
         const { ad, adres, telefon } = req.body;
@@ -151,6 +233,7 @@ const olustur = async (req, res) => {
     }
 };
 
+// ─── guncelle ─────────────────────────────────────────────────────────────────
 const guncelle = async (req, res) => {
     try {
         const mevcut = await prisma.sube.findFirst({
@@ -172,4 +255,4 @@ const guncelle = async (req, res) => {
     }
 };
 
-module.exports = { hepsiniGetir, tekiniGetir, olustur, guncelle };
+module.exports = { hepsiniGetir, tekiniGetir, detayGetir, olustur, guncelle };

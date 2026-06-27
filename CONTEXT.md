@@ -244,6 +244,92 @@ Login.jsx — giriş sonrası rol bazlı yönlendirme: SUPER_ADMIN → /super-ad
 - **Geçici kayıt göstergesi:** optimistic eklenen kayıtlar opacity-60 + "kaydediliyor..." yazısıyla gösteriliyor, API cevabı gelince gerçek veriyle değiştiriliyor
 - **Hata geri alma:** API hatası durumunda tüm optimistic değişiklikler otomatik geri alınıyor, modal yeniden açılıyor
 
+---
+
+## Faz 11 — Şube Yönetimi Geliştirmeleri ✅
+
+### Şube Kartı Özet Veriler
+- `sube.controller.js` → `hepsiniGetir` güncellendi
+  - Her şube kartına `bugunSatis` (₺) ve `kritikStok` (adet) eklendi
+  - Türkiye saati UTC+3 offsetiyle hesaplanıyor (`bugunBaslangicTR()`)
+  - Kritik stok: `minStok > 0` olan kartların şube bazlı net bakiyesi hesaplanıp eşik altındakiler sayılıyor
+  - N+1 sorgu yok — tüm hesaplamalar tek `groupBy` sorgusunda
+
+### Şubeler Arası Stok Transferi
+- **Backend:**
+  - `transfer.controller.js` — `subeStoklar`, `transferYap`, `transferGecmisi`
+  - `transfer.route.js` — `GET /api/transfer/stoklar`, `POST /api/transfer`, `GET /api/transfer/gecmis`
+  - Transfer: kaynak şubede `SUBE_TRANSFER_OUT`, hedef şubede `SUBE_TRANSFER_IN` — tek Prisma `$transaction`
+  - Bakiye yeterlilik kontrolü transfer öncesi yapılıyor
+  - Yetki: `TENANT_ADMIN` + `MUDUR`
+- **Frontend:**
+  - `Transfer.jsx` → `src/pages/Transfer.jsx`
+  - Kaynak/hedef şube seçimi, ürün dropdown'ı (bakiye gösterir), %25/%50/%75/%100 kısayol butonları
+  - Sağ panelde son transferler (GİRİŞ/ÇIKIŞ badge'li)
+  - Route: `/stok/transfer` (`R.YONETIM`)
+  - `App.js`'e import ve route eklendi
+
+### Şube Detay Sayfası
+- **Backend:**
+  - `sube.controller.js` → `detayGetir` fonksiyonu eklendi
+  - `GET /api/subeler/:id/detay` — tek endpoint'te: özet, son satışlar, stok durumu, personel, son transferler
+  - `subeler.route.js` → `/:id/detay` route'u eklendi (sıraya dikkat: `/:id`'den önce)
+- **Frontend:**
+  - `SubeDetay.jsx` → `src/pages/tanimlamalar/SubeDetay.jsx`
+  - 4 sekme: Stok Durumu, Son Satışlar, Personel, Transferler
+  - Üstte 4 özet kart: bugün satış, bu ay satış, stok kalemleri, personel
+  - Kritik stok varsa sekme badge'i
+  - Route: `/tanimlamalar/subeler/:id` (`R.ADMIN`)
+- **Subeler.jsx** → karta tıklayınca `navigate(/tanimlamalar/subeler/${sube.id})` (Düzenle butonu `e.stopPropagation()` ile izole)
+
+### Stok Durumu Tutarsızlık Düzeltmesi
+- `stok.controller.js` → `subeIdBelirle` fonksiyonu güncellendi
+  - ESKİ: `TENANT_ADMIN` şube seçmezse `null` dönüyor → tüm şubelerin toplamı görünüyordu
+  - YENİ: şube seçilmezse `req.kullanici.subeId` dönüyor → kendi şubesini görüyor
+  - SubeDetay ve Stok Durumu artık tutarlı rakamlar gösteriyor
+- `StokDurumu.jsx` → başlığa `· Kendi şubeniz` etiketi eklendi (şube seçilmemişse)
+
+### stok.service.js İyileştirmeleri
+- `tumStokDurumu` → N+1 sorgu giderildi (her kart için ayrı sorgu yerine tek sorguda tüm hareketler çekilip JS'de gruplandı)
+- `AY_SONU_SAYIM` bakiye hesabı düzeltildi (açıklamadaki `fark: +X/-X` işaretine göre ekleniyor/düşülüyor)
+
+### Demo Seed Güncelleme
+- `demoSeed.service.js` sadeleştirildi — yeni kayıt olan tenant'lara artık şunlar gelmiyor:
+  - Stok giriş hareketleri (bakiyeler sıfır başlıyor)
+  - Örnek satışlar (14 günlük)
+  - Personel kayıtları
+  - Cari kartlar ve hareketler
+- Kalanlar: kategoriler, ölçü birimleri, 18 stok kartı (sıfır bakiye), 4 reçete (fiyat 0)
+- Reçete fiyatları 0 olarak geliyor — kullanıcı kendi fiyatını girer
+
+### Güvenlik İyileştirmeleri (app.js)
+- **CORS kısıtlandı:** `app.use(cors())` → sadece `ALLOWED_ORIGINS` env değişkenindeki domainler kabul ediliyor (varsayılan: `https://app.gastrobrain.com.tr`)
+- **Rate limit sırası düzeltildi:** `kritikLimit` ve `genelLimit` route'lardan önce tanımlanıyor — önceki haliyle hiç çalışmıyordu
+- **Payload limit eklendi:** `express.json({ limit: '1mb' })` — büyük payload saldırısı önlemi
+- **XSS middleware'den `/` encode'u çıkarıldı** — URL ve JSON'da bozulmaya yol açıyordu
+
+### .env Eklentisi
+```
+ALLOWED_ORIGINS=https://app.gastrobrain.com.tr
+```
+
+### Güncellenen Dosyalar
+| Dosya | Değişiklik |
+|-------|-----------|
+| `backend/src/controllers/sube.controller.js` | `hepsiniGetir` özet veri + `detayGetir` eklendi |
+| `backend/src/controllers/stok.controller.js` | `subeIdBelirle` null→subeId düzeltmesi |
+| `backend/src/controllers/transfer.controller.js` | 🆕 yeni dosya |
+| `backend/src/routes/transfer.route.js` | 🆕 yeni dosya |
+| `backend/src/routes/subeler.route.js` | `/:id/detay` eklendi |
+| `backend/src/services/stok.service.js` | N+1 fix + AY_SONU_SAYIM düzeltmesi |
+| `backend/src/services/demoSeed.service.js` | satış/stok/personel/cari kaldırıldı |
+| `backend/app.js` | CORS, rate limit sırası, payload limit, XSS fix |
+| `frontend/src/pages/Transfer.jsx` | 🆕 yeni dosya |
+| `frontend/src/pages/tanimlamalar/SubeDetay.jsx` | 🆕 yeni dosya |
+| `frontend/src/pages/tanimlamalar/Subeler.jsx` | kart tıklanınca detaya git, skeleton loader |
+| `frontend/src/pages/stok/StokDurumu.jsx` | "Kendi şubeniz" etiketi |
+| `frontend/src/App.jsx` | Transfer + SubeDetay route'ları eklendi |
+
 
 ## BACKEND API ENDPOINTLERİ (tam liste)
 

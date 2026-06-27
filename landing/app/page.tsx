@@ -529,6 +529,9 @@ export default function Home() {
               <a href="#ozellikler">Özellikler</a>
               <a href="#fiyatlar">Fiyatlar</a>
               <a href="#sss">SSS</a>
+              <a href="/gizlilik">Gizlilik Politikası</a>
+              <a href="/kullanim-kosullari">Kullanım Koşulları</a>
+              <a href="/mesafeli-satis">Mesafeli Satış Sözleşmesi</a>
               <a href="/rehber">Kullanım Kılavuzu</a>
               <a href="mailto:alkan.yazilim.dev@gmail.com">İletişim</a>
             </div>

@@ -48,7 +48,7 @@ export default function KullanimKosullari() {
                             <li>Hesap açmak için doğru ve güncel bilgi sağlamakla yükümlüsünüz.</li>
                             <li>Hesabınızın güvenliğinden siz sorumlusunuz; şifrenizi kimseyle paylaşmayınız.</li>
                             <li>Her firma için ayrı hesap oluşturulmalıdır.</li>
-                            <li>Yetkisiz erişim tespit edildiğinde derhal <a href="mailto:info@gastrobrain.com.tr" style={{ color: '#a3e635' }}>info@gastrobrain.com.tr</a> adresini bilgilendirin.</li>
+                            <li>Yetkisiz erişim tespit edildiğinde derhal <a href="mailto:alkan.yazilim.dev@gmail.com" style={{ color: '#a3e635' }}>alkan.yazilim.dev@gmail.com</a> adresini bilgilendirin.</li>
                         </ul>
                     </section>
 
@@ -109,7 +109,7 @@ export default function KullanimKosullari() {
                         <p>
                             Kullanım koşullarının ihlali halinde hesabınız önceden bildirim yapılmaksızın
                             askıya alınabilir veya kapatılabilir. Hesabınızı kendiniz kapatmak isterseniz
-                            <a href="mailto:info@gastrobrain.com.tr" style={{ color: '#a3e635' }}> info@gastrobrain.com.tr</a> adresine
+                            <a href="mailto:alkan.yazilim.dev@gmail.com" style={{ color: '#a3e635' }}> alkan.yazilim.dev@gmail.com</a> adresine
                             talep iletebilirsiniz.
                         </p>
                     </section>
@@ -134,7 +134,7 @@ export default function KullanimKosullari() {
                         <h2 style={{ color: '#fff', fontSize: '1.25rem', fontWeight: 600, marginBottom: '0.75rem' }}>12. İletişim</h2>
                         <div style={{ background: '#18181b', border: '1px solid #27272a', borderRadius: '0.75rem', padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                             <p><strong style={{ color: '#fff' }}>Sorumlu:</strong> Yasin Alkan</p>
-                            <p><strong style={{ color: '#fff' }}>E-posta:</strong> <a href="mailto:info@gastrobrain.com.tr" style={{ color: '#a3e635' }}>info@gastrobrain.com.tr</a></p>
+                            <p><strong style={{ color: '#fff' }}>E-posta:</strong> <a href="alkan.yazilim.dev@gmail.com" style={{ color: '#a3e635' }}>alkan.yazilim.dev@gmail.com</a></p>
                             <p><strong style={{ color: '#fff' }}>Web:</strong> <a href="https://gastrobrain.com.tr" style={{ color: '#a3e635' }}>gastrobrain.com.tr</a></p>
                         </div>
                     </section>

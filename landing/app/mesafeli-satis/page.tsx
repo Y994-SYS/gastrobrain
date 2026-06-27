@@ -30,7 +30,7 @@ export default function MesafeliSatis() {
                         <p style={{ color: '#71717a', fontSize: '0.75rem', marginBottom: '0.25rem' }}>SATICI</p>
                         <p style={{ color: '#fff', fontWeight: 600 }}>GastroBrain — Yasin Alkan</p>
                         <p style={{ color: '#a1a1aa', fontSize: '0.875rem' }}>
-                            E-posta: <a href="mailto:info@gastrobrain.com.tr" style={{ color: '#a3e635' }}>info@gastrobrain.com.tr</a>
+                            E-posta: <a href="mailto:alkan.yazilim.dev@gmail.com" style={{ color: '#a3e635' }}>alkan.yazilim.dev@gmail.com</a>
                         </p>
                     </div>
                     <div style={{ borderTop: '1px solid #27272a', paddingTop: '1rem' }}>
@@ -67,7 +67,7 @@ export default function MesafeliSatis() {
                         <ul style={{ paddingLeft: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                             <li>Abonelik satın alımı uygulama içindeki Abonelik sayfası üzerinden gerçekleştirilir.</li>
                             <li>Ödeme havale/EFT yöntemiyle yapılır. Açıklama kısmına firma adı yazılmalıdır.</li>
-                            <li>Ödeme bildirimi <a href="mailto:info@gastrobrain.com.tr" style={{ color: '#a3e635' }}>info@gastrobrain.com.tr</a> adresine
+                            <li>Ödeme bildirimi <a href="mailto:alkan.yazilim.dev@gmail.com" style={{ color: '#a3e635' }}>alkan.yazilim.dev@gmail.com</a> adresine
                                 dekont iletilerek yapılır.</li>
                             <li>Ödeme onaylandıktan sonra lisans en geç 24 saat içinde aktive edilir.</li>
                             <li>Fatura/makbuz talepleri e-posta ile iletilmelidir.</li>
@@ -93,7 +93,7 @@ export default function MesafeliSatis() {
                         <ul style={{ paddingLeft: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                             <li>Hizmet aktivasyonundan itibaren <strong style={{ color: '#fff' }}>14 gün</strong> içinde cayma talebinde bulunabilirsiniz.</li>
                             <li>Bu süre zarfında hizmetin aktif kullanımına başlanmamış olması gerekir.</li>
-                            <li>Cayma talebinizi <a href="mailto:info@gastrobrain.com.tr" style={{ color: '#a3e635' }}>info@gastrobrain.com.tr</a> adresine
+                            <li>Cayma talebinizi <a href="mailto:alkan.yazilim.dev@gmail.com" style={{ color: '#a3e635' }}>alkan.yazilim.dev@gmail.com</a> adresine
                                 yazılı olarak iletmeniz yeterlidir.</li>
                             <li>Onaylanan cayma taleplerinde ödeme 7 iş günü içinde iade edilir.</li>
                             <li>30 günlük ücretsiz deneme süresi kullanıldıysa cayma hakkı kullanılamaz.</li>
@@ -104,7 +104,7 @@ export default function MesafeliSatis() {
                         <h2 style={{ color: '#fff', fontSize: '1.25rem', fontWeight: 600, marginBottom: '0.75rem' }}>Madde 6 — Abonelik İptali</h2>
                         <ul style={{ paddingLeft: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                             <li>Aboneliğinizi dilediğiniz zaman iptal edebilirsiniz.</li>
-                            <li>İptal talebi için <a href="mailto:info@gastrobrain.com.tr" style={{ color: '#a3e635' }}>info@gastrobrain.com.tr</a> adresine
+                            <li>İptal talebi için <a href="mailto:alkan.yazilim.dev@gmail.com" style={{ color: '#a3e635' }}>alkan.yazilim.dev@gmail.com</a> adresine
                                 e-posta gönderiniz.</li>
                             <li>İptal işlemi mevcut abonelik döneminin sonunda geçerli olur; kalan süre için iade yapılmaz.</li>
                             <li>İptal sonrası verilerinize 30 gün boyunca erişebilir, dışa aktarabilirsiniz.</li>

@@ -97,7 +97,7 @@ export default function GizlilikPolitikasi() {
                             <li>Veri taşınabilirliği hakkı</li>
                         </ul>
                         <p style={{ marginTop: '1rem' }}>
-                            Bu haklarınızı kullanmak için <a href="mailto:info@gastrobrain.com.tr" style={{ color: '#a3e635' }}>info@gastrobrain.com.tr</a> adresine
+                            Bu haklarınızı kullanmak için <a href="mailto:alkan.yazilim.dev@gmail.com" style={{ color: '#a3e635' }}>alkan.yazilim.dev@gmail.com</a> adresine
                             e-posta gönderebilirsiniz.
                         </p>
                     </section>
@@ -128,7 +128,7 @@ export default function GizlilikPolitikasi() {
                         </p>
                         <div style={{ marginTop: '0.75rem', background: '#18181b', border: '1px solid #27272a', borderRadius: '0.75rem', padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                             <p><strong style={{ color: '#fff' }}>Sorumlu:</strong> Yasin Alkan</p>
-                            <p><strong style={{ color: '#fff' }}>E-posta:</strong> <a href="mailto:info@gastrobrain.com.tr" style={{ color: '#a3e635' }}>info@gastrobrain.com.tr</a></p>
+                            <p><strong style={{ color: '#fff' }}>E-posta:</strong> <a href="mailto:alkan.yazilim.dev@gmail.com" style={{ color: '#a3e635' }}>alkan.yazilim.dev@gmail.com</a></p>
                             <p><strong style={{ color: '#fff' }}>Web:</strong> <a href="https://gastrobrain.com.tr" style={{ color: '#a3e635' }}>gastrobrain.com.tr</a></p>
                         </div>
                     </section>

@@ -32,7 +32,10 @@ export default function StokDurumu() {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-3">
                 <div>
                     <h1 className="text-xl font-bold text-white">Stok Durumu</h1>
-                    <p className="text-zinc-500 text-sm mt-0.5">{veri.length} stok kalemi</p>
+                    <p className="text-zinc-500 text-sm mt-0.5">
+                        {veri.length} stok kalemi
+                        {!seciliSubeId && <span className="text-zinc-600"> · Kendi şubeniz</span>}
+                    </p>
                 </div>
                 <button onClick={getir} className="text-zinc-400 hover:text-white text-sm border border-zinc-700 px-4 py-2 rounded-lg transition-colors">
                     🔄 Yenile

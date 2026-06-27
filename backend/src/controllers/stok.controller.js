@@ -8,7 +8,7 @@ const subeIdBelirle = (req) => {
         return req.kullanici.subeId;
     }
     // TENANT_ADMIN — query'den gelirse onu kullan, gelmezse null (tüm şubeler)
-    return req.query.subeId ? Number(req.query.subeId) : null;
+    return req.query.subeId ? Number(req.query.subeId) : req.kullanici.subeId;
 };
 
 const stokController = {

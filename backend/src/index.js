@@ -27,7 +27,6 @@ const auditLogRoutes = require('./routes/auditLog.routes');
 const transferRoutes = require('./routes/transfer.route');
 const dashboardRoutes = require('./routes/dashboard.routes');
 
-
 const { PrismaClient } = require('@prisma/client');
 
 const prisma = new PrismaClient().$extends({
@@ -48,16 +47,42 @@ const prisma = new PrismaClient().$extends({
         }
     }
 });
+
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Güvenlik
+// ── Güvenlik başlıkları ───────────────────────────────────────────────────────
 app.use(helmet());
-app.use(cors());
-app.use(express.json());
+
+// ── CORS — sadece kendi domaininden istek kabul et ────────────────────────────
+const izinliOriginler = (process.env.ALLOWED_ORIGINS || 'https://app.gastrobrain.com.tr')
+    .split(',')
+    .map(o => o.trim());
+
+app.use(cors({
+    origin: (origin, callback) => {
+        // origin yoksa (Postman, sunucu-sunucu) production'da reddet
+        if (!origin) {
+            if (process.env.NODE_ENV === 'production') {
+                return callback(new Error('Origin zorunlu'), false);
+            }
+            return callback(null, true); // development'ta izin ver
+        }
+        if (izinliOriginler.includes(origin)) {
+            return callback(null, true);
+        }
+        callback(new Error(`CORS: ${origin} izinli değil`), false);
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+}));
+
+// ── Body parser ───────────────────────────────────────────────────────────────
+app.use(express.json({ limit: '1mb' }));  // büyük payload saldırısı önlemi
 app.use(hpp());
 
-// XSS koruması
+// ── XSS koruması — sadece string değerleri temizle, / encode etme ────────────
 app.use((req, res, next) => {
     if (req.body) {
         const temizle = (obj) => {
@@ -67,9 +92,9 @@ app.use((req, res, next) => {
                         .replace(/</g, '&lt;')
                         .replace(/>/g, '&gt;')
                         .replace(/"/g, '&quot;')
-                        .replace(/'/g, '&#x27;')
-                        .replace(/\//g, '&#x2F;');
-                } else if (typeof obj[key] === 'object') {
+                        .replace(/'/g, '&#x27;');
+                    // NOT: / encode edilmiyor — URL ve JSON'da sorun çıkarır
+                } else if (typeof obj[key] === 'object' && obj[key] !== null) {
                     temizle(obj[key]);
                 }
             }
@@ -79,13 +104,21 @@ app.use((req, res, next) => {
     next();
 });
 
-// Rate limiting — auth route'ları sıkı IP bazlı
+// ── Rate limiting — kritik ve genel limitler ROUTE'LARDAN ÖNCE ───────────────
+// Auth route'ları
 app.use('/api/auth/giris', girisLimit);
 app.use('/api/auth/tenant-listesi', girisLimit);
 app.use('/api/auth/kayit-firma', kayitLimit);
 app.use('/api/auth/kayit', kayitLimit);
 
-// Routes
+// Kritik işlemler — route'lardan önce tanımlanmalı ki çalışsın
+app.use('/api/stok', kritikLimit);
+app.use('/api/satislar', kritikLimit);
+
+// Genel limit — tüm API
+app.use('/api', genelLimit);
+
+// ── Routes ────────────────────────────────────────────────────────────────────
 app.use('/api/auth', authRoutes);
 app.use('/api/kategoriler', kategoriRoutes);
 app.use('/api/olcu-birimleri', olcuBirimiRoutes);
@@ -105,31 +138,28 @@ app.use('/api/audit-log', auditLogRoutes);
 app.use('/api/transfer', transferRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 
-// Genel & kritik rate limit — tenant+user bazlı (route'lardan sonra değil önce)
-app.use('/api/stok', kritikLimit);
-app.use('/api/satislar', kritikLimit);
-app.use('/api', genelLimit);
-
-// Sağlık kontrolü
+// ── Sağlık kontrolü ───────────────────────────────────────────────────────────
 app.get('/', (req, res) => {
     res.json({ message: 'GastroIQ API çalışıyor 🚀', version: '1.0.0' });
 });
 
-// 404
+// ── 404 ───────────────────────────────────────────────────────────────────────
 app.use((req, res) => {
     res.status(404).json({ basarili: false, mesaj: 'Endpoint bulunamadı' });
 });
 
-
-
-// Hata yakalama
+// ── Hata yakalama ─────────────────────────────────────────────────────────────
 app.use((err, req, res, next) => {
+    // CORS hatalarını özel handle et
+    if (err.message?.includes('CORS')) {
+        return res.status(403).json({ basarili: false, mesaj: 'Erişim reddedildi' });
+    }
     Sentry.captureException(err);
     console.error(err.stack);
     res.status(500).json({ basarili: false, mesaj: 'Sunucu hatası' });
 });
 
-// Lisans uyarı cron job
+// ── Lisans uyarı cron job ─────────────────────────────────────────────────────
 const lisansUyariService = require('./services/lisansUyari.service');
 const { CronJob } = require('cron');
 new CronJob('0 9 * * *', async () => {
@@ -140,4 +170,3 @@ new CronJob('0 9 * * *', async () => {
 app.listen(PORT, () => {
     console.log(`✅ Server http://localhost:${PORT} adresinde çalışıyor`);
 });
-

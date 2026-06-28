@@ -2,6 +2,7 @@ import { useState } from 'react';
 import api from '../../services/api';
 import SubeSecici from '../../components/SubeSecici';
 import useSubeStore from '../../store/subeStore';
+import toast from 'react-hot-toast';
 
 const TABS = [
     { key: 'satis', label: 'Satış Raporu' },
@@ -39,21 +40,35 @@ export default function Raporlar() {
         }
     };
 
-    const excelIndir = () => {
-        const token = localStorage.getItem('gastrobrain_token');
-        const params = new URLSearchParams({ tip: aktifTab });
-        if (baslangic) params.append('baslangic', baslangic);
-        if (bitis) params.append('bitis', bitis);
-        if (seciliSubeId) params.append('subeId', seciliSubeId);
-        const url = `${import.meta.env.VITE_API_URL}/api/raporlar/excel?${params}`;
-        fetch(url, { headers: { Authorization: `Bearer ${token}` } })
-            .then(r => r.blob())
-            .then(blob => {
-                const a = document.createElement('a');
-                a.href = URL.createObjectURL(blob);
-                a.download = `gastrobrain_${aktifTab}_${new Date().toISOString().slice(0, 10)}.xlsx`;
-                a.click();
-            });
+    const excelIndir = async () => {
+        try {
+            const token = localStorage.getItem('gastrobrain_token');
+            const params = new URLSearchParams({ tip: aktifTab });
+            if (baslangic) params.append('baslangic', baslangic);
+            if (bitis) params.append('bitis', bitis);
+            if (seciliSubeId) params.append('subeId', seciliSubeId);
+            const url = `${import.meta.env.VITE_API_URL}/api/raporlar/excel?${params}`;
+
+            const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+
+            // Hata kontrolü — JSON hata mesajı mı yoksa Excel mi?
+            const contentType = res.headers.get('content-type') || '';
+            if (!res.ok || contentType.includes('application/json')) {
+                const hataJson = await res.json();
+                toast.error(hataJson.hata || hataJson.mesaj || 'Excel indirilemedi');
+                return;
+            }
+
+            const blob = await res.blob();
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `gastrobrain_${aktifTab}_${new Date().toISOString().slice(0, 10)}.xlsx`;
+            a.click();
+            URL.revokeObjectURL(a.href);
+        } catch (err) {
+            toast.error('Excel indirilemedi');
+            console.error(err);
+        }
     };
 
     return (

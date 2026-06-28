@@ -330,6 +330,89 @@ ALLOWED_ORIGINS=https://app.gastrobrain.com.tr
 | `frontend/src/pages/stok/StokDurumu.jsx` | "Kendi şubeniz" etiketi |
 | `frontend/src/App.jsx` | Transfer + SubeDetay route'ları eklendi |
 
+## Faz 12 — Çok Şubeli Yapı Geliştirmeleri ✅
+
+### Adım 1 — Backend Şube Filtresi (Tutarlı subeId Kontrolü)
+
+Tüm controller'lara `subeIdBelirle(req)` yardımcı fonksiyonu eklendi:
+- MUDUR / DEPO / KASA / PERSONEL → kendi subeId'si (kilitli)
+- TENANT_ADMIN → query'den gelirse onu kullan, gelmezse `null` (tüm şubeler)
+- `null` gelince `Number(null) = 0` hatasına yol açan hardcoded `subeId = 1` ve `subeId || 1` değerleri kaldırıldı
+
+**Güncellenen backend dosyaları:**
+
+| Dosya | Değişiklik |
+|---|---|
+| `backend/src/controllers/satis.controller.js` | `subeIdBelirle` eklendi, `subeId = 1` hardcode kaldırıldı |
+| `backend/src/controllers/stok.controller.js` | `subeIdBelirle` eklendi |
+| `backend/src/controllers/personel.controller.js` | `subeIdBelirle` eklendi, `hepsiniGetir(tenantId, subeId)` imzası güncellendi |
+| `backend/src/controllers/rapor.controller.js` | Tüm raporlara `subeIdBelirle` eklendi, Excel export'a şube kolonu eklendi, satış raporuna `subeGrup` eklendi |
+| `backend/src/services/satis.service.js` | `hepsiniGetir` ve `gunlukToplam`'da `subeId null` kontrolü — null ise tüm şubeler |
+| `backend/src/services/stok.service.js` | `mevcutStokGetir`'de `subeId null` kontrolü — null ise tüm şubelerin toplamı |
+| `backend/src/services/personel.service.js` | `hepsiniGetir(tenantId, subeId)` — subeId varsa filtreler, yoksa tüm tenant |
+
+### Adım 2 — Frontend Şube Seçici (SubeSecici)
+
+**Yeni dosyalar:**
+
+| Dosya | Açıklama |
+|---|---|
+| `frontend/src/store/subeStore.js` | Zustand store — `seciliSubeId`, `subeler`, `subeleriYukle`, `subeSecAlt` |
+| `frontend/src/components/SubeSecici.jsx` | Şube seçici buton grubu — sadece TENANT_ADMIN + 2+ şubede görünür |
+
+**Güncellenen frontend sayfaları:**
+
+| Dosya | Değişiklik |
+|---|---|
+| `frontend/src/pages/stok/StokDurumu.jsx` | `SubeSecici` + `useSubeStore` entegre, `seciliSubeId` değişince otomatik yenile |
+| `frontend/src/pages/satis/Satislar.jsx` | `SubeSecici` + `useSubeStore` entegre |
+| `frontend/src/pages/personel/Personel.jsx` | `SubeSecici` + `useSubeStore` entegre, optimistic update korundu |
+| `frontend/src/pages/raporlar/Raporlar.jsx` | `SubeSecici` + `useSubeStore` entegre, şube bazlı rapor ve Excel desteği |
+
+**SubeSecici davranışı:**
+- TENANT_ADMIN + 2+ şube → "Tüm Şubeler | Kadıköy | Beşiktaş" butonları gösterilir
+- Tek şubeli veya MUDUR/DEPO/KASA/PERSONEL rolleri → hiç görünmez
+- Seçim global Zustand state'inde tutulur, sayfa değişince sıfırlanmaz
+- `subeParam` store fonksiyonu yerine her component içinde hesaplanır: `const subeParam = seciliSubeId ? \`?subeId=\${seciliSubeId}\` : ''`
+
+### Adım 5 — Dashboard Şube Özeti Paneli
+
+**Yeni backend dosyaları:**
+
+| Dosya | Açıklama |
+|---|---|
+| `backend/src/controllers/dashboard.controller.js` | `subeOzeti` — her şube için günlük ciro, satış sayısı, kritik stok sayısı, kullanıcı/personel sayısı |
+| `backend/src/routes/dashboard.routes.js` | `GET /api/dashboard/subeler` — authMiddleware korumalı |
+
+**index.js'e eklendi:**
+```js
+const dashboardRoutes = require('./routes/dashboard.routes');
+app.use('/api/dashboard', dashboardRoutes);
+```
+
+**Güncellenen frontend:**
+
+| Dosya | Değişiklik |
+|---|---|
+| `frontend/src/pages/Dashboard.jsx` | `SubeOzetiPanel` component'ı eklendi — sadece TENANT_ADMIN + 2+ şubede görünür |
+
+**SubeOzetiPanel davranışı:**
+- Her şube kartında: ad, aktif durum, günlük ciro, işlem sayısı, kritik stok sayısı, kullanıcı ve personel sayısı
+- Bir şubeye tıklayınca `subeSecAlt(sube.id)` çalışır ve Satışlar sayfasına yönlendirir
+- Tek şubeli hesaplarda `subeler.length <= 1` kontrolüyle tamamen gizlenir
+- Skeleton loader ile yükleniyor durumu gösterilir
+
+### Yeni Backend API Endpoint'i
+
+```
+GET /api/dashboard/subeler   — TENANT_ADMIN, her şubenin günlük özet verisi
+```
+### Önemli Notlar (Faz 12)
+ 
+- `subeParam` Zustand store'da fonksiyon olarak tutulmayacak — Vite/Rollup build'de `Cannot read properties of undefined (reading 'length')` hatasına yol açıyor. Her component içinde `const subeParam = seciliSubeId ? \`?subeId=\${seciliSubeId}\` : ''` şeklinde hesapla.
+- Tüm API response okumalarında `?.data || []` güvenli erişim pattern'i kullanılıyor — backend null dönse bile sayfa çökmüyor.
+- `satis.service.js` ve `stok.service.js`'de `subeId: Number(null) = 0` hatası düzeltildi — artık null gelince `where` filtresine subeId eklenmez, tüm tenant verisi gelir.
+
 
 ## BACKEND API ENDPOINTLERİ (tam liste)
 
@@ -371,6 +454,7 @@ gastroiq/
 │   │   │   ├── auth.controller.js              # lisansDurum eklendi
 │   │   │   ├── cariHareket.controller.js
 │   │   │   ├── cariKart.controller.js
+│   │   │   ├── dashboard.controller.js        # 🆕 sube ozeti endpoint
 │   │   │   ├── feedback.controller.js
 │   │   │   ├── kategori.controller.js
 │   │   │   ├── kullanici.controller.js         # ATANABILIR_ROLLER whitelist (SUPER_ADMIN ataması engellendi) + profilGuncelle, sifreDegistir
@@ -391,6 +475,7 @@ gastroiq/
 │   │   │   ├── auditLog.routes.js
 │   │   │   ├── cariHareket.routes.js
 │   │   │   ├── cariKart.routes.js
+│   │   │   ├── dashboard.routes.js            # 🆕 GET /api/dashboard/subeler
 │   │   │   ├── feedback.routes.js
 │   │   │   ├── kategori.routes.js
 │   │   │   ├── kullanici.routes.js             # /profil, /sifre-degistir eklendi
@@ -440,6 +525,7 @@ gastroiq/
 │   │   │   ├── LisansBanner.jsx                # 🆕 lisans durumu banner'ı
 │   │   │   ├── FeedbackModal.jsx               # 🆕 geri bildirim modal'ı
 │   │   │   ├── LoadingSpinner.jsx
+│   │   │   ├── SubeSecici.jsx                 # 🆕 sube secici dropdown
 │   │   │   ├── Modal.jsx
 │   │   │   └── Table.jsx
 │   │   ├── pages/
@@ -460,6 +546,7 @@ gastroiq/
 │   │   │   └── auth.service.js
 │   │   ├── store/
 │   │   │   └── auth.store.js                   # setKullanici eklendi
+│   │   │   ├── subeStore.js                   # 🆕 secili sube global state
 │   │   └── App.jsx                             # her route PrivateRoute korumalı, SUPER_ADMIN → /super-admin, Abonelik/Profil route'ları
 │   └── .env
 │

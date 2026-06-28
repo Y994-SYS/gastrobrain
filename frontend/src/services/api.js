@@ -8,7 +8,7 @@ const api = axios.create({
 
 // Her istekte token varsa ekle
 api.interceptors.request.use((config) => {
-    const token = localStorage.getItem('gastroiq_token');
+    const token = localStorage.getItem('gastrobrain_token');
     if (token) config.headers.Authorization = `Bearer ${token}`;
     return config;
 });
@@ -21,8 +21,8 @@ api.interceptors.response.use(
 
         // 401 — oturum süresi doldu
         if (status === 401) {
-            localStorage.removeItem('gastroiq_token');
-            localStorage.removeItem('gastroiq_tenant');
+            localStorage.removeItem('gastrobrain_token');
+            localStorage.removeItem('gastrobrain_tenant');
             window.location.href = '/giris';
             return Promise.reject(error);
         }

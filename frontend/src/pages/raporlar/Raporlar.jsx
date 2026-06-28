@@ -42,7 +42,7 @@ export default function Raporlar() {
 
     const excelIndir = async () => {
         try {
-            const token = localStorage.getItem('gastrobrain_token');
+            const token = localStorage.getItem('gastroiq_token');
             const params = new URLSearchParams({ tip: aktifTab });
             if (baslangic) params.append('baslangic', baslangic);
             if (bitis) params.append('bitis', bitis);

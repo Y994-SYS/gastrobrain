@@ -5,8 +5,8 @@ const authService = {
     async girisYap(email, sifre, tenantSlug) {
         const res = await api.post('/api/auth/giris', { email, sifre, tenantSlug });
         const { token, kullanici } = res.data.data;
-        localStorage.setItem('gastroiq_token', token);
-        localStorage.setItem('gastroiq_tenant', kullanici.tenantId);
+        localStorage.setItem('gastrobrain_token', token);
+        localStorage.setItem('gastrobrain_tenant', kullanici.tenantId);
         return kullanici;
     },
 
@@ -16,8 +16,8 @@ const authService = {
     },
 
     cikisYap() {
-        localStorage.removeItem('gastroiq_token');
-        localStorage.removeItem('gastroiq_tenant');
+        localStorage.removeItem('gastrobrain_token');
+        localStorage.removeItem('gastrobrain_tenant');
         window.location.href = '/giris';
     }
 

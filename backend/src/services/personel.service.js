@@ -61,6 +61,23 @@ const personelService = {
 
     async maasEkle({ personelId, yil, ay, tutar, odendi, tarih }, tenantId) {
         await this.biriniGetir(Number(personelId), tenantId);
+
+        // Aynı ay için maaş kaydı var mı kontrol et
+        const mevcutMaas = await prisma.personelMaas.findFirst({
+            where: {
+                personelId: Number(personelId),
+                yil: Number(yil),
+                ay: Number(ay),
+            }
+        });
+
+        if (mevcutMaas) {
+            throw new Error(
+                `Bu personel için ${ay}. ay ${yil} maaşı zaten kayıtlı. ` +
+                `Durum: ${mevcutMaas.odendi ? 'Ödendi' : 'Bekliyor'}`
+            );
+        }
+
         return prisma.personelMaas.create({
             data: {
                 personelId: Number(personelId),
@@ -72,7 +89,6 @@ const personelService = {
             }
         });
     },
-
     async maasOdendi(id, tenantId) {
         const maas = await prisma.personelMaas.findFirst({
             where: { id },

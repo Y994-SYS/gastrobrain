@@ -14,7 +14,14 @@ const ROL_ETIKET = {
     SUPER_ADMIN: '⚡ Süper Admin',
 };
 
-// Şifre gücü hesabı
+const MODUL_LISTESI = [
+    { key: 'stok', label: 'Stok Durumu', aciklama: 'Tüm stok kartları ve mevcut bakiyeler' },
+    { key: 'stok_hareketleri', label: 'Stok Hareketleri', aciklama: 'Giriş, çıkış, transfer kayıtları (son 5000)' },
+    { key: 'satis', label: 'Satışlar', aciklama: 'Tüm satış kayıtları' },
+    { key: 'personel', label: 'Personel', aciklama: 'Personel listesi ve bilgileri' },
+    { key: 'cari', label: 'Cari Hesaplar', aciklama: 'Cari kartlar ve bakiyeler' },
+];
+
 function sifreGucu(sifre) {
     if (!sifre) return null;
     let puan = 0;
@@ -40,6 +47,10 @@ export default function Profil() {
     const [sifreTekrar, setSifreTekrar] = useState('');
     const [sifreGoster, setSifreGoster] = useState({ mevcut: false, yeni: false, tekrar: false });
     const [yukleniyor, setYukleniyor] = useState(false);
+
+    // Export state
+    const [seciliModuller, setSeciliModuller] = useState(['stok', 'satis']);
+    const [exportYukleniyor, setExportYukleniyor] = useState(false);
 
     const guc = sifreGucu(yeniSifre);
     const eslesiyor = yeniSifre && sifreTekrar && yeniSifre === sifreTekrar;
@@ -79,6 +90,47 @@ export default function Profil() {
         }
     };
 
+    const modulToggle = (key) => {
+        setSeciliModuller(prev =>
+            prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]
+        );
+    };
+
+    const veriIndir = async () => {
+        if (!seciliModuller.length) return toast.error('En az bir modül seçin');
+        setExportYukleniyor(true);
+        try {
+            const token = localStorage.getItem('gastroiq_token');
+            const res = await fetch(`${import.meta.env.VITE_API_URL}/api/export`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`,
+                },
+                body: JSON.stringify({ moduller: seciliModuller }),
+            });
+
+            const contentType = res.headers.get('content-type') || '';
+            if (!res.ok || contentType.includes('application/json')) {
+                const hata = await res.json();
+                toast.error(hata.hata || 'İndirme başarısız');
+                return;
+            }
+
+            const blob = await res.blob();
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `gastrobrain_export_${new Date().toISOString().slice(0, 10)}.xlsx`;
+            a.click();
+            URL.revokeObjectURL(a.href);
+            toast.success('Veriler indirildi');
+        } catch {
+            toast.error('İndirme başarısız');
+        } finally {
+            setExportYukleniyor(false);
+        }
+    };
+
     const toggleSifre = (alan) =>
         setSifreGoster(p => ({ ...p, [alan]: !p[alan] }));
 
@@ -111,7 +163,6 @@ export default function Profil() {
 
             {/* Kullanıcı Bilgi Kartı */}
             <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
-                {/* Avatar + bilgi */}
                 <div className="flex items-center gap-4 mb-6 pb-6 border-b border-zinc-800">
                     <div className="w-14 h-14 rounded-full bg-lime-400/10 border border-lime-400/20 flex items-center justify-center text-2xl font-bold text-lime-400 shrink-0">
                         {kullanici?.ad?.charAt(0).toUpperCase()}
@@ -125,7 +176,6 @@ export default function Profil() {
                     </div>
                 </div>
 
-                {/* Ad güncelle */}
                 <div>
                     <label className="text-zinc-400 text-sm mb-1.5 block">Ad Soyad</label>
                     <div className="flex gap-2">
@@ -167,14 +217,13 @@ export default function Profil() {
                         alan="yeni"
                     />
 
-                    {/* Şifre gücü göstergesi */}
                     {yeniSifre && guc && (
                         <div>
                             <div className="flex justify-between text-xs mb-1">
                                 <span className="text-zinc-500">Şifre gücü</span>
                                 <span className={`font-medium ${guc.label === 'Güçlü' ? 'text-lime-400' :
-                                        guc.label === 'İyi' ? 'text-blue-400' :
-                                            guc.label === 'Orta' ? 'text-yellow-400' : 'text-red-400'
+                                    guc.label === 'İyi' ? 'text-blue-400' :
+                                        guc.label === 'Orta' ? 'text-yellow-400' : 'text-red-400'
                                     }`}>{guc.label}</span>
                             </div>
                             <div className="h-1 bg-zinc-800 rounded-full overflow-hidden">
@@ -192,7 +241,7 @@ export default function Profil() {
                                 onChange={e => setSifreTekrar(e.target.value)}
                                 placeholder="••••••••"
                                 className={`${inputCls} pr-10 ${eslesiyor ? 'border-lime-400/50' :
-                                        eslesmıyor ? 'border-red-400/50' : ''
+                                    eslesmıyor ? 'border-red-400/50' : ''
                                     }`}
                             />
                             <button
@@ -217,6 +266,63 @@ export default function Profil() {
                     </button>
                 </div>
             </div>
+
+            {/* Veri Dışa Aktarım — sadece TENANT_ADMIN */}
+            {kullanici?.rol === 'TENANT_ADMIN' && (
+                <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
+                    <div className="mb-5">
+                        <h2 className="font-bold text-white">Verilerimi İndir</h2>
+                        <p className="text-zinc-500 text-xs mt-1">
+                            Seçtiğiniz modüllerin verisi Excel dosyası olarak indirilir.
+                        </p>
+                    </div>
+
+                    <div className="space-y-2 mb-5">
+                        {MODUL_LISTESI.map(m => (
+                            <label
+                                key={m.key}
+                                className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${seciliModuller.includes(m.key)
+                                    ? 'border-lime-400/40 bg-lime-400/5'
+                                    : 'border-zinc-800 hover:border-zinc-700'
+                                    }`}
+                            >
+                                <input
+                                    type="checkbox"
+                                    checked={seciliModuller.includes(m.key)}
+                                    onChange={() => modulToggle(m.key)}
+                                    className="accent-lime-400 mt-0.5 shrink-0"
+                                />
+                                <div>
+                                    <p className="text-white text-sm font-medium">{m.label}</p>
+                                    <p className="text-zinc-500 text-xs">{m.aciklama}</p>
+                                </div>
+                            </label>
+                        ))}
+                    </div>
+
+                    <button
+                        onClick={veriIndir}
+                        disabled={exportYukleniyor || !seciliModuller.length}
+                        className="w-full bg-lime-400 hover:bg-lime-300 disabled:opacity-40 disabled:cursor-not-allowed text-zinc-900 font-semibold py-2.5 rounded-lg text-sm transition-colors flex items-center justify-center gap-2"
+                    >
+                        {exportYukleniyor ? (
+                            <>
+                                <span className="animate-spin">⏳</span>
+                                Hazırlanıyor...
+                            </>
+                        ) : (
+                            <>
+                                <span>⬇</span>
+                                Excel Olarak İndir
+                            </>
+                        )}
+                    </button>
+
+                    <p className="text-zinc-600 text-xs text-center mt-3">
+                        Verileriniz şifreli bağlantı üzerinden iletilir ve sadece siz indirebilirsiniz.
+                    </p>
+                </div>
+            )}
         </div>
     );
 }

@@ -36,11 +36,11 @@ async function main() {
     const adminSifre = await bcrypt.hash('123456', 10);
 
     await prisma.kullanici.upsert({
-        where: { email_tenantId: { email: 'admin@gastroiq.com', tenantId: tenant.id } },
+        where: { email_tenantId: { email: 'admin@gastrobrain.com', tenantId: tenant.id } },
         update: {},
         create: {
             ad: 'Admin Kullanıcı',
-            email: 'admin@gastroiq.com',
+            email: 'admin@gastrobrain.com',
             sifre: adminSifre,
             rol: 'TENANT_ADMIN',
             tenantId: tenant.id,
@@ -49,11 +49,11 @@ async function main() {
     });
 
     await prisma.kullanici.upsert({
-        where: { email_tenantId: { email: 'test@gastroiq.com', tenantId: tenant.id } },
+        where: { email_tenantId: { email: 'test@gastrobrain.com', tenantId: tenant.id } },
         update: {},
         create: {
             ad: 'Test Kullanıcı',
-            email: 'test@gastroiq.com',
+            email: 'test@gastrobrain.com',
             sifre: adminSifre,
             rol: 'MUDUR',
             tenantId: tenant.id,
@@ -146,7 +146,7 @@ async function main() {
         { kod: 'CAR002', ad: 'Güven Et Pazarı', telefon: '02164440202', adres: 'İstanbul, Ümraniye' },
         { kod: 'CAR003', ad: 'Taze Sebze Kooperatif', telefon: '02623330303', adres: 'Kocaeli, Gebze' },
         { kod: 'CAR004', ad: 'Nur Süt Ürünleri', telefon: '02242220404', adres: 'Bursa, Nilüfer' },
-        { kod: 'CAR005', ad: 'Efes İçecek Dağıtım', telefon: '02121110505', adres: 'İstanbul, Esenyurt' },
+        { kod: 'CAR005', ad: 'Uludag İçecek Dağıtım', telefon: '02121110505', adres: 'İstanbul, Esenyurt' },
     ];
 
     for (const c of cariListesi) {

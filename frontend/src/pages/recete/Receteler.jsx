@@ -266,7 +266,7 @@ export default function Receteler() {
                                         🍳 Kazan Hesabı ile Doldur
                                     </button>
                                     <button
-                                        onClick={calemEkle}
+                                        onClick={kalemEkle}
                                         className="text-xs text-lime-400 hover:text-lime-300 transition-colors"
                                     >
                                         + Kalem Ekle

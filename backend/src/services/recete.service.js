@@ -53,14 +53,21 @@ const receteService = {
             })
         );
         const toplamMaliyet = kalemMaliyetleri.reduce((t, k) => t + k.toplam, 0);
-        return { recete, kalemMaliyetleri, toplamMaliyet };
+
+        // Porsiyon maliyeti varsa hesapla
+        const porsiyonMaliyeti = recete.porsiyonSayisi
+            ? toplamMaliyet / recete.porsiyonSayisi
+            : null;
+
+        return { recete, kalemMaliyetleri, toplamMaliyet, porsiyonMaliyeti };
     },
 
-    async olustur({ ad, aciklama, satisKodu, satisFiyati, kalemler }, tenantId) {
+    async olustur({ ad, aciklama, satisKodu, satisFiyati, porsiyonSayisi, kalemler }, tenantId) {
         return prisma.recete.create({
             data: {
                 ad, aciklama, satisKodu,
                 satisFiyati: satisFiyati ? Number(satisFiyati) : null,
+                porsiyonSayisi: porsiyonSayisi ? Number(porsiyonSayisi) : null,
                 tenantId,
                 kalemler: {
                     create: kalemler.map(k => ({
@@ -77,7 +84,7 @@ const receteService = {
         });
     },
 
-    async guncelle(id, { ad, aciklama, satisKodu, satisFiyati, kalemler }, tenantId) {
+    async guncelle(id, { ad, aciklama, satisKodu, satisFiyati, porsiyonSayisi, kalemler }, tenantId) {
         await this.biriniGetir(id, tenantId);
         await prisma.receteKalem.deleteMany({ where: { receteId: id } });
         return prisma.recete.update({
@@ -85,6 +92,7 @@ const receteService = {
             data: {
                 ad, aciklama, satisKodu,
                 satisFiyati: satisFiyati ? Number(satisFiyati) : null,
+                porsiyonSayisi: porsiyonSayisi ? Number(porsiyonSayisi) : null,
                 kalemler: {
                     create: kalemler.map(k => ({
                         stokKartId: Number(k.stokKartId),

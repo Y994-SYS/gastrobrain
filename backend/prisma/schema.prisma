@@ -221,7 +221,7 @@ model Recete {
   satisFiyati Float?
   aktif       Boolean  @default(true)
   createdAt   DateTime @default(now())
-
+  porsiyonSayisi  Int?
   tenant   Tenant @relation(fields: [tenantId], references: [id])
   tenantId Int
 

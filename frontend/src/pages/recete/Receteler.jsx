@@ -14,6 +14,11 @@ export default function Receteler() {
     const [duzenleId, setDuzenleId] = useState(null);
     const [yukleniyor, setYukleniyor] = useState(false);
 
+    // Kazan Hesabı için yeni stateler
+    const [kazanModal, setKazanModal] = useState(false);
+    const [kazanPorsiyon, setKazanPorsiyon] = useState('10'); // Varsayılan 10 porsiyon
+    const [kazanKalemler, setKazanKalemler] = useState([]);
+
     const bosForm = { ad: '', aciklama: '', satisKodu: '', satisFiyati: '', kalemler: [] };
     const [form, setForm] = useState(bosForm);
 
@@ -43,6 +48,41 @@ export default function Receteler() {
 
     const kalemSil = (idx) => {
         setForm({ ...form, kalemler: form.kalemler.filter((_, i) => i !== idx) });
+    };
+
+    // Kazan Hesabı fonksiyonları
+    const kazanKalemEkle = () => {
+        setKazanKalemler([...kazanKalemler, { stokKartId: '', kazanMiktari: '' }]);
+    };
+
+    const kazanKalemGuncelle = (idx, alan, deger) => {
+        const yeni = [...kazanKalemler];
+        yeni[idx][alan] = deger;
+        setKazanKalemler(yeni);
+    };
+
+    const kazanKalemSil = (idx) => {
+        setKazanKalemler(kazanKalemler.filter((_, i) => i !== idx));
+    };
+
+    const kazanHesabiniUygula = () => {
+        const porsiyon = Number(kazanPorsiyon);
+        if (!porsiyon || porsiyon <= 0) return toast.error('Geçerli bir porsiyon sayısı girin');
+        if (kazanKalemler.length === 0) return toast.error('En az bir kalem ekleyin');
+        if (kazanKalemler.some(k => !k.stokKartId || !k.kazanMiktari)) return toast.error('Tüm kalemleri doldurun');
+
+        // Kazan miktarlarını porsiyona bölüp ana forma aktar
+        const aktarilacakKalemler = kazanKalemler.map(k => ({
+            stokKartId: k.stokKartId,
+            miktar: (Number(k.kazanMiktari) / porsiyon).toFixed(4),
+            carpan: '1',
+            bolen: '1'
+        }));
+
+        setForm({ ...form, kalemler: [...form.kalemler, ...aktarilacakKalemler] });
+        setKazanModal(false);
+        setKazanKalemler([]);
+        toast.success('Kazan hesabı porsiyona bölünerek eklendi');
     };
 
     const kaydet = async () => {
@@ -183,7 +223,7 @@ export default function Receteler() {
                     baslik={duzenleId ? 'Reçete Düzenle' : 'Yeni Reçete'}
                     onKapat={() => setModal(false)}
                 >
-                    <div className="space-y-4 max-h-96 overflow-y-auto pr-1">
+                    <div className="space-y-4 max-h-[500px] overflow-y-auto pr-1">
                         <div className="grid grid-cols-2 gap-3">
                             <div className="col-span-2">
                                 <label className="text-zinc-400 text-sm mb-1.5 block">Reçete Adı *</label>
@@ -215,18 +255,26 @@ export default function Receteler() {
                             </div>
                         </div>
 
-                        <div>
+                        <div className="border-t border-zinc-800 pt-3">
                             <div className="flex items-center justify-between mb-1">
-                                <label className="text-zinc-400 text-sm">Kalemler *</label>
-                                <button
-                                    onClick={kalemEkle}
-                                    className="text-xs text-lime-400 hover:text-lime-300 transition-colors"
-                                >
-                                    + Kalem Ekle
-                                </button>
+                                <label className="text-zinc-400 text-sm font-semibold">Kalemler *</label>
+                                <div className="flex gap-3">
+                                    <button
+                                        onClick={() => { setKazanKalemler([]); setKazanModal(true); }}
+                                        className="text-xs bg-zinc-800 hover:bg-zinc-700 text-lime-400 border border-zinc-700 px-2 py-1 rounded transition-colors"
+                                    >
+                                        🍳 Kazan Hesabı ile Doldur
+                                    </button>
+                                    <button
+                                        onClick={calemEkle}
+                                        className="text-xs text-lime-400 hover:text-lime-300 transition-colors"
+                                    >
+                                        + Kalem Ekle
+                                    </button>
+                                </div>
                             </div>
                             <p className="text-zinc-600 text-xs mb-2">
-                                Çarpan/Bölen genelde 1 kalır — sadece birim dönüşümü gerektiğinde değiştir (örn. gramı litreye çevirmek için).
+                                Çarpan/Bölen genelde 1 kalır — sadece birim dönüşümü gerektiğinde değiştir.
                             </p>
                             <div className="space-y-2">
                                 {form.kalemler.map((k, idx) => {
@@ -258,7 +306,7 @@ export default function Receteler() {
                                                     />
                                                 </div>
                                                 <div>
-                                                    <label className="text-zinc-500 text-[11px] mb-1 block" title="Birim dönüşümü için çarpan — genelde 1 kalır">
+                                                    <label className="text-zinc-500 text-[11px] mb-1 block">
                                                         Çarpan ×
                                                     </label>
                                                     <input
@@ -270,7 +318,7 @@ export default function Receteler() {
                                                     />
                                                 </div>
                                                 <div>
-                                                    <label className="text-zinc-500 text-[11px] mb-1 block" title="Birim dönüşümü için bölen — genelde 1 kalır">
+                                                    <label className="text-zinc-500 text-[11px] mb-1 block">
                                                         Bölen ÷
                                                     </label>
                                                     <input
@@ -293,7 +341,7 @@ export default function Receteler() {
                                 })}
                                 {form.kalemler.length === 0 && (
                                     <div className="text-center py-4 text-zinc-500 text-xs border border-dashed border-zinc-700 rounded-lg">
-                                        Henüz kalem yok — yukarıdan ekle
+                                        Henüz kalem yok — yukarıdan ekle veya kazan hesabını kullan
                                     </div>
                                 )}
                             </div>
@@ -305,6 +353,85 @@ export default function Receteler() {
                             className="w-full bg-lime-400 hover:bg-lime-300 disabled:opacity-50 text-black font-bold rounded-lg py-2.5 text-sm transition-colors"
                         >
                             {yukleniyor ? 'Kaydediliyor...' : 'Kaydet'}
+                        </button>
+                    </div>
+                </Modal>
+            )}
+
+            {/* Kazan Hesabı Sihirbazı Modalı */}
+            {kazanModal && (
+                <Modal
+                    baslik="🍳 Kazan Hesabı (Toplu Malzeme Girişi)"
+                    onKapat={() => setKazanModal(false)}
+                >
+                    <div className="space-y-4 max-h-[450px] overflow-y-auto pr-1">
+                        <div>
+                            <label className="text-zinc-400 text-sm mb-1 block">Bu kazandan toplam kaç porsiyon çıkıyor? *</label>
+                            <input
+                                type="number"
+                                value={kazanPorsiyon}
+                                onChange={(e) => setKazanPorsiyon(e.target.value)}
+                                placeholder="örn. 40"
+                                className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-4 py-2 text-sm outline-none focus:border-lime-400"
+                            />
+                        </div>
+
+                        <div className="border-t border-zinc-800 pt-3">
+                            <div className="flex items-center justify-between mb-2">
+                                <label className="text-zinc-400 text-sm font-semibold">Kazana Atılan Toplam Malzemeler</label>
+                                <button
+                                    onClick={kazanKalemEkle}
+                                    className="text-xs text-lime-400 hover:text-lime-300"
+                                >
+                                    + Malzeme Ekle
+                                </button>
+                            </div>
+
+                            <div className="space-y-2">
+                                {kazanKalemler.map((k, idx) => {
+                                    const seciliStok = stokKartlari.find(s => s.id === Number(k.stokKartId));
+                                    return (
+                                        <div key={idx} className="bg-zinc-800 p-3 rounded-lg grid grid-cols-5 gap-2 items-center">
+                                            <div className="col-span-3">
+                                                <select
+                                                    value={k.stokKartId}
+                                                    onChange={(e) => kazanKalemGuncelle(idx, 'stokKartId', e.target.value)}
+                                                    className="w-full bg-zinc-700 border border-zinc-600 text-white rounded-lg px-2 py-1.5 text-xs outline-none"
+                                                >
+                                                    <option value="">Malzeme seç</option>
+                                                    {stokKartlari.map((s) => (
+                                                        <option key={s.id} value={s.id}>{s.ad} ({s.birim?.kisaltma})</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                            <div className="col-span-1">
+                                                <input
+                                                    type="number"
+                                                    value={k.kazanMiktari}
+                                                    onChange={(e) => kazanKalemGuncelle(idx, 'kazanMiktari', e.target.value)}
+                                                    placeholder={seciliStok?.birim?.kisaltma || 'Miktar'}
+                                                    className="w-full bg-zinc-700 border border-zinc-600 text-white rounded-lg px-2 py-1.5 text-xs outline-none"
+                                                />
+                                            </div>
+                                            <div className="col-span-1 text-right">
+                                                <button
+                                                    onClick={() => kazanKalemSil(idx)}
+                                                    className="text-xs text-red-400 hover:text-red-300"
+                                                >
+                                                    Sil
+                                                </button>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+
+                        <button
+                            onClick={kazanHesabiniUygula}
+                            className="w-full bg-lime-400 hover:bg-lime-300 text-black font-bold rounded-lg py-2 text-sm transition-colors mt-2"
+                        >
+                            Böl ve Reçeteye Ekle
                         </button>
                     </div>
                 </Modal>
@@ -328,13 +455,16 @@ export default function Receteler() {
                         </div>
                         <div className="flex justify-between items-center pt-2">
                             <span className="text-zinc-400 font-semibold">Toplam Maliyet</span>
-                            <span className="text-lime-400 font-bold text-lg">₺{fmt(maliyetModal.toplamMaliyet)}</span>
+                            <span className="text-lime-400 font-bold text-lg">₺{fmt(maliyetModal.tophamMaliyet || maliyetModal.toplamMaliyet)}</span>
                         </div>
                         {maliyetModal.recete.satisFiyati && (
                             <div className="flex justify-between items-center bg-zinc-800 rounded-lg p-3">
                                 <span className="text-zinc-400 text-sm">Kar Marjı</span>
                                 <span className="text-lime-400 font-bold">
-                                    %{(((maliyetModal.recete.satisFiyati - maliyetModal.toplamMaliyet) / maliyetModal.recete.satisFiyati) * 100).toFixed(1)}
+                                    %{(
+                                        ((maliyetModal.recete.satisFiyati - (maliyetModal.tophamMaliyet || maliyetModal.toplamMaliyet)) /
+                                            maliyetModal.recete.satisFiyati) * 100
+                                    ).toFixed(1)}
                                 </span>
                             </div>
                         )}

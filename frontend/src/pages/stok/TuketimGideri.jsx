@@ -30,6 +30,16 @@ export default function TuketimGideri() {
         api.get('/api/receteler').then(res => setReceteler(res.data.data));
     }, []);
 
+    // Reçete seçilince porsiyonSayisi otomatik doldur
+    const recetesec = (receteId) => {
+        const r = receteler.find(r => r.id === Number(receteId));
+        setReceteForm(prev => ({
+            ...prev,
+            receteId,
+            porsiyonSayisi: r?.porsiyonSayisi ? String(r.porsiyonSayisi) : prev.porsiyonSayisi,
+        }));
+    };
+
     // Seçili reçete ve önizleme hesabı
     const seciliRecete = receteler.find(r => r.id === Number(receteForm.receteId));
     const porsiyon = Number(receteForm.porsiyonSayisi) || 0;
@@ -180,7 +190,7 @@ export default function TuketimGideri() {
                             <label className="text-zinc-400 text-sm mb-1.5 block">Reçete *</label>
                             <select
                                 value={receteForm.receteId}
-                                onChange={(e) => setReceteForm({ ...receteForm, receteId: e.target.value })}
+                                onChange={(e) => recetesec(e.target.value)}
                                 className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-4 py-2.5 text-sm outline-none focus:border-lime-400 transition-colors"
                             >
                                 <option value="">Reçete seç</option>
@@ -194,7 +204,12 @@ export default function TuketimGideri() {
 
                         <div className="grid grid-cols-2 gap-4">
                             <div>
-                                <label className="text-zinc-400 text-sm mb-1.5 block">Porsiyon Sayısı *</label>
+                                <label className="text-zinc-400 text-sm mb-1.5 block">
+                                    Porsiyon Sayısı *
+                                    {seciliRecete?.porsiyonSayisi && (
+                                        <span className="text-zinc-600 ml-2 text-xs font-normal">— reçeteden otomatik</span>
+                                    )}
+                                </label>
                                 <input
                                     type="number"
                                     value={receteForm.porsiyonSayisi}

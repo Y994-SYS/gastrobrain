@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import api from '../services/api';
 import useAuthStore from '../store/auth.store';
 import toast from 'react-hot-toast';
@@ -51,10 +51,21 @@ export default function Profil() {
     // Export state
     const [seciliModuller, setSeciliModuller] = useState(['stok', 'satis']);
     const [exportYukleniyor, setExportYukleniyor] = useState(false);
+    const [subeler, setSubeler] = useState([]);
+    const [seciliSubeId, setSeciliSubeId] = useState(''); // '' = tüm şubeler
 
     const guc = sifreGucu(yeniSifre);
     const eslesiyor = yeniSifre && sifreTekrar && yeniSifre === sifreTekrar;
     const eslesmıyor = yeniSifre && sifreTekrar && yeniSifre !== sifreTekrar;
+
+    // TENANT_ADMIN ise şubeleri çek
+    useEffect(() => {
+        if (kullanici?.rol === 'TENANT_ADMIN') {
+            api.get('/api/subeler').then(res => {
+                setSubeler(res.data.data || []);
+            }).catch(() => { });
+        }
+    }, [kullanici]);
 
     const adGuncelle = async () => {
         if (!ad.trim()) return toast.error('Ad boş olamaz');
@@ -101,13 +112,17 @@ export default function Profil() {
         setExportYukleniyor(true);
         try {
             const token = localStorage.getItem('gastroiq_token');
+            const body = {
+                moduller: seciliModuller,
+                ...(seciliSubeId ? { subeId: Number(seciliSubeId) } : {}),
+            };
             const res = await fetch(`${import.meta.env.VITE_API_URL}/api/export`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     Authorization: `Bearer ${token}`,
                 },
-                body: JSON.stringify({ moduller: seciliModuller }),
+                body: JSON.stringify(body),
             });
 
             const contentType = res.headers.get('content-type') || '';
@@ -204,27 +219,16 @@ export default function Profil() {
             <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
                 <h2 className="font-bold text-white mb-5">Şifre Değiştir</h2>
                 <div className="space-y-4">
-                    <SifreInput
-                        label="Mevcut Şifre"
-                        value={mevcutSifre}
-                        onChange={e => setMevcutSifre(e.target.value)}
-                        alan="mevcut"
-                    />
-                    <SifreInput
-                        label="Yeni Şifre"
-                        value={yeniSifre}
-                        onChange={e => setYeniSifre(e.target.value)}
-                        alan="yeni"
-                    />
+                    <SifreInput label="Mevcut Şifre" value={mevcutSifre} onChange={e => setMevcutSifre(e.target.value)} alan="mevcut" />
+                    <SifreInput label="Yeni Şifre" value={yeniSifre} onChange={e => setYeniSifre(e.target.value)} alan="yeni" />
 
                     {yeniSifre && guc && (
                         <div>
                             <div className="flex justify-between text-xs mb-1">
                                 <span className="text-zinc-500">Şifre gücü</span>
-                                <span className={`font-medium ${guc.label === 'Güçlü' ? 'text-lime-400' :
-                                    guc.label === 'İyi' ? 'text-blue-400' :
-                                        guc.label === 'Orta' ? 'text-yellow-400' : 'text-red-400'
-                                    }`}>{guc.label}</span>
+                                <span className={`font-medium ${guc.label === 'Güçlü' ? 'text-lime-400' : guc.label === 'İyi' ? 'text-blue-400' : guc.label === 'Orta' ? 'text-yellow-400' : 'text-red-400'}`}>
+                                    {guc.label}
+                                </span>
                             </div>
                             <div className="h-1 bg-zinc-800 rounded-full overflow-hidden">
                                 <div className={`h-full rounded-full transition-all duration-300 ${guc.renk} ${guc.genislik}`} />
@@ -240,9 +244,7 @@ export default function Profil() {
                                 value={sifreTekrar}
                                 onChange={e => setSifreTekrar(e.target.value)}
                                 placeholder="••••••••"
-                                className={`${inputCls} pr-10 ${eslesiyor ? 'border-lime-400/50' :
-                                    eslesmıyor ? 'border-red-400/50' : ''
-                                    }`}
+                                className={`${inputCls} pr-10 ${eslesiyor ? 'border-lime-400/50' : eslesmıyor ? 'border-red-400/50' : ''}`}
                             />
                             <button
                                 type="button"
@@ -267,7 +269,7 @@ export default function Profil() {
                 </div>
             </div>
 
-            {/* Veri Dışa Aktarım — sadece TENANT_ADMIN */}
+            {/* Veri Dışa Aktarım */}
             {kullanici?.rol === 'TENANT_ADMIN' && (
                 <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
                     <div className="mb-5">
@@ -276,6 +278,23 @@ export default function Profil() {
                             Seçtiğiniz modüllerin verisi Excel dosyası olarak indirilir.
                         </p>
                     </div>
+
+                    {/* Şube Seçici — birden fazla şube varsa göster */}
+                    {subeler.length > 1 && (
+                        <div className="mb-4">
+                            <label className="text-zinc-400 text-sm mb-1.5 block">Şube</label>
+                            <select
+                                value={seciliSubeId}
+                                onChange={e => setSeciliSubeId(e.target.value)}
+                                className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-3 py-2.5 text-sm outline-none focus:border-lime-400 transition-colors"
+                            >
+                                <option value="">Tüm Şubeler</option>
+                                {subeler.map(s => (
+                                    <option key={s.id} value={s.id}>{s.ad}</option>
+                                ))}
+                            </select>
+                        </div>
+                    )}
 
                     <div className="space-y-2 mb-5">
                         {MODUL_LISTESI.map(m => (
@@ -306,15 +325,9 @@ export default function Profil() {
                         className="w-full bg-lime-400 hover:bg-lime-300 disabled:opacity-40 disabled:cursor-not-allowed text-zinc-900 font-semibold py-2.5 rounded-lg text-sm transition-colors flex items-center justify-center gap-2"
                     >
                         {exportYukleniyor ? (
-                            <>
-                                <span className="animate-spin">⏳</span>
-                                Hazırlanıyor...
-                            </>
+                            <><span className="animate-spin">⏳</span> Hazırlanıyor...</>
                         ) : (
-                            <>
-                                <span>⬇</span>
-                                Excel Olarak İndir
-                            </>
+                            <><span>⬇</span> Excel Olarak İndir</>
                         )}
                     </button>
 

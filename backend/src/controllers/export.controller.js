@@ -2,20 +2,13 @@ const { PrismaClient } = require('@prisma/client');
 const ExcelJS = require('exceljs');
 const prisma = new PrismaClient();
 
-// Giriş sayılan stok hareket tipleri
 const GIRIS_TIPLER = new Set(['GIRIS_FATURA', 'IADE_FATURA', 'SUBE_TRANSFER_IN']);
 
-const bakiyeHesapla = (hareketler) =>
-    hareketler.reduce((t, h) => t + (GIRIS_TIPLER.has(h.tip) ? h.miktar : -h.miktar), 0);
-
-// Başlık stili
 const baslikStil = {
     font: { bold: true, color: { argb: 'FF09090B' }, size: 11 },
     fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFA3E635' } },
     alignment: { horizontal: 'center', vertical: 'middle' },
-    border: {
-        bottom: { style: 'thin', color: { argb: 'FF27272A' } },
-    },
+    border: { bottom: { style: 'thin', color: { argb: 'FF27272A' } } },
 };
 
 const satirStil = (satirNo) => ({
@@ -37,11 +30,20 @@ const kolonAyarla = (sheet, kolonlar) => {
 };
 
 // POST /api/export
-// body: { moduller: ['stok', 'satis', 'personel', 'cari'] }
+// body: { moduller: ['stok', 'satis', ...], subeId: 2 }
 const tumVeriExport = async (req, res) => {
     try {
         const tenantId = req.kullanici.tenantId;
         const moduller = req.body.moduller || [];
+        const rol = req.kullanici.rol;
+
+        // Şube filtresi: MUDUR/DEPO/KASA kendi şubesine kilitli, TENANT_ADMIN seçebilir
+        let subeId = null;
+        if (rol === 'MUDUR' || rol === 'DEPO' || rol === 'KASA') {
+            subeId = req.kullanici.subeId;
+        } else if (req.body.subeId) {
+            subeId = Number(req.body.subeId);
+        }
 
         if (!moduller.length) {
             return res.status(400).json({ hata: 'En az bir modül seçmelisiniz' });
@@ -51,21 +53,21 @@ const tumVeriExport = async (req, res) => {
         wb.creator = 'GastroBrain';
         wb.created = new Date();
 
-        // ── ÖZET sayfası ────────────────────────────────────────────────────
+        // ── ÖZET ────────────────────────────────────────────────────────────
         const ozet = wb.addWorksheet('Özet');
         ozet.mergeCells('A1:D1');
         ozet.getCell('A1').value = 'GastroBrain — Veri Dışa Aktarım';
         ozet.getCell('A1').style = { font: { bold: true, size: 14 }, alignment: { horizontal: 'center' } };
-        ozet.getRow(3).values = ['Tenant', 'Dışa Aktarım Tarihi', 'Modüller', ''];
+        ozet.getRow(3).values = ['Tenant', 'Dışa Aktarım Tarihi', 'Modüller', 'Şube Filtresi'];
         ozet.getRow(4).values = [
             tenantId,
             new Date().toLocaleString('tr-TR'),
             moduller.join(', '),
-            '',
+            subeId ? `Şube ID: ${subeId}` : 'Tüm Şubeler',
         ];
         ozet.columns = [{ width: 20 }, { width: 25 }, { width: 30 }, { width: 20 }];
 
-        // ── STOK sayfası ─────────────────────────────────────────────────────
+        // ── STOK ─────────────────────────────────────────────────────────────
         if (moduller.includes('stok')) {
             const sheet = wb.addWorksheet('Stok Durumu');
             kolonAyarla(sheet, [
@@ -84,16 +86,23 @@ const tumVeriExport = async (req, res) => {
                 orderBy: { ad: 'asc' },
             });
 
+            // subeId varsa o şubeye ait hareketleri filtrele
             const hareketler = await prisma.stokHareket.groupBy({
                 by: ['stokKartId', 'tip'],
-                where: { stokKart: { tenantId } },
+                where: {
+                    stokKart: { tenantId },
+                    ...(subeId ? { subeId } : {}),
+                },
                 _sum: { miktar: true },
             });
 
             const bakiyeMap = new Map();
             for (const h of hareketler) {
                 const mevcut = bakiyeMap.get(h.stokKartId) || 0;
-                bakiyeMap.set(h.stokKartId, mevcut + (GIRIS_TIPLER.has(h.tip) ? h._sum.miktar : -h._sum.miktar));
+                bakiyeMap.set(
+                    h.stokKartId,
+                    mevcut + (GIRIS_TIPLER.has(h.tip) ? h._sum.miktar : -h._sum.miktar)
+                );
             }
 
             stokKartlari.forEach((k, i) => {
@@ -109,11 +118,13 @@ const tumVeriExport = async (req, res) => {
                 });
                 satir.eachCell(c => { c.style = { ...satirStil(i + 2) }; });
                 const durumCell = satir.getCell('durum');
-                durumCell.font = { color: { argb: mevcut <= k.minStok && k.minStok > 0 ? 'FFEF4444' : 'FF84CC16' } };
+                durumCell.font = {
+                    color: { argb: mevcut <= k.minStok && k.minStok > 0 ? 'FFEF4444' : 'FF84CC16' },
+                };
             });
         }
 
-        // ── SATIŞ sayfası ────────────────────────────────────────────────────
+        // ── SATIŞ ────────────────────────────────────────────────────────────
         if (moduller.includes('satis')) {
             const sheet = wb.addWorksheet('Satışlar');
             kolonAyarla(sheet, [
@@ -125,8 +136,11 @@ const tumVeriExport = async (req, res) => {
                 { header: 'Toplam (₺)', key: 'toplam', width: 14 },
             ]);
 
+            const satisWhere = { sube: { tenantId } };
+            if (subeId) satisWhere.subeId = subeId;
+
             const satislar = await prisma.satis.findMany({
-                where: { sube: { tenantId } },
+                where: satisWhere,
                 include: {
                     recete: { select: { ad: true } },
                     sube: { select: { ad: true } },
@@ -147,7 +161,6 @@ const tumVeriExport = async (req, res) => {
                 satir.getCell('toplam').font = { color: { argb: 'FF84CC16' } };
             });
 
-            // Toplam satırı
             const toplamSatir = sheet.addRow({
                 tarih: 'TOPLAM',
                 toplam: satislar.reduce((t, s) => t + s.toplam, 0),
@@ -156,7 +169,7 @@ const tumVeriExport = async (req, res) => {
             toplamSatir.getCell('toplam').font = { bold: true, color: { argb: 'FF84CC16' } };
         }
 
-        // ── PERSONEL sayfası ─────────────────────────────────────────────────
+        // ── PERSONEL ─────────────────────────────────────────────────────────
         if (moduller.includes('personel')) {
             const sheet = wb.addWorksheet('Personel');
             kolonAyarla(sheet, [
@@ -170,8 +183,11 @@ const tumVeriExport = async (req, res) => {
                 { header: 'Durum', key: 'durum', width: 10 },
             ]);
 
+            const personelWhere = { tenantId };
+            if (subeId) personelWhere.subeId = subeId;
+
             const personeller = await prisma.personel.findMany({
-                where: { tenantId },
+                where: personelWhere,
                 include: { sube: { select: { ad: true } } },
                 orderBy: [{ sube: { ad: 'asc' } }, { ad: 'asc' }],
             });
@@ -188,12 +204,13 @@ const tumVeriExport = async (req, res) => {
                     durum: p.aktif ? 'Aktif' : 'Pasif',
                 });
                 satir.eachCell(c => { c.style = { ...satirStil(i + 2) }; });
-                const durumCell = satir.getCell('durum');
-                durumCell.font = { color: { argb: p.aktif ? 'FF84CC16' : 'FFEF4444' } };
+                satir.getCell('durum').font = {
+                    color: { argb: p.aktif ? 'FF84CC16' : 'FFEF4444' },
+                };
             });
         }
 
-        // ── CARİ sayfası ─────────────────────────────────────────────────────
+        // ── CARİ ─────────────────────────────────────────────────────────────
         if (moduller.includes('cari')) {
             const sheet = wb.addWorksheet('Cari Hesaplar');
             kolonAyarla(sheet, [
@@ -217,22 +234,19 @@ const tumVeriExport = async (req, res) => {
                     if (h.tip === 'ALACAK' || h.tip === 'ODEME') return t - h.tutar;
                     return t;
                 }, 0);
-
                 const satir = sheet.addRow({
-                    kod: c.kod,
-                    ad: c.ad,
-                    telefon: c.telefon || '',
-                    email: c.email || '',
-                    adres: c.adres || '',
+                    kod: c.kod, ad: c.ad,
+                    telefon: c.telefon || '', email: c.email || '', adres: c.adres || '',
                     bakiye,
                 });
                 satir.eachCell(cell => { cell.style = { ...satirStil(i + 2) }; });
-                const bakiyeCell = satir.getCell('bakiye');
-                bakiyeCell.font = { color: { argb: bakiye > 0 ? 'FFEF4444' : bakiye < 0 ? 'FF84CC16' : 'FFA1A1AA' } };
+                satir.getCell('bakiye').font = {
+                    color: { argb: bakiye > 0 ? 'FFEF4444' : bakiye < 0 ? 'FF84CC16' : 'FFA1A1AA' },
+                };
             });
         }
 
-        // ── STOK HAREKETLERİ sayfası ─────────────────────────────────────────
+        // ── STOK HAREKETLERİ ─────────────────────────────────────────────────
         if (moduller.includes('stok_hareketleri')) {
             const sheet = wb.addWorksheet('Stok Hareketleri');
             kolonAyarla(sheet, [
@@ -245,25 +259,24 @@ const tumVeriExport = async (req, res) => {
                 { header: 'Açıklama', key: 'aciklama', width: 30 },
             ]);
 
+            const hareketWhere = { sube: { tenantId } };
+            if (subeId) hareketWhere.subeId = subeId;
+
             const hareketler = await prisma.stokHareket.findMany({
-                where: { sube: { tenantId } },
+                where: hareketWhere,
                 include: {
                     stokKart: { select: { ad: true } },
                     sube: { select: { ad: true } },
                 },
                 orderBy: { tarih: 'desc' },
-                take: 5000, // max 5000 satır
+                take: 5000,
             });
 
             const TIP_ETIKET = {
-                GIRIS_FATURA: 'Giriş Faturası',
-                IADE_FATURA: 'İade Faturası',
-                SATIS: 'Satış',
-                ZAYI: 'Zayi',
-                TUKETIM: 'Tüketim',
+                GIRIS_FATURA: 'Giriş Faturası', IADE_FATURA: 'İade Faturası',
+                SATIS: 'Satış', ZAYI: 'Zayi', TUKETIM: 'Tüketim',
                 AY_SONU_SAYIM: 'Ay Sonu Sayım',
-                SUBE_TRANSFER_IN: 'Transfer Giriş',
-                SUBE_TRANSFER_OUT: 'Transfer Çıkış',
+                SUBE_TRANSFER_IN: 'Transfer Giriş', SUBE_TRANSFER_OUT: 'Transfer Çıkış',
             };
 
             hareketler.forEach((h, i) => {
@@ -280,7 +293,6 @@ const tumVeriExport = async (req, res) => {
             });
         }
 
-        // ── Excel'i gönder ───────────────────────────────────────────────────
         const dosyaAdi = `gastrobrain_export_${new Date().toISOString().slice(0, 10)}.xlsx`;
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
         res.setHeader('Content-Disposition', `attachment; filename="${dosyaAdi}"`);

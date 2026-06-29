@@ -15,6 +15,7 @@ router.post('/giris-faturasi', stokRol, stokController.girisFaturasiEkle);
 router.post('/iade-faturasi', stokRol, stokController.iadeFaturasiEkle);
 router.post('/zayi', stokRol, stokController.zayiEkle);
 router.post('/tuketim', stokRol, stokController.tuketimEkle);
+router.post('/tuketim-recete', stokRol, stokController.tuketimRecete);
 router.post('/ay-sonu-sayim', stokRol, stokController.aySonuSayimEkle);
 
 module.exports = router;

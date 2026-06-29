@@ -1,5 +1,7 @@
+const { PrismaClient } = require('@prisma/client');
 const stokService = require('../services/stok.service');
 const auditLog = require('../services/auditLog.service');
+const prisma = new PrismaClient();
 
 // Şube ID'sini belirle — MUDUR kendi şubesini görür, ADMIN query'den alır
 const subeIdBelirle = (req) => {
@@ -44,7 +46,6 @@ const stokController = {
 
     async girisFaturasiEkle(req, res) {
         try {
-            // Şube: body'den gelirse onu kullan, yoksa kullanıcının şubesi
             if (!req.body.subeId) req.body.subeId = req.kullanici.subeId;
             const data = await stokService.girisFaturasiEkle(req.body, req.kullanici.tenantId);
             await auditLog.kaydet({
@@ -108,6 +109,64 @@ const stokController = {
             res.status(201).json({ basarili: true, data });
         } catch (error) {
             res.status(400).json({ basarili: false, mesaj: error.message });
+        }
+    },
+
+    async tuketimRecete(req, res) {
+        try {
+            const { receteId, porsiyonSayisi, aciklama, tarih } = req.body;
+            const tenantId = req.kullanici.tenantId;
+            const subeId = req.kullanici.subeId;
+
+            if (!receteId || !porsiyonSayisi || Number(porsiyonSayisi) <= 0) {
+                return res.status(400).json({ basarili: false, mesaj: 'Reçete ve porsiyon sayısı zorunlu' });
+            }
+
+            const recete = await prisma.recete.findFirst({
+                where: { id: Number(receteId), tenantId },
+                include: {
+                    kalemler: {
+                        include: { stokKart: { include: { birim: true } } }
+                    }
+                }
+            });
+
+            if (!recete) return res.status(404).json({ basarili: false, mesaj: 'Reçete bulunamadı' });
+            if (!recete.kalemler.length) return res.status(400).json({ basarili: false, mesaj: 'Reçetede kalem yok' });
+
+            const tarihObj = tarih ? new Date(tarih) : new Date();
+
+            const kaydedilenler = await prisma.$transaction(
+                recete.kalemler.map(kalem => {
+                    const gercekMiktar = ((kalem.miktar * (kalem.carpan || 1)) / (kalem.bolen || 1)) * Number(porsiyonSayisi);
+                    return prisma.stokHareket.create({
+                        data: {
+                            tip: 'TUKETIM',
+                            miktar: Math.round(gercekMiktar * 1000) / 1000,
+                            aciklama: aciklama || `Reçete tüketimi: ${recete.ad} x${porsiyonSayisi} porsiyon`,
+                            tarih: tarihObj,
+                            stokKartId: kalem.stokKartId,
+                            subeId: Number(subeId),
+                        }
+                    });
+                })
+            );
+
+            await auditLog.kaydet({
+                eylem: 'STOK_TUKETIM_RECETE',
+                detay: { receteId, receteAd: recete.ad, porsiyonSayisi, kalemSayisi: kaydedilenler.length },
+                kullaniciId: req.kullanici.id,
+                tenantId,
+                ip: req.ip
+            });
+
+            res.status(201).json({
+                basarili: true,
+                mesaj: `${recete.ad} — ${porsiyonSayisi} porsiyon için ${kaydedilenler.length} kalem düşüldü`,
+                kalemSayisi: kaydedilenler.length,
+            });
+        } catch (error) {
+            res.status(500).json({ basarili: false, mesaj: error.message });
         }
     },
 

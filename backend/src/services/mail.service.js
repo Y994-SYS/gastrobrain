@@ -11,6 +11,9 @@ const transporter = nodemailer.createTransport({
     tls: { rejectUnauthorized: false }
 });
 
+const PLAN_ETIKET = { baslangic: 'Başlangıç', profesyonel: 'Profesyonel', kurumsal: 'Kurumsal' };
+const PERIYOT_ETIKET = { aylik: 'Aylık', yillik: 'Yıllık' };
+
 const mailService = {
     async hosgeldinMailGonder(email, firmaAd, adminAd, lisansBitis) {
         const bitisStr = new Date(lisansBitis).toLocaleDateString('tr-TR');
@@ -118,6 +121,34 @@ const mailService = {
                 </div>
             </div>
         `
+        });
+    },
+
+    // ── YENİ — Ödeme bildirimi geldiğinde admin'e mail ─────────────────────────
+    async odemeBildirimMailGonder(firmaAd, plan, periyot, tutar, not) {
+        const adminEmail = process.env.FEEDBACK_EMAIL || process.env.SMTP_USER;
+
+        await transporter.sendMail({
+            from: `"GastroBrain" <${process.env.SMTP_USER}>`,
+            to: adminEmail,
+            subject: `💰 Yeni Ödeme Bildirimi — ${firmaAd}`,
+            html: `
+                <div style="font-family: sans-serif; max-width: 500px; margin: 0 auto;">
+                    <h2 style="color: #18181b;">💰 Yeni Ödeme Bildirimi</h2>
+                    <table style="width: 100%; border-collapse: collapse; margin-top: 16px;">
+                        <tr><td style="padding: 8px 0; color: #71717a;">Firma:</td><td style="padding: 8px 0; font-weight: 600;">${firmaAd}</td></tr>
+                        <tr><td style="padding: 8px 0; color: #71717a;">Plan:</td><td style="padding: 8px 0; font-weight: 600;">${PLAN_ETIKET[plan] || plan}</td></tr>
+                        <tr><td style="padding: 8px 0; color: #71717a;">Periyot:</td><td style="padding: 8px 0;">${PERIYOT_ETIKET[periyot] || periyot}</td></tr>
+                        <tr><td style="padding: 8px 0; color: #71717a;">Tutar:</td><td style="padding: 8px 0; font-weight: 600; color: #65a30d;">₺${Number(tutar).toLocaleString('tr-TR')}</td></tr>
+                        ${not ? `<tr><td style="padding: 8px 0; color: #71717a;">Not:</td><td style="padding: 8px 0;">${not}</td></tr>` : ''}
+                    </table>
+                    <p style="margin-top: 20px;">
+                        <a href="${process.env.APP_URL}/super-admin" style="background: #a3e635; color: #18181b; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: 600;">
+                            Süper Admin Panelinde Görüntüle →
+                        </a>
+                    </p>
+                </div>
+            `
         });
     },
 };

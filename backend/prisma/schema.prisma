@@ -33,7 +33,8 @@ model Tenant {
   receteler     Recete[]
   cariKartlar   CariKart[]
   personeller   Personel[]
-  auditLoglar AuditLog[]
+  auditLoglar   AuditLog[]
+  odemeBildirimleri OdemeBildirimi[]
 }
 
 enum Plan {
@@ -433,4 +434,32 @@ model AuditLog {
   @@index([tenantId])
   @@index([kullaniciId])
   @@index([createdAt])
+}
+
+// ─────────────────────────────────────────
+// ÖDEME BİLDİRİMİ — YENİ
+// ─────────────────────────────────────────
+
+model OdemeBildirimi {
+  id            Int        @id @default(autoincrement())
+  plan          String     // 'baslangic' | 'profesyonel' | 'kurumsal'
+  periyot       String     // 'aylik' | 'yillik'
+  tutar         Float
+  not           String?
+  durum         OdemeDurum @default(BEKLIYOR)
+  redNotu       String?
+  createdAt     DateTime   @default(now())
+  islenmeTarihi DateTime?
+
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+  tenantId Int
+
+  @@index([tenantId])
+  @@index([durum])
+}
+
+enum OdemeDurum {
+  BEKLIYOR
+  ONAYLANDI
+  REDDEDILDI
 }

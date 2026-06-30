@@ -78,7 +78,7 @@ const mailService = {
                             <li><strong>Yıllık plan:</strong> ₺7.990 (%17 indirim)</li>
                         </ul>
                         <p style="color: #444;">
-                            IBAN: <strong>TR00 0000 0000 0000 0000 0000 00</strong><br>
+                            IBAN: <strong>TR64 0006 2001 2620 0006 6629 79</strong><br>
                             Açıklama: <strong>${firmaAd} - GastroBrain</strong>
                         </p>
                         <p style="color: #666; font-size: 13px;">

@@ -136,9 +136,14 @@ const stokController = {
 
             const tarihObj = tarih ? new Date(tarih) : new Date();
 
+            // Reçetenin kendi kazan porsiyonu (örn. 50) — kalem miktarları bu porsiyon için tanımlı.
+            // Eğer reçetede porsiyonSayisi tanımlı değilse, kalemler "1 porsiyon" için kabul edilir (oran = girilen porsiyon).
+            const receteninKendiPorsiyonu = recete.porsiyonSayisi || 1;
+            const oran = Number(porsiyonSayisi) / receteninKendiPorsiyonu;
+
             const kaydedilenler = await prisma.$transaction(
                 recete.kalemler.map(kalem => {
-                    const gercekMiktar = ((kalem.miktar * (kalem.carpan || 1)) / (kalem.bolen || 1)) * Number(porsiyonSayisi);
+                    const gercekMiktar = ((kalem.miktar * (kalem.carpan || 1)) / (kalem.bolen || 1)) * oran;
                     return prisma.stokHareket.create({
                         data: {
                             tip: 'TUKETIM',

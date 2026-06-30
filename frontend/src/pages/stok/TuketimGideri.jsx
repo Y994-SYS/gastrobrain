@@ -45,7 +45,9 @@ export default function TuketimGideri() {
     const porsiyon = Number(receteForm.porsiyonSayisi) || 0;
 
     const onizleme = seciliRecete?.kalemler?.map(kalem => {
-        const gercekMiktar = ((kalem.miktar * (kalem.carpan || 1)) / (kalem.bolen || 1)) * porsiyon;
+        const receteninKendiPorsiyonu = seciliRecete?.porsiyonSayisi || 1;
+        const oran = porsiyon / receteninKendiPorsiyonu;
+        const gercekMiktar = ((kalem.miktar * (kalem.carpan || 1)) / (kalem.bolen || 1)) * oran;
         return {
             ad: kalem.stokKart?.ad,
             birim: kalem.stokKart?.birim?.kisaltma,

@@ -54,7 +54,11 @@ const satisService = {
 
         return prisma.$transaction(async (tx) => {
             // Stok kontrolü — transaction içinde, atomik
+            // stokTakipZorunlu === false olan kalemler kontrolden muaf tutulur,
+            // ancak yine de stok hareketi olarak düşülür (aşağıda).
             for (const kalem of recete.kalemler) {
+                if (kalem.stokTakipZorunlu === false) continue;
+
                 const gercekMiktar = ((kalem.miktar * kalem.carpan) / kalem.bolen) * Number(adet);
 
                 const girisler = await tx.stokHareket.aggregate({
@@ -96,6 +100,8 @@ const satisService = {
                 }
             });
 
+            // Stok hareketleri — kontrolden muaf tutulan kalemler dahil HEPSİ için
+            // yine hareket kaydı oluşturulur, böylece gerçek tüketim raporlarda görünür.
             for (const kalem of recete.kalemler) {
                 const gercekMiktar = ((kalem.miktar * kalem.carpan) / kalem.bolen) * Number(adet);
                 await tx.stokHareket.create({

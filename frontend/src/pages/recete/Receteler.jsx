@@ -31,7 +31,7 @@ export default function Receteler() {
     const kalemEkle = () => {
         setForm({
             ...form,
-            kalemler: [...form.kalemler, { stokKartId: '', miktar: '', carpan: '1', bolen: '1' }]
+            kalemler: [...form.kalemler, { stokKartId: '', miktar: '', carpan: '1', bolen: '1', stokTakipZorunlu: true }]
         });
     };
 
@@ -83,6 +83,7 @@ export default function Receteler() {
                 miktar: k.miktar,
                 carpan: k.carpan,
                 bolen: k.bolen,
+                stokTakipZorunlu: k.stokTakipZorunlu !== false,
             }))
         });
         setDuzenleId(r.id);
@@ -175,6 +176,9 @@ export default function Receteler() {
                                     {k.stokKart?.ad} — {fmt3(k.miktar)} {k.stokKart?.birim?.kisaltma}
                                     {(k.carpan !== 1 || k.bolen !== 1) && (
                                         <span className="text-zinc-500"> ×{k.carpan}/÷{k.bolen}</span>
+                                    )}
+                                    {k.stokTakipZorunlu === false && (
+                                        <span className="text-amber-400 ml-1" title="Stok kontrolü yapılmıyor">⚡</span>
                                     )}
                                 </span>
                             ))}
@@ -317,6 +321,23 @@ export default function Receteler() {
                                                     />
                                                 </div>
                                             </div>
+
+                                            {/* Stok Takip Toggle */}
+                                            <label className="flex items-center gap-2 cursor-pointer select-none pt-1">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={k.stokTakipZorunlu !== false}
+                                                    onChange={(e) => kalemGuncelle(idx, 'stokTakipZorunlu', e.target.checked)}
+                                                    className="w-4 h-4 accent-lime-400"
+                                                />
+                                                <span className="text-xs text-zinc-400">
+                                                    Stok kontrolü yapılsın
+                                                    <span className="text-zinc-600 ml-1">
+                                                        — kapatırsan bu malzeme stokta olmasa bile satış engellenmez (tuz, baharat gibi az kullanılan malzemeler için)
+                                                    </span>
+                                                </span>
+                                            </label>
+
                                             <button
                                                 onClick={() => kalemSil(idx)}
                                                 className="text-xs text-red-400 hover:text-red-300"

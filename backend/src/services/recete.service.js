@@ -75,6 +75,7 @@ const receteService = {
                         miktar: Number(k.miktar),
                         carpan: Number(k.carpan || 1),
                         bolen: Number(k.bolen || 1),
+                        stokTakipZorunlu: k.stokTakipZorunlu === false ? false : true,
                     }))
                 }
             },
@@ -99,6 +100,7 @@ const receteService = {
                         miktar: Number(k.miktar),
                         carpan: Number(k.carpan || 1),
                         bolen: Number(k.bolen || 1),
+                        stokTakipZorunlu: k.stokTakipZorunlu === false ? false : true,
                     }))
                 }
             },

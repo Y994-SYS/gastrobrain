@@ -238,6 +238,7 @@ model ReceteKalem {
   miktar Float
   carpan Float @default(1)
   bolen  Float @default(1)
+  stokTakipZorunlu  Boolean @default(true)
 
   recete     Recete   @relation(fields: [receteId], references: [id])
   receteId   Int

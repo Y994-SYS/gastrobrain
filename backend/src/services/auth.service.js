@@ -25,7 +25,6 @@ const authService = {
         let gercekTenantId = tenantId ?? null;
         let tenant = null;
 
-        // Tenant slug verilmişse normal firma girişi
         if (tenantSlug) {
             tenant = await prisma.tenant.findUnique({ where: { slug: tenantSlug } });
             if (!tenant) throw new Error('Firma bulunamadı');
@@ -36,13 +35,11 @@ const authService = {
         let kullanici;
 
         if (gercekTenantId) {
-            // ── Normal (tenant'a bağlı) kullanıcı girişi ──
             kullanici = await prisma.kullanici.findUnique({
                 where: { email_tenantId: { email, tenantId: gercekTenantId } },
                 include: { tenant: { select: { id: true, ad: true, aktif: true, lisansBitis: true } } }
             });
         } else {
-            // ── Tenant belirtilmemiş — tenant'sız SUPER_ADMIN hesabı ara ──
             kullanici = await prisma.kullanici.findFirst({
                 where: { email, tenantId: null, rol: 'SUPER_ADMIN' }
             });
@@ -52,21 +49,31 @@ const authService = {
         if (!kullanici) throw new Error('Email veya şifre hatalı');
         if (!kullanici.aktif) throw new Error('Hesabınız devre dışı');
 
-        // Tenant'a bağlı kullanıcılar için firma aktiflik ve lisans kontrolü
         if (kullanici.tenantId) {
             if (!kullanici.tenant.aktif) throw new Error('Firma hesabı devre dışı');
-            if (kullanici.tenant.lisansBitis) {
-                const bugun = new Date();
-                const bitis = new Date(kullanici.tenant.lisansBitis);
-                if (bitis < bugun) throw new Error('Lisans süreniz dolmuştur. Lütfen yöneticinizle iletişime geçin.');
-            }
+
+            // ── Lisans kontrolü: süresi dolduysa giriş engellenmez,
+            //    sadece token'a lisansDoldu bayrağı eklenir.
+            //    Frontend bu bayrağa göre /abonelik ve /profil dışını kilitler.
         }
 
         const sifreDoğru = await bcrypt.compare(sifre, kullanici.sifre);
         if (!sifreDoğru) throw new Error('Email veya şifre hatalı');
 
+        // Lisans durumunu hesapla
+        let lisansDoldu = false;
+        if (kullanici.tenantId && kullanici.tenant?.lisansBitis) {
+            lisansDoldu = new Date(kullanici.tenant.lisansBitis) < new Date();
+        }
+
         const token = jwt.sign(
-            { id: kullanici.id, email: kullanici.email, rol: kullanici.rol, tenantId: kullanici.tenantId },
+            {
+                id: kullanici.id,
+                email: kullanici.email,
+                rol: kullanici.rol,
+                tenantId: kullanici.tenantId,
+                lisansDoldu,
+            },
             process.env.JWT_SECRET,
             { expiresIn: process.env.JWT_EXPIRES_IN }
         );
@@ -77,7 +84,8 @@ const authService = {
                 id: kullanici.id, ad: kullanici.ad, email: kullanici.email,
                 rol: kullanici.rol, subeId: kullanici.subeId,
                 tenantId: kullanici.tenantId,
-                tenantAd: kullanici.tenantId ? kullanici.tenant.ad : null
+                tenantAd: kullanici.tenantId ? kullanici.tenant.ad : null,
+                lisansDoldu,
             }
         };
     },
@@ -86,10 +94,22 @@ const authService = {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
         const kullanici = await prisma.kullanici.findUnique({
             where: { id: decoded.id },
-            select: { id: true, ad: true, email: true, rol: true, subeId: true, tenantId: true, aktif: true }
+            include: { tenant: { select: { lisansBitis: true } } },
         });
         if (!kullanici || !kullanici.aktif) throw new Error('Geçersiz token');
-        return kullanici;
+
+        // Token doğrulamada da lisans durumunu güncel tut
+        let lisansDoldu = false;
+        if (kullanici.tenantId && kullanici.tenant?.lisansBitis) {
+            lisansDoldu = new Date(kullanici.tenant.lisansBitis) < new Date();
+        }
+
+        return {
+            id: kullanici.id, ad: kullanici.ad, email: kullanici.email,
+            rol: kullanici.rol, subeId: kullanici.subeId,
+            tenantId: kullanici.tenantId, aktif: kullanici.aktif,
+            lisansDoldu,
+        };
     },
 
     async kayitFirma({ firmaAd, firmaSlug, firmaEmail, firmaTelefon, adminAd, adminEmail, adminSifre }) {
@@ -109,12 +129,8 @@ const authService = {
 
             const tenant = await tx.tenant.create({
                 data: {
-                    ad: firmaAd,
-                    slug: slugTemiz,
-                    email: firmaEmail,
-                    telefon: firmaTelefon || null,
-                    plan: 'BASLANGIC',
-                    lisansBitis: lisansBitis
+                    ad: firmaAd, slug: slugTemiz, email: firmaEmail,
+                    telefon: firmaTelefon || null, plan: 'BASLANGIC', lisansBitis,
                 }
             });
             const sube = await tx.sube.create({
@@ -127,6 +143,7 @@ const authService = {
 
             return { tenant, sube, kullanici };
         });
+
         demoBilgileriOlustur(sonuc.tenant.id, sonuc.sube.id);
         try {
             await hosgeldinMailGonder(firmaEmail, firmaAd, adminAd, sonuc.tenant.lisansBitis);
@@ -135,7 +152,7 @@ const authService = {
         }
 
         const token = jwt.sign(
-            { id: sonuc.kullanici.id, email: sonuc.kullanici.email, rol: sonuc.kullanici.rol, tenantId: sonuc.tenant.id },
+            { id: sonuc.kullanici.id, email: sonuc.kullanici.email, rol: sonuc.kullanici.rol, tenantId: sonuc.tenant.id, lisansDoldu: false },
             process.env.JWT_SECRET,
             { expiresIn: process.env.JWT_EXPIRES_IN }
         );
@@ -146,6 +163,7 @@ const authService = {
                 id: sonuc.kullanici.id, ad: sonuc.kullanici.ad, email: sonuc.kullanici.email,
                 rol: sonuc.kullanici.rol, tenantId: sonuc.tenant.id,
                 tenantAd: sonuc.tenant.ad, subeId: sonuc.sube.id,
+                lisansDoldu: false,
             }
         };
     },
@@ -159,51 +177,34 @@ const authService = {
         if (kullanicilar.length === 0) throw new Error('Bu email ile kayıtlı hesap bulunamadı');
 
         return kullanicilar.map(k => {
-            // Tenant'sız SUPER_ADMIN kaydı
             if (!k.tenantId) {
-                return {
-                    tenantId: null,
-                    tenantAd: 'Süper Admin Paneli',
-                    tenantSlug: null,
-                    tenantAktif: true,
-                    rol: k.rol,
-                };
+                return { tenantId: null, tenantAd: 'Süper Admin Paneli', tenantSlug: null, tenantAktif: true, rol: k.rol };
             }
             return {
-                tenantId: k.tenantId,
-                tenantAd: k.tenant.ad,
-                tenantSlug: k.tenant.slug,
-                tenantAktif: k.tenant.aktif,
-                rol: k.rol,
+                tenantId: k.tenantId, tenantAd: k.tenant.ad,
+                tenantSlug: k.tenant.slug, tenantAktif: k.tenant.aktif, rol: k.rol,
             };
         });
     },
 
-
     async sifreSifirlamaTalep({ email }) {
         const crypto = require('crypto');
 
-        // Bu emaile sahip kullanıcıları bul
         const kullanicilar = await prisma.kullanici.findMany({
             where: { email, aktif: true },
             include: { tenant: { select: { ad: true } } }
         });
 
-        if (kullanicilar.length === 0) {
-            // Güvenlik: email bulunsun ya da bulunmasın aynı mesajı ver
-            return { mesaj: 'Email gönderildi' };
-        }
+        if (kullanicilar.length === 0) return { mesaj: 'Email gönderildi' };
 
-        // Her tenant için ayrı token oluştur
         for (const k of kullanicilar) {
-            // Eski tokenları iptal et
             await prisma.sifreToken.updateMany({
                 where: { email, tenantId: k.tenantId, kullanildi: false },
                 data: { kullanildi: true }
             });
 
             const token = crypto.randomBytes(32).toString('hex');
-            const sonTarih = new Date(Date.now() + 60 * 60 * 1000); // 1 saat
+            const sonTarih = new Date(Date.now() + 60 * 60 * 1000);
 
             await prisma.sifreToken.create({
                 data: { token, email, tenantId: k.tenantId, sonTarih }
@@ -241,7 +242,5 @@ const authService = {
         return { mesaj: 'Şifre güncellendi' };
     },
 };
-
-
 
 module.exports = authService;

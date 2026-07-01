@@ -414,6 +414,91 @@ GET /api/dashboard/subeler   — TENANT_ADMIN, her şubenin günlük özet veris
 - `satis.service.js` ve `stok.service.js`'de `subeId: Number(null) = 0` hatası düzeltildi — artık null gelince `where` filtresine subeId eklenmez, tüm tenant verisi gelir.
 
 
+## Faz 13 — Ödeme Takibi, Veri Export, Güvenlik & Yasal Sayfalar ✅
+
+Ödeme Takibi Sistemi
+
+
+Yeni Prisma modeli: OdemeBildirimi — plan, periyot, tutar, not, durum (BEKLIYOR/ONAYLANDI/REDDEDILDI), redNotu, islenmeTarihi
+OdemeDurum enum eklendi
+Tenant modeline odemeBildirimleri OdemeBildirimi[] ilişkisi eklendi
+Backend:
+
+odeme.controller.js — bildirimOlustur, kendiDurumu, bekleyenleriGetir, onayla, reddet
+odeme.route.js — POST /api/odeme/bildir, GET /api/odeme/durumum, GET /api/odeme/bekleyenler, PATCH /api/odeme/:id/onayla, PATCH /api/odeme/:id/reddet
+Onaylanınca otomatik lisans uzatma + plan güncelleme (Prisma transaction)
+Bildirim gelince admin'e mail (odemeBildirimMailGonder)
+Aynı tenant'ın zaten bekleyen bildirimi varsa ikinci bildirim engellendi
+
+
+
+mail.service.js — odemeBildirimMailGonder fonksiyonu eklendi
+Abonelik.jsx — "Ödeme Yaptım, Bildir" butonu + dekont notu alanı eklendi; bekleyen bildirim varsa banner gösteriliyor, reddedilmişse red notu gösteriliyor
+SuperAdmin.jsx — "Bekleyen Ödemeler" sekmesi eklendi; onay/red akışı, red modal'ı, bekleyen sayısı badge'i
+
+
+Veri Export (Excel)
+
+
+Backend:
+
+export.controller.js — seçilen modülleri çok sayfalı Excel olarak export eder
+export.route.js — POST /api/export (sadece TENANT_ADMIN)
+5 modül: Stok Durumu, Stok Hareketleri (son 5000), Satışlar, Personel, Cari Hesaplar
+Her modül ayrı Excel sekmesi, Özet sekmesi dahil
+Lime/yeşil renk teması, zebra satır renklendirme
+
+
+
+Profil.jsx — "Verilerimi İndir" bölümü eklendi (sadece TENANT_ADMIN görür); checkbox ile modül seçimi, Excel indirme butonu
+
+
+Transfer Audit Log Eksikliği
+
+
+Transfer işlemleri audit log'a yazılmıyor — Faz 13'e bırakıldı
+
+
+Güvenlik İyileştirmeleri (app.js)
+
+
+CORS'a PATCH metodu eklendi (methods dizisi güncellendi) — eksik olduğu için SuperAdmin'deki lisans uzatma çalışmıyordu
+ALLOWED_ORIGINS Render environment'ına eklendi
+
+
+Schema Değişiklikleri
+
+
+OdemeBildirimi modeli eklendi
+OdemeDurum enum eklendi (BEKLIYOR, ONAYLANDI, REDDEDILDI)
+npx prisma db push ile Supabase'e uygulandı
+
+
+Yasal Sayfalar (Landing)
+
+
+landing/app/gizlilik/page.tsx — Gizlilik Politikası (KVKK uyumlu)
+landing/app/kullanim-kosullari/page.tsx — Kullanım Koşulları
+landing/app/mesafeli-satis/page.tsx — Mesafeli Satış Sözleşmesi (6502 sayılı Kanun)
+Tüm sayfalar landing tasarımıyla uyumlu (zinc-950 bg, lime-400 accent)
+Footer'da karşılıklı linkler mevcut
+
+
+Demo Seed Temizliği
+
+
+demoSeed.service.js sadeleştirildi: yeni kayıt olan tenant'lara artık satış, stok hareketi, personel, cari kart gelmiyor
+Sadece şunlar geliyor: 5 kategori, 5 ölçü birimi, 18 stok kartı (sıfır bakiye), 4 reçete (fiyat 0)
+Supabase'deki demo tenant (id:1, merkez-restoran) veritabanından silindi
+
+
+Güncellenen/Eklenen Dosyalar
+
+DosyaDeğişiklikbackend/prisma/schema.prismaOdemeBildirimi + OdemeDurum eklendibackend/src/controllers/odeme.controller.js🆕 yeni dosyabackend/src/routes/odeme.route.js🆕 yeni dosyabackend/src/controllers/export.controller.js🆕 yeni dosyabackend/src/routes/export.route.js🆕 yeni dosyabackend/src/services/mail.service.jsodemeBildirimMailGonder eklendibackend/app.jsCORS methods'a PATCH eklendi, export+odeme route'ları eklendifrontend/src/pages/Abonelik.jsxÖdeme bildir akışı eklendifrontend/src/pages/SuperAdmin.jsxBekleyen Ödemeler sekmesi eklendifrontend/src/pages/Profil.jsxVerilerimi İndir bölümü eklendilanding/app/gizlilik/page.tsx🆕 yeni dosyalanding/app/kullanim-kosullari/page.tsx🆕 yeni dosyalanding/app/mesafeli-satis/page.tsx🆕 yeni dosya
+
+## faz 14 gelecek
+
+
 ## BACKEND API ENDPOINTLERİ (tam liste)
 
 ### Auth
@@ -424,6 +509,12 @@ GET /api/dashboard/subeler   — TENANT_ADMIN, her şubenin günlük özet veris
 - POST /api/auth/tenant-listesi
 - GET  /api/auth/lisans-durum ← YENİ
 - GET /api/audit-log (ADMIN+)
+POST   /api/odeme/bildir          — kullanıcı ödeme bildirimi gönderir
+GET    /api/odeme/durumum         — kullanıcı kendi son bildirimini görür
+GET    /api/odeme/bekleyenler     — SUPER_ADMIN bekleyen bildirimleri listeler
+PATCH  /api/odeme/:id/onayla     — SUPER_ADMIN onaylar (lisans otomatik uzar)
+PATCH  /api/odeme/:id/reddet     — SUPER_ADMIN reddeder (red notu opsiyonel)
+POST   /api/export               — TENANT_ADMIN seçili modülleri Excel olarak indirir
 
 ### Kullanıcılar
 GET    /api/kullanicilar (TENANT_ADMIN)

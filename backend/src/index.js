@@ -142,7 +142,7 @@ app.use('/api/odeme', odemeRoutes);
 
 // ── Sağlık kontrolü ───────────────────────────────────────────────────────────
 app.get('/', (req, res) => {
-    res.json({ message: 'GastroIQ API çalışıyor 🚀', version: '1.0.0' });
+    res.json({ message: 'GastroBRAIN API çalışıyor 🚀', version: '1.0.0' });
 });
 
 // ── 404 ───────────────────────────────────────────────────────────────────────

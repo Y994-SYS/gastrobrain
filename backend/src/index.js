@@ -26,8 +26,6 @@ const feedbackRoutes = require('./routes/feedback.routes');
 const auditLogRoutes = require('./routes/auditLog.routes');
 const transferRoutes = require('./routes/transfer.route');
 const dashboardRoutes = require('./routes/dashboard.routes');
-const exportRoutes = require('./routes/export.route');
-const odemeRoutes = require('./routes/odeme.route');
 
 const { PrismaClient } = require('@prisma/client');
 
@@ -76,7 +74,7 @@ app.use(cors({
         callback(new Error(`CORS: ${origin} izinli değil`), false);
     },
     credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
     allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 
@@ -139,8 +137,6 @@ app.use('/api/feedback', feedbackRoutes);
 app.use('/api/audit-log', auditLogRoutes);
 app.use('/api/transfer', transferRoutes);
 app.use('/api/dashboard', dashboardRoutes);
-app.use('/api/export', exportRoutes);
-app.use('/api/odeme', odemeRoutes);
 
 // ── Sağlık kontrolü ───────────────────────────────────────────────────────────
 app.get('/', (req, res) => {

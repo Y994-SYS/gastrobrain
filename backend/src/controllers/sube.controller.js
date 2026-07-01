@@ -1,28 +1,24 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
-// Türkiye saatiyle (UTC+3) bugünün başlangıcını döner
 const bugunBaslangicTR = () => {
     const now = new Date();
     const trOffset = 3 * 60 * 60 * 1000;
     const trNow = new Date(now.getTime() + trOffset);
     const trBaslangic = new Date(Date.UTC(
-        trNow.getUTCFullYear(),
-        trNow.getUTCMonth(),
-        trNow.getUTCDate(),
-        0, 0, 0, 0
+        trNow.getUTCFullYear(), trNow.getUTCMonth(), trNow.getUTCDate(), 0, 0, 0, 0
     ));
     return new Date(trBaslangic.getTime() - trOffset);
 };
 
-// Giriş sayılan stok hareket tipleri
-const GIRIS_TIPLER = new Set([
-    'GIRIS_FATURA',
-    'IADE_FATURA',
-    'SUBE_TRANSFER_IN',
-]);
+const GIRIS_TIPLER = new Set(['GIRIS_FATURA', 'IADE_FATURA', 'SUBE_TRANSFER_IN']);
 
-// ─── hepsiniGetir ─────────────────────────────────────────────────────────────
+const PLAN_LIMITLERI = {
+    BASLANGIC: { maxSube: 1 },
+    PROFESYONEL: { maxSube: Infinity },
+    KURUMSAL: { maxSube: Infinity },
+};
+
 const hepsiniGetir = async (req, res) => {
     try {
         const tenantId = req.kullanici.tenantId;
@@ -30,14 +26,11 @@ const hepsiniGetir = async (req, res) => {
 
         const subeler = await prisma.sube.findMany({
             where: { tenantId },
-            include: {
-                _count: { select: { kullanicilar: true, personeller: true } },
-            },
+            include: { _count: { select: { kullanicilar: true, personeller: true } } },
             orderBy: { id: 'asc' },
         });
 
         if (subeler.length === 0) return res.json([]);
-
         const subeIdler = subeler.map(s => s.id);
 
         const satisToplam = await prisma.satis.groupBy({
@@ -68,8 +61,7 @@ const hepsiniGetir = async (req, res) => {
                 if (!bakiyeMap.has(h.subeId)) bakiyeMap.set(h.subeId, new Map());
                 const kartMap = bakiyeMap.get(h.subeId);
                 const mevcut = kartMap.get(h.stokKartId) || 0;
-                const miktar = h._sum.miktar || 0;
-                kartMap.set(h.stokKartId, mevcut + (GIRIS_TIPLER.has(h.tip) ? miktar : -miktar));
+                kartMap.set(h.stokKartId, mevcut + (GIRIS_TIPLER.has(h.tip) ? h._sum.miktar : -h._sum.miktar));
             }
 
             for (const [subeId, kartMap] of bakiyeMap.entries()) {
@@ -92,17 +84,11 @@ const hepsiniGetir = async (req, res) => {
     }
 };
 
-// ─── tekiniGetir ──────────────────────────────────────────────────────────────
 const tekiniGetir = async (req, res) => {
     try {
         const sube = await prisma.sube.findFirst({
-            where: {
-                id: parseInt(req.params.id),
-                tenantId: req.kullanici.tenantId,
-            },
-            include: {
-                _count: { select: { kullanicilar: true, personeller: true } },
-            },
+            where: { id: parseInt(req.params.id), tenantId: req.kullanici.tenantId },
+            include: { _count: { select: { kullanicilar: true, personeller: true } } },
         });
         if (!sube) return res.status(404).json({ hata: 'Şube bulunamadı' });
         res.json(sube);
@@ -111,8 +97,6 @@ const tekiniGetir = async (req, res) => {
     }
 };
 
-// ─── detayGetir — YENİ ────────────────────────────────────────────────────────
-// GET /api/subeler/:id/detay
 const detayGetir = async (req, res) => {
     try {
         const tenantId = req.kullanici.tenantId;
@@ -125,23 +109,18 @@ const detayGetir = async (req, res) => {
         });
         if (!sube) return res.status(404).json({ hata: 'Şube bulunamadı' });
 
-        // Bugün satış özeti
         const bugunSatislar = await prisma.satis.aggregate({
             where: { subeId, tarih: { gte: bugun } },
-            _sum: { toplam: true },
-            _count: { id: true },
+            _sum: { toplam: true }, _count: { id: true },
         });
 
-        // Bu ay satış özeti
         const ayBaslangic = new Date(bugun);
         ayBaslangic.setDate(1);
         const buAySatislar = await prisma.satis.aggregate({
             where: { subeId, tarih: { gte: ayBaslangic } },
-            _sum: { toplam: true },
-            _count: { id: true },
+            _sum: { toplam: true }, _count: { id: true },
         });
 
-        // Son 10 satış
         const sonSatislar = await prisma.satis.findMany({
             where: { subeId },
             include: { recete: { select: { ad: true } } },
@@ -149,7 +128,6 @@ const detayGetir = async (req, res) => {
             take: 10,
         });
 
-        // Stok durumu — bu şubeye ait bakiyeler
         const stokKartlari = await prisma.stokKart.findMany({
             where: { tenantId, aktif: true },
             include: { birim: true, kategori: true },
@@ -165,8 +143,7 @@ const detayGetir = async (req, res) => {
         const bakiyeMap = new Map();
         for (const h of stokHareketleri) {
             const mevcut = bakiyeMap.get(h.stokKartId) || 0;
-            const miktar = h._sum.miktar || 0;
-            bakiyeMap.set(h.stokKartId, mevcut + (GIRIS_TIPLER.has(h.tip) ? miktar : -miktar));
+            bakiyeMap.set(h.stokKartId, mevcut + (GIRIS_TIPLER.has(h.tip) ? h._sum.miktar : -h._sum.miktar));
         }
 
         const stokDurumu = stokKartlari
@@ -177,22 +154,14 @@ const detayGetir = async (req, res) => {
             }))
             .filter(k => k.mevcutStok > 0 || k.minStok > 0);
 
-        // Personel listesi
         const personeller = await prisma.personel.findMany({
             where: { subeId, tenantId, aktif: true },
-            select: {
-                id: true, ad: true, soyad: true,
-                telefon: true, baslangicTarihi: true, maas: true,
-            },
+            select: { id: true, ad: true, soyad: true, telefon: true, baslangicTarihi: true, maas: true },
             orderBy: { ad: 'asc' },
         });
 
-        // Son 20 transfer
         const sonTransferler = await prisma.stokHareket.findMany({
-            where: {
-                subeId,
-                tip: { in: ['SUBE_TRANSFER_IN', 'SUBE_TRANSFER_OUT'] },
-            },
+            where: { subeId, tip: { in: ['SUBE_TRANSFER_IN', 'SUBE_TRANSFER_OUT'] } },
             include: { stokKart: { select: { ad: true } } },
             orderBy: { tarih: 'desc' },
             take: 20,
@@ -209,23 +178,46 @@ const detayGetir = async (req, res) => {
                 kritikStokSayisi: stokDurumu.filter(s => s.kritik).length,
                 personelSayisi: personeller.length,
             },
-            sonSatislar,
-            stokDurumu,
-            personeller,
-            sonTransferler,
+            sonSatislar, stokDurumu, personeller, sonTransferler,
         });
     } catch (err) {
         res.status(500).json({ hata: err.message });
     }
 };
 
-// ─── olustur ──────────────────────────────────────────────────────────────────
 const olustur = async (req, res) => {
     try {
         const { ad, adres, telefon } = req.body;
         if (!ad) return res.status(400).json({ hata: 'Şube adı zorunlu' });
+
+        const tenantId = req.kullanici.tenantId;
+
+        // ── Plan limiti kontrolü ─────────────────────────────────────────────
+        const tenant = await prisma.tenant.findUnique({
+            where: { id: tenantId },
+            select: { plan: true, createdAt: true }
+        });
+
+        const denemede = tenant?.createdAt && new Date() <= (() => {
+            const d = new Date(tenant.createdAt); d.setDate(d.getDate() + 30); return d;
+        })();
+
+        if (!denemede) {
+            const limit = PLAN_LIMITLERI[tenant?.plan] || PLAN_LIMITLERI.BASLANGIC;
+            if (limit.maxSube !== Infinity) {
+                const mevcutSayisi = await prisma.sube.count({ where: { tenantId, aktif: true } });
+                if (mevcutSayisi >= limit.maxSube) {
+                    return res.status(403).json({
+                        hata: `Başlangıç planında en fazla ${limit.maxSube} şube eklenebilir. Planınızı yükseltin.`,
+                        planLimiti: true,
+                    });
+                }
+            }
+        }
+        // ────────────────────────────────────────────────────────────────────
+
         const sube = await prisma.sube.create({
-            data: { ad, adres, telefon, tenantId: req.kullanici.tenantId },
+            data: { ad, adres, telefon, tenantId },
         });
         res.status(201).json(sube);
     } catch (err) {
@@ -233,14 +225,10 @@ const olustur = async (req, res) => {
     }
 };
 
-// ─── guncelle ─────────────────────────────────────────────────────────────────
 const guncelle = async (req, res) => {
     try {
         const mevcut = await prisma.sube.findFirst({
-            where: {
-                id: parseInt(req.params.id),
-                tenantId: req.kullanici.tenantId,
-            },
+            where: { id: parseInt(req.params.id), tenantId: req.kullanici.tenantId },
         });
         if (!mevcut) return res.status(404).json({ hata: 'Şube bulunamadı' });
 

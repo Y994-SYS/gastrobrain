@@ -5,6 +5,15 @@ const { demoBilgileriOlustur } = require('./demoSeed.service');
 const prisma = new PrismaClient();
 const { hosgeldinMailGonder } = require('./mail.service');
 
+// Deneme süresi kontrolü — lisansBitis > şimdi ise deneme/aktif,
+// ama kayıt tarihinden 30 gün içindeyse "deneme döneminde" sayılır.
+const denemeDonemindeMi = (tenant) => {
+    if (!tenant?.createdAt) return false;
+    const otuzGun = new Date(tenant.createdAt);
+    otuzGun.setDate(otuzGun.getDate() + 30);
+    return new Date() <= otuzGun;
+};
+
 const authService = {
 
     async kayitOl({ ad, email, sifre, rol, subeId, tenantId }) {
@@ -23,10 +32,9 @@ const authService = {
 
     async girisYap({ email, sifre, tenantId, tenantSlug }) {
         let gercekTenantId = tenantId ?? null;
-        let tenant = null;
 
         if (tenantSlug) {
-            tenant = await prisma.tenant.findUnique({ where: { slug: tenantSlug } });
+            const tenant = await prisma.tenant.findUnique({ where: { slug: tenantSlug } });
             if (!tenant) throw new Error('Firma bulunamadı');
             if (!tenant.aktif) throw new Error('Firma hesabı devre dışı');
             gercekTenantId = tenant.id;
@@ -37,7 +45,11 @@ const authService = {
         if (gercekTenantId) {
             kullanici = await prisma.kullanici.findUnique({
                 where: { email_tenantId: { email, tenantId: gercekTenantId } },
-                include: { tenant: { select: { id: true, ad: true, aktif: true, lisansBitis: true } } }
+                include: {
+                    tenant: {
+                        select: { id: true, ad: true, aktif: true, lisansBitis: true, plan: true, createdAt: true }
+                    }
+                }
             });
         } else {
             kullanici = await prisma.kullanici.findFirst({
@@ -51,29 +63,25 @@ const authService = {
 
         if (kullanici.tenantId) {
             if (!kullanici.tenant.aktif) throw new Error('Firma hesabı devre dışı');
-
-            // ── Lisans kontrolü: süresi dolduysa giriş engellenmez,
-            //    sadece token'a lisansDoldu bayrağı eklenir.
-            //    Frontend bu bayrağa göre /abonelik ve /profil dışını kilitler.
         }
 
         const sifreDoğru = await bcrypt.compare(sifre, kullanici.sifre);
         if (!sifreDoğru) throw new Error('Email veya şifre hatalı');
 
-        // Lisans durumunu hesapla
+        // Lisans & plan bilgileri
         let lisansDoldu = false;
-        if (kullanici.tenantId && kullanici.tenant?.lisansBitis) {
-            lisansDoldu = new Date(kullanici.tenant.lisansBitis) < new Date();
+        let denemede = false;
+        let plan = kullanici.tenant?.plan || null;
+
+        if (kullanici.tenantId && kullanici.tenant) {
+            if (kullanici.tenant.lisansBitis) {
+                lisansDoldu = new Date(kullanici.tenant.lisansBitis) < new Date();
+            }
+            denemede = denemeDonemindeVe(kullanici.tenant);
         }
 
         const token = jwt.sign(
-            {
-                id: kullanici.id,
-                email: kullanici.email,
-                rol: kullanici.rol,
-                tenantId: kullanici.tenantId,
-                lisansDoldu,
-            },
+            { id: kullanici.id, email: kullanici.email, rol: kullanici.rol, tenantId: kullanici.tenantId, lisansDoldu, plan, denemede },
             process.env.JWT_SECRET,
             { expiresIn: process.env.JWT_EXPIRES_IN }
         );
@@ -85,7 +93,7 @@ const authService = {
                 rol: kullanici.rol, subeId: kullanici.subeId,
                 tenantId: kullanici.tenantId,
                 tenantAd: kullanici.tenantId ? kullanici.tenant.ad : null,
-                lisansDoldu,
+                lisansDoldu, plan, denemede,
             }
         };
     },
@@ -94,21 +102,26 @@ const authService = {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
         const kullanici = await prisma.kullanici.findUnique({
             where: { id: decoded.id },
-            include: { tenant: { select: { lisansBitis: true } } },
+            include: { tenant: { select: { lisansBitis: true, plan: true, createdAt: true } } },
         });
         if (!kullanici || !kullanici.aktif) throw new Error('Geçersiz token');
 
-        // Token doğrulamada da lisans durumunu güncel tut
         let lisansDoldu = false;
-        if (kullanici.tenantId && kullanici.tenant?.lisansBitis) {
-            lisansDoldu = new Date(kullanici.tenant.lisansBitis) < new Date();
+        let denemede = false;
+        let plan = kullanici.tenant?.plan || null;
+
+        if (kullanici.tenantId && kullanici.tenant) {
+            if (kullanici.tenant.lisansBitis) {
+                lisansDoldu = new Date(kullanici.tenant.lisansBitis) < new Date();
+            }
+            denemede = denemeDonemindeVe(kullanici.tenant);
         }
 
         return {
             id: kullanici.id, ad: kullanici.ad, email: kullanici.email,
             rol: kullanici.rol, subeId: kullanici.subeId,
             tenantId: kullanici.tenantId, aktif: kullanici.aktif,
-            lisansDoldu,
+            lisansDoldu, plan, denemede,
         };
     },
 
@@ -152,7 +165,11 @@ const authService = {
         }
 
         const token = jwt.sign(
-            { id: sonuc.kullanici.id, email: sonuc.kullanici.email, rol: sonuc.kullanici.rol, tenantId: sonuc.tenant.id, lisansDoldu: false },
+            {
+                id: sonuc.kullanici.id, email: sonuc.kullanici.email,
+                rol: sonuc.kullanici.rol, tenantId: sonuc.tenant.id,
+                lisansDoldu: false, plan: 'BASLANGIC', denemede: true,
+            },
             process.env.JWT_SECRET,
             { expiresIn: process.env.JWT_EXPIRES_IN }
         );
@@ -163,7 +180,7 @@ const authService = {
                 id: sonuc.kullanici.id, ad: sonuc.kullanici.ad, email: sonuc.kullanici.email,
                 rol: sonuc.kullanici.rol, tenantId: sonuc.tenant.id,
                 tenantAd: sonuc.tenant.ad, subeId: sonuc.sube.id,
-                lisansDoldu: false,
+                lisansDoldu: false, plan: 'BASLANGIC', denemede: true,
             }
         };
     },
@@ -189,7 +206,6 @@ const authService = {
 
     async sifreSifirlamaTalep({ email }) {
         const crypto = require('crypto');
-
         const kullanicilar = await prisma.kullanici.findMany({
             where: { email, aktif: true },
             include: { tenant: { select: { ad: true } } }
@@ -242,5 +258,13 @@ const authService = {
         return { mesaj: 'Şifre güncellendi' };
     },
 };
+
+// İsim çakışması önlemi — fonksiyon adını düzelttik
+function denemeDonemindeVe(tenant) {
+    if (!tenant?.createdAt) return false;
+    const otuzGun = new Date(tenant.createdAt);
+    otuzGun.setDate(otuzGun.getDate() + 30);
+    return new Date() <= otuzGun;
+}
 
 module.exports = authService;

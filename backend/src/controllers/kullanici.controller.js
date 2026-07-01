@@ -3,11 +3,14 @@ const bcrypt = require('bcryptjs');
 const auditLog = require('../services/auditLog.service');
 const prisma = new PrismaClient();
 
-// Bu controller üzerinden ATANABİLECEK roller — bilerek sınırlı tutuluyor.
-// SUPER_ADMIN buraya YOK: süper admin hesapları sadece ops scriptleriyle,
-// tenant dışında oluşturulur. Bir TENANT_ADMIN'in kendi firmasından
-// SUPER_ADMIN yaratabilmesi ciddi bir yetki yükseltme açığı olurdu.
 const ATANABILIR_ROLLER = ['TENANT_ADMIN', 'MUDUR', 'DEPO', 'KASA', 'PERSONEL'];
+
+// Plan limitleri
+const PLAN_LIMITLERI = {
+    BASLANGIC: { maxKullanici: 5 },
+    PROFESYONEL: { maxKullanici: Infinity },
+    KURUMSAL: { maxKullanici: Infinity },
+};
 
 const hepsiniGetir = async (req, res) => {
     try {
@@ -34,6 +37,33 @@ const olustur = async (req, res) => {
         if (!ATANABILIR_ROLLER.includes(istenenRol)) {
             return res.status(403).json({ hata: 'Bu rol atanamaz' });
         }
+
+        // ── Plan limiti kontrolü ─────────────────────────────────────────────
+        const tenant = await prisma.tenant.findUnique({
+            where: { id: req.kullanici.tenantId },
+            select: { plan: true, createdAt: true, lisansBitis: true }
+        });
+
+        // Deneme döneminde limit yok
+        const denemede = tenant?.createdAt && new Date() <= (() => {
+            const d = new Date(tenant.createdAt); d.setDate(d.getDate() + 30); return d;
+        })();
+
+        if (!denemede) {
+            const limit = PLAN_LIMITLERI[tenant?.plan] || PLAN_LIMITLERI.BASLANGIC;
+            if (limit.maxKullanici !== Infinity) {
+                const mevcutSayisi = await prisma.kullanici.count({
+                    where: { tenantId: req.kullanici.tenantId, aktif: true }
+                });
+                if (mevcutSayisi >= limit.maxKullanici) {
+                    return res.status(403).json({
+                        hata: `${tenant.plan === 'BASLANGIC' ? 'Başlangıç' : ''} planında en fazla ${limit.maxKullanici} kullanıcı eklenebilir. Planınızı yükseltin.`,
+                        planLimiti: true,
+                    });
+                }
+            }
+        }
+        // ────────────────────────────────────────────────────────────────────
 
         const mevcutKullanici = await prisma.kullanici.findUnique({
             where: { email_tenantId: { email, tenantId: req.kullanici.tenantId } }

@@ -63,12 +63,12 @@ export default function Kategoriler() {
         {
             key: 'ad', baslik: 'Kategori Adı', render: (r) => (
                 <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full" style={{ background: r.renk }}></div>
-                    {r.ad}
+                    <div className="w-3 h-3 rounded-full shrink-0" style={{ background: r.renk }} />
+                    <span>{r.ad}</span>
                 </div>
             )
         },
-        { key: 'renk', baslik: 'Renk' },
+        // Renk kodu sütunu kaldırıldı — renkli nokta ad sütununda gösteriliyor
     ];
 
     return (
@@ -114,7 +114,7 @@ export default function Kategoriler() {
                                     onChange={(e) => setForm({ ...form, renk: e.target.value })}
                                     className="w-10 h-10 rounded cursor-pointer border-0 bg-transparent"
                                 />
-                                <span className="text-zinc-400 text-sm">{form.renk}</span>
+                                <span className="text-zinc-500 text-sm">{form.renk}</span>
                             </div>
                         </div>
                         <button

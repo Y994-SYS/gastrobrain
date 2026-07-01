@@ -29,16 +29,14 @@ import Yardim from './pages/Yardim';
 import Abonelik from './pages/Abonelik';
 import Profil from './pages/Profil';
 import Yetkisiz from './pages/Yetkisiz';
-import SifremiUnuttum from './pages/SifremiUnuttum'
-import SifreSifirla from './pages/SifreSifirla'
-import AuditLog from './pages/AuditLog'
+import SifremiUnuttum from './pages/SifremiUnuttum';
+import SifreSifirla from './pages/SifreSifirla';
+import AuditLog from './pages/AuditLog';
 import Transfer from './pages/Transfer';
 import SubeDetay from './pages/tanimlamalar/SubeDetay';
+import PlanKilidi, { planErisimiVar } from './components/PlanKilidi';
 
-// ─── Rol Grupları ────────────────────────────────────────────────────────────
-// NOT: SUPER_ADMIN bilerek bu gruplarda YOK. Süper admin hiçbir tenant'a bağlı
-// olmadığı için (tenantId: null) normal uygulama sayfalarını kullanamaz —
-// tüm istekleri tenantId gerektirir. Süper admin sadece /super-admin panelini kullanır.
+// ─── Rol Grupları ─────────────────────────────────────────────────────────────
 const R = {
   STOK: ['TENANT_ADMIN', 'MUDUR', 'DEPO'],
   SATIS: ['TENANT_ADMIN', 'MUDUR', 'KASA'],
@@ -48,15 +46,15 @@ const R = {
   HERKES: ['TENANT_ADMIN', 'MUDUR', 'DEPO', 'KASA', 'PERSONEL'],
 };
 
+// Lisans dolduğunda erişime açık kalan sayfalar
+const LISANS_SERBEST = ['/abonelik', '/profil', '/yardim'];
+
 // ─── PrivateRoute ─────────────────────────────────────────────────────────────
-// roller prop'u verilirse rol kontrolü de yapar, verilmezse sadece giriş kontrolü
-function PrivateRoute({ children, roller }) {
+function PrivateRoute({ children, roller, planOzellik }) {
   const kullanici = useAuthStore((s) => s.kullanici);
 
   if (!kullanici) return <Navigate to="/giris" replace />;
 
-  // SÜPER_ADMIN'in tenant'ı yok — normal uygulama sayfalarına asla giremez,
-  // nereye gitmeye çalışırsa çalışsın kendi paneline geri atılır.
   if (kullanici.rol === 'SUPER_ADMIN') {
     return <Navigate to="/super-admin" replace />;
   }
@@ -65,26 +63,32 @@ function PrivateRoute({ children, roller }) {
     return <Navigate to="/yetkisiz" replace />;
   }
 
+  // Lisans dolmuşsa sadece serbest sayfalara izin ver
+  if (kullanici.lisansDoldu) {
+    const mevcutPath = window.location.pathname;
+    const serbest = LISANS_SERBEST.some(p => mevcutPath.startsWith(p));
+    if (!serbest) return <Navigate to="/abonelik" replace />;
+  }
+
+  // Plan kilidi kontrolü — deneme döneminde hepsi açık
+  if (planOzellik && !planErisimiVar(kullanici.plan, kullanici.denemede, planOzellik)) {
+    return <Layout><PlanKilidi ozellik={planOzellik} /></Layout>;
+  }
+
   return <Layout>{children}</Layout>;
 }
 
 // ─── SuperAdminRoute ──────────────────────────────────────────────────────────
-// Süper admin sayfası kendi layout'unu kullanıyor (Layout ile sarmıyoruz),
-// ama yine de SUPER_ADMIN olmayanları engellememiz gerekiyor.
 function SuperAdminRoute({ children }) {
   const kullanici = useAuthStore((s) => s.kullanici);
-
   if (!kullanici) return <Navigate to="/giris" replace />;
   if (kullanici.rol !== 'SUPER_ADMIN') return <Navigate to="/yetkisiz" replace />;
-
   return children;
 }
 
 export default function App() {
   const { baslat, yukleniyor } = useAuthStore();
-
   useEffect(() => { baslat(); }, []);
-
   if (yukleniyor) return <LoadingSpinner />;
 
   return (
@@ -99,48 +103,54 @@ export default function App() {
         <Route path="/sifre-sifirla" element={<SifreSifirla />} />
         <Route path="/yetkisiz" element={<Yetkisiz />} />
 
-        {/* ── Süper Admin (Layout dışında, ama rol korumalı) ──────────── */}
+        {/* ── Süper Admin ─────────────────────────────────────────────── */}
         <Route path="/super-admin" element={
           <SuperAdminRoute><SuperAdmin /></SuperAdminRoute>
         } />
 
-        {/* ── Dashboard — tüm roller ──────────────────────────────────── */}
+        {/* ── Dashboard ───────────────────────────────────────────────── */}
         <Route path="/" element={<PrivateRoute roller={R.HERKES}><Dashboard /></PrivateRoute>} />
 
-        {/* ── Stok — DEPO dahil ───────────────────────────────────────── */}
+        {/* ── Stok — tüm planlarda açık ───────────────────────────────── */}
         <Route path="/stok/durum" element={<PrivateRoute roller={R.STOK}><StokDurumu /></PrivateRoute>} />
         <Route path="/stok/giris-faturasi" element={<PrivateRoute roller={R.STOK}><GirisFaturasi /></PrivateRoute>} />
         <Route path="/stok/iade-faturasi" element={<PrivateRoute roller={R.STOK}><IadeFaturasi /></PrivateRoute>} />
         <Route path="/stok/zayi" element={<PrivateRoute roller={R.STOK}><ZayiGideri /></PrivateRoute>} />
         <Route path="/stok/tuketim" element={<PrivateRoute roller={R.STOK}><TuketimGideri /></PrivateRoute>} />
         <Route path="/stok/ay-sonu-sayim" element={<PrivateRoute roller={R.STOK}><AySonuSayim /></PrivateRoute>} />
-        <Route path="/stok/transfer" element={<PrivateRoute roller={R.YONETIM}><Transfer /></PrivateRoute>} />
 
-        {/* ── Satış — KASA dahil ──────────────────────────────────────── */}
+        {/* ── Transfer — Profesyonel+ ──────────────────────────────────── */}
+        <Route path="/stok/transfer" element={<PrivateRoute roller={R.YONETIM} planOzellik="transfer"><Transfer /></PrivateRoute>} />
+
+        {/* ── Satış — tüm planlarda açık ──────────────────────────────── */}
         <Route path="/satislar" element={<PrivateRoute roller={R.SATIS}><Satislar /></PrivateRoute>} />
 
-        {/* ── Yönetim (Müdür + Admin) ─────────────────────────────────── */}
+        {/* ── Reçete — tüm planlarda açık ─────────────────────────────── */}
         <Route path="/receteler" element={<PrivateRoute roller={R.YONETIM}><Receteler /></PrivateRoute>} />
-        <Route path="/cari-hesap" element={<PrivateRoute roller={R.YONETIM}><CariHesap /></PrivateRoute>} />
+
+        {/* ── Cari — Profesyonel+ ─────────────────────────────────────── */}
+        <Route path="/cari-hesap" element={<PrivateRoute roller={R.YONETIM} planOzellik="cari"><CariHesap /></PrivateRoute>} />
+
+        {/* ── Raporlar — temel hepse açık, gelişmiş Profesyonel+ ──────── */}
         <Route path="/raporlar" element={<PrivateRoute roller={R.YONETIM}><Raporlar /></PrivateRoute>} />
 
-        {/* ── Personel — PERSONEL kendi bilgisini görebilir ───────────── */}
-        <Route path="/personel" element={<PrivateRoute roller={R.PERSONEL}><Personel /></PrivateRoute>} />
+        {/* ── Personel — Profesyonel+ ──────────────────────────────────── */}
+        <Route path="/personel" element={<PrivateRoute roller={R.PERSONEL} planOzellik="personel"><Personel /></PrivateRoute>} />
 
         {/* ── Tanımlamalar ────────────────────────────────────────────── */}
         <Route path="/tanimlamalar/kategoriler" element={<PrivateRoute roller={R.STOK}><Kategoriler /></PrivateRoute>} />
         <Route path="/tanimlamalar/olcu-birimleri" element={<PrivateRoute roller={R.STOK}><OlcuBirimleri /></PrivateRoute>} />
         <Route path="/tanimlamalar/stok-kartlari" element={<PrivateRoute roller={R.STOK}><StokKartlari /></PrivateRoute>} />
-        <Route path="/tanimlamalar/cari-kartlar" element={<PrivateRoute roller={R.YONETIM}><CariKartlar /></PrivateRoute>} />
+        <Route path="/tanimlamalar/cari-kartlar" element={<PrivateRoute roller={R.YONETIM} planOzellik="cari"><CariKartlar /></PrivateRoute>} />
         <Route path="/tanimlamalar/subeler" element={<PrivateRoute roller={R.ADMIN}><Subeler /></PrivateRoute>} />
         <Route path="/tanimlamalar/subeler/:id" element={<PrivateRoute roller={R.ADMIN}><SubeDetay /></PrivateRoute>} />
         <Route path="/tanimlamalar/kullanicilar" element={<PrivateRoute roller={R.ADMIN}><Kullanicilar /></PrivateRoute>} />
 
-        {/* ── Diğer — tüm roller ──────────────────────────────────────── */}
+        {/* ── Diğer ───────────────────────────────────────────────────── */}
         <Route path="/yardim" element={<PrivateRoute roller={R.HERKES}><Yardim /></PrivateRoute>} />
         <Route path="/abonelik" element={<PrivateRoute roller={R.HERKES}><Abonelik /></PrivateRoute>} />
         <Route path="/profil" element={<PrivateRoute roller={R.HERKES}><Profil /></PrivateRoute>} />
-        <Route path="/islem-gecmisi" element={<PrivateRoute><AuditLog></AuditLog></PrivateRoute>} />
+        <Route path="/islem-gecmisi" element={<PrivateRoute><AuditLog /></PrivateRoute>} />
 
       </Routes>
     </BrowserRouter>

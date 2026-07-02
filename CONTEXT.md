@@ -647,7 +647,53 @@ olduğu için metin buna göre düzeltildi.
 
 ---
 
-## Uygulama Sırası (Özet)
+## 5. KRİTİK BUG: Kazan Porsiyonu Hesabı Satışta Yok Sayılıyordu
+
+### Sorun
+Reçetedeki kalem miktarları, reçetenin kendi **kazan porsiyonu** için tanımlı
+(örn. Adana Kebap: 50 porsiyonluk kazan için 10 kg kıyma → 1 porsiyon = 0.2 kg).
+`satisService.ekle()` bunu bilmeden kalem miktarını doğrudan `adet` (satılan
+porsiyon sayısı) ile çarpıyordu:
+
+```js
+// YANLIŞ (eski):
+gercekMiktar = (kalem.miktar * carpan / bolen) * adet
+             = (10 * 1) * 50 = 500 kg   // 50 porsiyon satışı, 50 KAZAN gibi hesaplandı
+```
+
+Gerçekte stokta 34.8 kg kıyma varken sistem 500 kg istiyordu — 50 porsiyonluk
+satış aslında sadece 10 kg gerektirirken.
+
+`stok.controller.js`'deki `tuketimRecete()` fonksiyonu bu hesabı **zaten
+doğru** yapıyordu (`oran = porsiyonSayisi / receteninKendiPorsiyonu`), ama
+`satisService.ekle()` hiç bu mantığı kullanmıyordu — iki fonksiyon arasında
+tutarsızlık vardı.
+
+### Düzeltme
+```js
+// DOĞRU (yeni):
+const receteninKendiPorsiyonu = recete.porsiyonSayisi || 1;
+const oran = Number(adet) / receteninKendiPorsiyonu;
+gercekMiktar = (kalem.miktar * carpan / bolen) * oran;
+```
+
+`porsiyonSayisi` tanımlı olmayan reçeteler (kalemleri zaten "1 porsiyon için"
+girilmiş) etkilenmedi — `oran = adet/1 = adet`, eski doğru davranış korundu.
+
+### Değişen Dosya
+- **`satis.service.js`** → `ekle()` fonksiyonundaki miktar hesabı `tuketimRecete` ile aynı orana çekildi
+
+### ⚠️ Geçmiş Veri Kontrolü Gerekiyor
+Bu bug, `porsiyonSayisi` tanımlı reçetelerle yapılan **geçmiş satışlarda**
+stoktan yanlış (fazla) miktar düşmüş olabileceği anlamına geliyor. Yapılması
+önerilen:
+1. `stokHareket` tablosunda `tip: 'SATIS'` kayıtlarını, `porsiyonSayisi`
+   tanımlı reçetelerle çapraz kontrol et
+2. Anormal derecede yüksek miktarlı SATIS kayıtları varsa, ilgili satışı silip
+   (stok otomatik geri yüklenir) doğru şekilde yeniden gir
+3. İstenirse bu kontrolü otomatik yapan bir SQL sorgusu/script hazırlanabilir
+
+---
 
 1. `schema.prisma`'ya `stokTakipZorunlu` alanını ekle → `npx prisma db push` → `npx prisma generate`
 2. Backend dosyalarını değiştir: `satis.service.js`, `satis.controller.js`, `recete.service.js`, `stok.controller.js`

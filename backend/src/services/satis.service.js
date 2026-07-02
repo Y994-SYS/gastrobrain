@@ -47,8 +47,6 @@ const satisService = {
      */
     async ekle({ receteId, subeId, adet, birimFiyat, aciklama, tarih }, tenantId, opts = {}) {
         const { zorla = false, rol = null } = opts;
-        // zorla=true isteği ROL kontrolünden geçmiyorsa görmezden gelinir —
-        // frontend'den gelen bayrağa asla körü körüne güvenilmez.
         const zorlamaYetkisiVar = zorla && ZORLA_IZINLI_ROLLER.includes(rol);
 
         const recete = await prisma.recete.findFirst({
@@ -64,13 +62,23 @@ const satisService = {
         });
         if (!sube) throw new Error('Şube bulunamadı');
 
+        // KRİTİK: Reçetedeki kalem miktarları, reçetenin kendi "kazan porsiyonu"
+        // için tanımlıdır (örn. adana kebap 50 porsiyonluk kazan için 10kg kıyma).
+        // "adet" alanı ise satılan PORSİYON sayısıdır — kazan sayısı değil.
+        // Bu yüzden kalem miktarını doğrudan adet ile çarpmak YANLIŞ:
+        // 50 porsiyonluk satış, 50 KAZAN satış gibi hesaplanıp 500kg çıkıyordu.
+        // Doğrusu: oran = satılan porsiyon / reçetenin kendi kazan porsiyonu.
+        // tuketimRecete() fonksiyonundaki mantıkla birebir aynı olmalı.
+        const receteninKendiPorsiyonu = recete.porsiyonSayisi || 1;
+        const oran = Number(adet) / receteninKendiPorsiyonu;
+
         const eksikKalemler = [];
 
         return prisma.$transaction(async (tx) => {
             for (const kalem of recete.kalemler) {
                 if (kalem.stokTakipZorunlu === false) continue;
 
-                const gercekMiktar = ((kalem.miktar * kalem.carpan) / kalem.bolen) * Number(adet);
+                const gercekMiktar = ((kalem.miktar * kalem.carpan) / kalem.bolen) * oran;
 
                 const girisler = await tx.stokHareket.aggregate({
                     where: {
@@ -124,7 +132,7 @@ const satisService = {
             });
 
             for (const kalem of recete.kalemler) {
-                const gercekMiktar = ((kalem.miktar * kalem.carpan) / kalem.bolen) * Number(adet);
+                const gercekMiktar = ((kalem.miktar * kalem.carpan) / kalem.bolen) * oran;
                 await tx.stokHareket.create({
                     data: {
                         tip: 'SATIS',

@@ -136,7 +136,7 @@ export default function App() {
 
         {/* ── Personel — Profesyonel+ ──────────────────────────────────── */}
         <Route path="/personel" element={<PrivateRoute roller={R.PERSONEL} planOzellik="personel"><Personel /></PrivateRoute>} />
-        <Route path="/tanimlamalar/kullanicilar" element={<PrivateRoute roller={R.ADMIN}><Kullanicilar /></PrivateRoute>} />
+        <Route path="/tanimlamalar/kullanicilar" element={<PrivateRoute roller={R.ADMIN}><Personel /></PrivateRoute>} />
 
 
         {/* ── Tanımlamalar ────────────────────────────────────────────── */}

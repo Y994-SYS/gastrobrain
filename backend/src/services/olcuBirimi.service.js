@@ -27,6 +27,20 @@ const olcuBirimiService = {
 
     async sil(id, tenantId) {
         await this.biriniGetir(id, tenantId);
+
+        // StokKart.birimId bu ölçü birimine bağlı olabilir — foreign key
+        // constraint'e düşmeden önce kontrol edip anlaşılır hata veriyoruz.
+        const bagliStokSayisi = await prisma.stokKart.count({
+            where: { birimId: id, tenantId }
+        });
+
+        if (bagliStokSayisi > 0) {
+            throw new Error(
+                `Bu ölçü birimi silinemez: ${bagliStokSayisi} adet stok kartı bu birimi kullanıyor. ` +
+                `Önce bu stok kartlarının birimini değiştirin veya kartları silin.`
+            );
+        }
+
         return prisma.olcuBirimi.delete({ where: { id } });
     }
 

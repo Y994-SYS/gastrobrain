@@ -35,6 +35,20 @@ const cariKartService = {
 
     async sil(id, tenantId) {
         await this.biriniGetir(id, tenantId);
+
+        // CariHareket.cariKartId bu carta bağlı olabilir — foreign key
+        // constraint'e düşmeden önce kontrol edip anlaşılır hata veriyoruz.
+        const bagliHareketSayisi = await prisma.cariHareket.count({
+            where: { cariKartId: id }
+        });
+
+        if (bagliHareketSayisi > 0) {
+            throw new Error(
+                `Bu cari kart silinemez: ${bagliHareketSayisi} adet cari hareket kaydı bulunuyor. ` +
+                `Cari kartlar geçmiş işlem kaydı olduğu sürece silinemez — bunun yerine kartı pasif yapmayı düşünebilirsiniz.`
+            );
+        }
+
         return prisma.cariKart.delete({ where: { id } });
     },
 

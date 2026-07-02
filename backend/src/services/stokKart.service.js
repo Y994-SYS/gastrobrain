@@ -38,6 +38,29 @@ const stokKartService = {
 
     async sil(id, tenantId) {
         await this.biriniGetir(id, tenantId);
+
+        // StokKart üç farklı yerden referans alınabiliyor: stok hareketleri
+        // (girişler/çıkışlar), reçete kalemleri, cari hareket kalemleri.
+        // Herhangi biri varsa foreign key constraint'e düşer — önceden
+        // kontrol edip hangi tablo(lar) yüzünden engellendiğini net söylüyoruz.
+        const [hareketSayisi, receteKalemSayisi, cariKalemSayisi] = await Promise.all([
+            prisma.stokHareket.count({ where: { stokKartId: id } }),
+            prisma.receteKalem.count({ where: { stokKartId: id } }),
+            prisma.cariHareketKalem.count({ where: { stokKartId: id } }),
+        ]);
+
+        const nedenler = [];
+        if (hareketSayisi > 0) nedenler.push(`${hareketSayisi} adet stok hareketi (giriş/çıkış/satış kaydı)`);
+        if (receteKalemSayisi > 0) nedenler.push(`${receteKalemSayisi} adet reçetede malzeme olarak kullanılıyor`);
+        if (cariKalemSayisi > 0) nedenler.push(`${cariKalemSayisi} adet cari hareket kalemi`);
+
+        if (nedenler.length > 0) {
+            throw new Error(
+                `Bu stok kartı silinemez: ${nedenler.join(', ')}. ` +
+                `Geçmiş kayıtlar bulunduğu için silinemiyor — bunun yerine kartı pasif yapmayı düşünebilirsiniz.`
+            );
+        }
+
         return prisma.stokKart.delete({ where: { id } });
     }
 

@@ -37,20 +37,29 @@ const satisController = {
         try {
             // Şube: body'den gelirse onu kullan, yoksa kullanıcının şubesi
             if (!req.body.subeId) req.body.subeId = req.kullanici.subeId;
-            const data = await satisService.ekle(req.body, req.kullanici.tenantId);
+
+            const zorla = req.body.zorla === true;
+            const { satis, zorlandi, eksikKalemler } = await satisService.ekle(
+                req.body,
+                req.kullanici.tenantId,
+                { zorla, rol: req.kullanici.rol }
+            );
+
             await auditLog.kaydet({
-                eylem: 'SATIS_EKLE',
+                eylem: zorlandi ? 'SATIS_EKLE_ZORLA' : 'SATIS_EKLE',
                 detay: {
                     receteId: req.body.receteId,
                     adet: req.body.adet,
                     birimFiyat: req.body.birimFiyat,
-                    toplam: data.toplam
+                    toplam: satis.toplam,
+                    ...(zorlandi ? { eksikKalemler } : {})
                 },
                 kullaniciId: req.kullanici.id,
                 tenantId: req.kullanici.tenantId,
                 ip: req.ip
             });
-            res.status(201).json({ basarili: true, data });
+
+            res.status(201).json({ basarili: true, data: satis, zorlandi, eksikKalemler });
         } catch (error) {
             res.status(400).json({ basarili: false, mesaj: error.message });
         }

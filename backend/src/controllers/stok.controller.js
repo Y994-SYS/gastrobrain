@@ -13,6 +13,9 @@ const subeIdBelirle = (req) => {
     return req.query.subeId ? Number(req.query.subeId) : req.kullanici.subeId;
 };
 
+// Stok yetersizliğini bilerek geçebilecek roller — satis.service.js ile aynı liste.
+const ZORLA_IZINLI_ROLLER = ['TENANT_ADMIN', 'ADMIN', 'MUDUR'];
+
 const stokController = {
 
     async hareketleriGetir(req, res) {
@@ -114,9 +117,10 @@ const stokController = {
 
     async tuketimRecete(req, res) {
         try {
-            const { receteId, porsiyonSayisi, aciklama, tarih } = req.body;
+            const { receteId, porsiyonSayisi, aciklama, tarih, zorla } = req.body;
             const tenantId = req.kullanici.tenantId;
             const subeId = req.kullanici.subeId;
+            const rol = req.kullanici.rol;
 
             if (!receteId || !porsiyonSayisi || Number(porsiyonSayisi) <= 0) {
                 return res.status(400).json({ basarili: false, mesaj: 'Reçete ve porsiyon sayısı zorunlu' });
@@ -141,6 +145,45 @@ const stokController = {
             const receteninKendiPorsiyonu = recete.porsiyonSayisi || 1;
             const oran = Number(porsiyonSayisi) / receteninKendiPorsiyonu;
 
+            // zorla=true isteği ROL kontrolünden geçmiyorsa görmezden gelinir —
+            // frontend'den gelen bayrağa asla körü körüne güvenilmez.
+            const zorlamaYetkisiVar = zorla === true && ZORLA_IZINLI_ROLLER.includes(rol);
+            const eksikKalemler = [];
+
+            // Stok kontrolü — satış akışıyla aynı mantık: stokTakipZorunlu=false olan
+            // kalemler (tuz, baharat vb.) kontrolden muaf; diğerleri yetersizse
+            // yetkisiz kullanıcı için engellenir, yetkili kullanıcı zorla=true ile geçebilir.
+            for (const kalem of recete.kalemler) {
+                if (kalem.stokTakipZorunlu === false) continue;
+
+                const gercekMiktar = ((kalem.miktar * (kalem.carpan || 1)) / (kalem.bolen || 1)) * oran;
+                const mevcutStok = await stokService.mevcutStokGetir(kalem.stokKartId, subeId, tenantId);
+
+                if (mevcutStok < gercekMiktar) {
+                    if (zorlamaYetkisiVar) {
+                        eksikKalemler.push({
+                            ad: kalem.stokKart.ad,
+                            mevcut: mevcutStok,
+                            gereken: gercekMiktar
+                        });
+                        continue;
+                    }
+                    return res.status(400).json({
+                        basarili: false,
+                        mesaj: `Yetersiz stok: ${kalem.stokKart.ad} (mevcut: ${mevcutStok.toFixed(2)}, gereken: ${gercekMiktar.toFixed(2)})`
+                    });
+                }
+            }
+
+            // Açıklamaya net etiket eklenir — bu kaydın bir SATIŞ olmadığı,
+            // mutfak içi üretim/tüketim olduğu raporlarda ayırt edilebilsin.
+            // Aynı üretim için Satışlar ekranından AYRICA satış girilmemelidir —
+            // aksi halde aynı malzemeler iki kez düşer.
+            const zorlamaNotu = eksikKalemler.length
+                ? ` [ZORLA KAYDEDİLDİ — yetersiz: ${eksikKalemler.map(k => k.ad).join(', ')}]`
+                : '';
+            const varsayilanAciklama = `MUTFAK ÜRETİMİ (satış değildir) — ${recete.ad} x${porsiyonSayisi} porsiyon${zorlamaNotu}`;
+
             const kaydedilenler = await prisma.$transaction(
                 recete.kalemler.map(kalem => {
                     const gercekMiktar = ((kalem.miktar * (kalem.carpan || 1)) / (kalem.bolen || 1)) * oran;
@@ -148,7 +191,7 @@ const stokController = {
                         data: {
                             tip: 'TUKETIM',
                             miktar: Math.round(gercekMiktar * 1000) / 1000,
-                            aciklama: aciklama || `Reçete tüketimi: ${recete.ad} x${porsiyonSayisi} porsiyon`,
+                            aciklama: (aciklama || varsayilanAciklama) + (aciklama ? zorlamaNotu : ''),
                             tarih: tarihObj,
                             stokKartId: kalem.stokKartId,
                             subeId: Number(subeId),
@@ -158,8 +201,11 @@ const stokController = {
             );
 
             await auditLog.kaydet({
-                eylem: 'STOK_TUKETIM_RECETE',
-                detay: { receteId, receteAd: recete.ad, porsiyonSayisi, kalemSayisi: kaydedilenler.length },
+                eylem: eksikKalemler.length ? 'STOK_TUKETIM_RECETE_ZORLA' : 'STOK_TUKETIM_RECETE',
+                detay: {
+                    receteId, receteAd: recete.ad, porsiyonSayisi, kalemSayisi: kaydedilenler.length,
+                    ...(eksikKalemler.length ? { eksikKalemler } : {})
+                },
                 kullaniciId: req.kullanici.id,
                 tenantId,
                 ip: req.ip
@@ -169,6 +215,8 @@ const stokController = {
                 basarili: true,
                 mesaj: `${recete.ad} — ${porsiyonSayisi} porsiyon için ${kaydedilenler.length} kalem düşüldü`,
                 kalemSayisi: kaydedilenler.length,
+                zorlandi: eksikKalemler.length > 0,
+                eksikKalemler,
             });
         } catch (error) {
             res.status(500).json({ basarili: false, mesaj: error.message });

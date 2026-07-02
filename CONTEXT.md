@@ -497,97 +497,171 @@ Güncellenen/Eklenen Dosyalar
 DosyaDeğişiklikbackend/prisma/schema.prismaOdemeBildirimi + OdemeDurum eklendibackend/src/controllers/odeme.controller.js🆕 yeni dosyabackend/src/routes/odeme.route.js🆕 yeni dosyabackend/src/controllers/export.controller.js🆕 yeni dosyabackend/src/routes/export.route.js🆕 yeni dosyabackend/src/services/mail.service.jsodemeBildirimMailGonder eklendibackend/app.jsCORS methods'a PATCH eklendi, export+odeme route'ları eklendifrontend/src/pages/Abonelik.jsxÖdeme bildir akışı eklendifrontend/src/pages/SuperAdmin.jsxBekleyen Ödemeler sekmesi eklendifrontend/src/pages/Profil.jsxVerilerimi İndir bölümü eklendilanding/app/gizlilik/page.tsx🆕 yeni dosyalanding/app/kullanim-kosullari/page.tsx🆕 yeni dosyalanding/app/mesafeli-satis/page.tsx🆕 yeni dosya
 
 ## faz 14 gelecek
-# GastroBRAIN — Stok Takip Zorunluluğu Özelliği
+# GastroBRAIN — Stok/Satış Akışı İyileştirmeleri
 
-## Sorun
+Bu doküman, satış ekranında yaşanan "yetersiz stok" tıkanıklığından yola çıkarak
+yapılan tüm değişikliklerin özetidir.
 
-Satış ekranında bir reçete satılmak istendiğinde, sistem reçetedeki **tüm** malzemeler
-için stok kontrolü yapıyor. Ana malzemeler (süt, et vb.) için bu doğru davranış.
-Ancak tuz, nişasta gibi çok küçük miktarda kullanılan ve pratikte takibi
-zahmetli/gereksiz olan malzemeler de stokta "0" göründüğünde (fatura girişi
-yapılmadığı için), tüm satış engelleniyordu.
+---
+
+## Başlangıç Sorunu
+
+Satış ekranında bir reçete satılmak istendiğinde, sistem reçetedeki **tüm**
+malzemeler için stok kontrolü yapıyordu. Ana malzemeler (süt, et vb.) için bu
+doğru davranış. Ancak tuz, nişasta gibi çok küçük miktarda kullanılan ve
+pratikte fatura ile takibi zahmetli olan malzemeler stokta "0" göründüğünde
+(giriş faturası girilmediği için), **tüm satış** engelleniyordu.
 
 Örnek: Sütlaç satışı, nişasta stoğu 0.00 gr olduğu için engellendi
 (gereken miktar sadece 0.01 gr).
 
-## Karar
+Bu kök soruna çözüm ararken üç ayrı konu ortaya çıktı ve hepsi ele alındı:
 
-Reçete kalemlerine (`ReceteKalem`) **`stokTakipZorunlu`** adında bir boolean alan
-eklendi (varsayılan: `true`, mevcut davranış korunur).
+1. Reçete kalemi bazında stok takibini isteğe bağlı hale getirmek
+2. Yetkili roller için "yetersiz stoğa rağmen kaydet" imkanı
+3. Satış ile mutfak üretim tüketiminin birbirinden bağımsız çalışması nedeniyle
+   oluşabilecek çift stok düşme riski
+4. (Yan bulgu) Satış silme ekranındaki uyarı metninin gerçek davranışla
+   çelişmesi
 
-- `true` (varsayılan) → mevcut davranış: stok yetersizse satış engellenir
-- `false` → stok kontrolü atlanır, satış her koşulda kaydedilir. Malzeme yine de
-  `stokHareket` tablosuna `SATIS` tipiyle düşülür (raporlama/iz kaydı için),
-  sadece satışı bloklamaz.
+---
 
-Bu sayede süt/et gibi kritik malzemeler için kontrol devam ederken, tuz/nişasta
-gibi ihmal edilebilir malzemeler operasyonu tıkamıyor.
+## 1. Reçete Bazlı Stok Takip Zorunluluğu (`stokTakipZorunlu`)
 
-## Yapılan Değişiklikler
+### Karar
+`ReceteKalem` modeline **`stokTakipZorunlu`** adında boolean alan eklendi
+(varsayılan: `true`, mevcut davranış korunur).
 
-### 1. `schema.prisma`
-`ReceteKalem` modeline eklendi:
-```prisma
-stokTakipZorunlu  Boolean @default(true)
+- `true` (varsayılan) → stok yetersizse satış engellenir
+- `false` → stok kontrolü atlanır, satış her koşulda kaydedilir. Malzeme yine
+  de `stokHareket` tablosuna düşülür (raporlama için), sadece satışı bloklamaz
+
+### Değişen Dosyalar
+- **`schema.prisma`** → `ReceteKalem` modeline `stokTakipZorunlu Boolean @default(true)` eklendi
+- **`satis.service.js`** → `ekle()` içindeki stok kontrol döngüsünde `stokTakipZorunlu === false` olan kalemler atlanıyor
+- **`recete.service.js`** → `olustur()` ve `guncelle()` kalem verisiyle birlikte `stokTakipZorunlu`'yu kabul ediyor
+- **`Receteler.jsx`** → Kalem formuna "Stok kontrolü yapılsın" checkbox'ı eklendi; kalem etiketlerinde muaf kalemler ⚡ ikonuyla işaretleniyor
+
+### Uygulama Adımı
+```bash
+# schema.prisma'ya alanı ekledikten sonra:
+npx prisma db push
+npx prisma generate
 ```
-Migration yerine `npx prisma db push` + `npx prisma generate` kullanılıyor
-(proje migration değil push akışı kullanıyor).
 
-### 2. `satis.service.js`
-`ekle()` fonksiyonundaki stok kontrol döngüsüne muafiyet eklendi:
-```js
-for (const kalem of recete.kalemler) {
-    if (kalem.stokTakipZorunlu === false) continue; // kontrolü atla
-    // ...mevcut yetersiz stok kontrolü...
-}
-```
-Stok hareketi oluşturma döngüsü (aşağıdaki ikinci `for`) **değişmedi** —
-muaf tutulan kalemler için de `stokHareket` kaydı hâlâ oluşuyor, sadece
-satışı engellemiyor.
+---
 
-### 3. `recete.service.js`
-`olustur()` ve `guncelle()` fonksiyonlarında, kalem oluştururken
-`stokTakipZorunlu` alanı body'den kabul ediliyor:
-```js
-stokTakipZorunlu: k.stokTakipZorunlu === false ? false : true,
-```
-Gönderilmezse (eski istemciler / eksik veri) varsayılan `true` olur.
+## 2. Rol Bazlı "Zorla Kaydet" Onayı
 
-### 4. `Receteler.jsx` (frontend)
-- Yeni kalem eklerken varsayılan `stokTakipZorunlu: true` set ediliyor
-- Kalem düzenleme formunda her malzemenin altına checkbox eklendi:
-  **"Stok kontrolü yapılsın"** — kapatılırsa o malzeme stokta olmasa bile
-  satış engellenmiyor
-- Reçete kartlarındaki kalem etiketlerinde, `stokTakipZorunlu: false` olan
-  kalemlerin yanında ⚡ ikonu gösteriliyor (görsel işaretleme)
-- Maliyet modalı bu oturumda gönderilen gerçek dosyayla birebir eşleştirildi
-  (önceki reconstruction hatalıydı, düzeltildi)
+### Karar
+MUDUR / ADMIN / TENANT_ADMIN rolündeki kullanıcılar, stok yetersiz olsa bile
+satışı bilerek kaydedebilir. KASA / PERSONEL / DEPO için engel aynen devam eder.
 
-## Uygulama Adımları
+İzinli roller: `ZORLA_IZINLI_ROLLER = ['TENANT_ADMIN', 'ADMIN', 'MUDUR']`
+(hem `satis.service.js` hem `Satislar.jsx` içinde tanımlı — istenirse değiştirilebilir)
 
-1. `schema.prisma`'ya alanı ekle → `npx prisma db push` → `npx prisma generate`
-2. `satis.service.js`, `recete.service.js`, `Receteler.jsx` dosyalarını
-   projedeki karşılıklarıyla değiştir
-3. `satisController.js` ve `receteController.js`'de **değişiklik gerekmiyor**
-   — `req.body` zaten olduğu gibi servise geçiyor
+### Nasıl Çalışıyor
+1. Frontend önce normal kaydetmeyi dener (`zorla: false`)
+2. Backend "Yetersiz stok" hatası döndürürse ve kullanıcının rolü yetkiliyse,
+   frontend hatayı göstermek yerine **"Yine de Kaydet"** onay kutusu gösterir
+3. Kullanıcı onaylarsa `zorla: true` ile tekrar istek gönderilir
+4. Backend, rolü tekrar kendi tarafında doğrular (frontend'den gelen `zorla`
+   bayrağına asla körü körüne güvenilmez) — yetkiliyse kaydeder
+5. Kaydın açıklamasına otomatik `[ZORLA KAYDEDİLDİ — yetersiz: ...]` notu eklenir
+6. Audit log'a `SATIS_EKLE_ZORLA` eylemi olarak, eksik kalemlerle birlikte kaydedilir
 
-## Ele Alınmayan / Sonraya Bırakılan Konular
+### Değişen Dosyalar
+- **`satis.service.js`** → `ekle(data, tenantId, opts)` — `opts: {zorla, rol}` parametresi eklendi; dönüş değeri artık `{ satis, zorlandi, eksikKalemler }`
+- **`satis.controller.js`** → `req.body.zorla` okunuyor, `req.kullanici.rol` servise iletiliyor, audit log ayrımı yapılıyor
+- **`Satislar.jsx`** → Yetersiz stok hatası + yetkili rol durumunda amber renkli onay bloğu; satış listesinde zorla kaydedilenler ⚠️ ile işaretleniyor
 
-- **Çift stok düşme riski:** `Satislar.jsx` üzerinden yapılan satış (`SATIS` tipi)
-  ile `stokController.tuketimRecete()` üzerinden mutfak görevlisinin elle
-  girdiği tüketim (`TUKETIM` tipi), aynı reçete/malzeme için bağımsız çalışıyor.
-  İkisi arasında çapraz kontrol yok — aynı üretim için ikisi de girilirse
-  malzeme iki kez düşer. Bu konu ayrı ele alınmalı.
-- **Silme davranışı tutarsızlığı:** `Satislar.jsx`'teki silme onay modalında
-  "Stok geri yüklenmez" yazıyor, ama `satisService.sil()` aslında ilgili
-  `stokHareket` kayıtlarını siliyor — bu da stoğu fiilen geri yüklüyor.
-  Metin ile kod arasında tutarsızlık var, netleştirilmeli.
-- **Rol bazlı "zorla kaydet" override'ı:** Daha önce konuşulan ama
-  uygulanmayan bir alternatif: `stokTakipZorunlu` yerine/yanında, MUDUR/ADMIN
-  rolündeki kullanıcıların "stok yetersiz ama yine de kaydet" diyebileceği
-  bir onay akışı. Şu anki çözüm (kalem bazlı muafiyet) daha kalıcı ve
-  otomatik olduğu için önce bu uygulandı, override akışı istenirse ayrıca
-  eklenebilir.
+⚠️ **Dikkat:** `satisService.ekle()`'nin dönüş tipi değişti (önceden direkt `satis` nesnesi dönerken şimdi `{satis, zorlandi, eksikKalemler}` dönüyor). Bu fonksiyonu başka bir yerden çağıran kod varsa güncellenmesi gerekir.
+
+---
+
+## 3. Çift Stok Düşme Riski (Satış + Mutfak Tüketimi)
+
+### Sorun
+`satisService.ekle()` (Satışlar ekranı → `SATIS` tipi hareket) ile
+`stokController.tuketimRecete()` (mutfak görevlisinin elle girdiği üretim →
+`TUKETIM` tipi hareket) aynı reçete kalemlerini bağımsız şekilde stoktan
+düşüyor. Aynı üretim/satış olayı için ikisi de girilirse malzeme iki kez düşer.
+Ayrıca `tuketimRecete` daha önce **hiç stok kontrolü yapmıyordu** — stok
+sınırsız negatife düşebiliyordu.
+
+### Yapılan (Kısmi) Çözüm
+Tam teknik bağlama (satış kaydına üretim kaydını linklemek) veri modelini
+büyütecek bir iş olduğu için şimdilik uygulanmadı. Bunun yerine:
+
+1. **`tuketimRecete`'e stok kontrolü eklendi** — artık `SATIS` akışıyla aynı
+   mantığı izliyor: `stokTakipZorunlu === false` olan kalemler muaf, diğerleri
+   yetersizse **400 hatası** döner (öncesinde sessizce negatife düşüyordu)
+2. **Net etiketleme eklendi** — `tuketimRecete` ile oluşturulan kayıtların
+   açıklaması varsayılan olarak `"MUTFAK ÜRETİMİ (satış değildir) — ..."` ile
+   başlıyor. Böylece raporlarda satışla karışmıyor ve ekip "bu ekran satış
+   için değil" ayrımını görebiliyor
+
+### Değişen Dosyalar
+- **`stok.controller.js`** → `tuketimRecete()` fonksiyonuna stok kontrolü, varsayılan açıklama etiketi VE satış akışıyla aynı **zorla kaydet** deseni eklendi (bkz. madde 2'deki mantığın aynısı — `zorla: true` + yetkili rol ise yetersiz stoğa rağmen kaydeder, `[ZORLA KAYDEDİLDİ]` notu ve `STOK_TUKETIM_RECETE_ZORLA` audit eylemi ile)
+
+### Bilinçli Olarak Yapılmayan Kısım
+`tuketimRecete` çağrısını satış kaydına (`satisId`) opsiyonel bağlama fikri
+(gerçek çift-sayım engeli) **bilinçli olarak ertelendi**. Sebep: üretim kaydı
+kavramsal olarak bir satış değil, ayrı bir olay — ikisini veri modelinde
+birbirine bağlamak mimariyi gereksiz büyütür ve net bir fayda sağlamıyor.
+
+Bunun yerine yeterli görülen önlem: net etiketleme ("MUTFAK ÜRETİMİ — satış
+değildir") + operasyonel kural (satılan her şey Satışlar ekranından girilir,
+`tuketimRecete` sadece satışa dönüşmeyen üretim için kullanılır). İstenirse
+ileride `satisId` bağlama ayrıca değerlendirilebilir.
+
+### Frontend — Tamamlandı
+`tuketimRecete`'i çağıran ekran bulundu: **`TuketimGideri.jsx`** (reçete bazlı
+tüketim modu, `/api/stok/tuketim-recete` endpoint'ini çağırıyor). Bu ekrana da
+`Satislar.jsx`'teki ile birebir aynı desen eklendi:
+- Yetersiz stok hatası + yetkili rol → amber onay bloğu ("Yine de Düş")
+- Onaylanırsa `zorla: true` ile tekrar istek, `zorlandi: true` dönerse uyarı ikonlu toast
+
+**Kapsam dışı bırakılan:** Aynı dosyadaki **"Tekli Stok"** modu (`/api/stok/tuketim`
+→ `stokService.tuketimEkle`) zorla kaydet desteklemiyor — o fonksiyona bu
+özellik eklenmedi, çünkü orijinal sorun (reçete bazlı satış/üretim tıkanıklığı)
+onu kapsamıyordu. İstenirse aynı desen oraya da taşınabilir.
+
+---
+
+## 4. Silme Uyarı Metni Düzeltmesi
+
+### Sorun
+`Satislar.jsx`'teki silme onay modalı "Bu işlem geri alınamaz. Stok geri
+yüklenmez." diyordu. Ancak `satisService.sil()` aslında ilgili `stokHareket`
+kayıtlarını siliyor — bu da düşülen stoğu fiilen geri yüklüyor. Metin ile kod
+birbiriyle çelişiyordu.
+
+### Karar
+Kodun davranışı (silince stok geri yüklenir) doğru ve beklenen davranış
+olduğu için metin buna göre düzeltildi.
+
+### Değişen Dosya
+- **`Satislar.jsx`** → Uyarı metni: *"Bu satış için düşülen stok geri
+  yüklenecektir. İşlem geri alınamaz."*
+
+---
+
+## Uygulama Sırası (Özet)
+
+1. `schema.prisma`'ya `stokTakipZorunlu` alanını ekle → `npx prisma db push` → `npx prisma generate`
+2. Backend dosyalarını değiştir: `satis.service.js`, `satis.controller.js`, `recete.service.js`, `stok.controller.js`
+3. Frontend dosyalarını değiştir: `Satislar.jsx`, `Receteler.jsx`
+4. `receteController.js`'de değişiklik **gerekmiyor** — `req.body` olduğu gibi servise geçiyor
+
+---
+
+## Açık Kalan / İleride Değerlendirilebilecek Konular
+
+- **Satış ↔ Tüketim tam bağlama:** `satisId` ile linkleme, bilinçli olarak ertelendi (bkz. madde 3) — mimariyi büyütmeye değecek net bir fayda görülmedi, mevcut etiketleme + operasyonel kural yeterli sayıldı
+- **Zorla kaydet rol listesi:** `ZORLA_IZINLI_ROLLER` üç dosyada da (`satis.service.js`, `stok.controller.js`, `TuketimGideri.jsx`) aynı üç rolü kapsıyor (`TENANT_ADMIN`, `ADMIN`, `MUDUR`); iş ihtiyacına göre daraltılabilir
+- **`TuketimGideri.jsx` — "Tekli Stok" modu:** Zorla kaydet sadece "Reçete Bazlı" moda eklendi. Tekli stok girişi (`/api/stok/tuketim` → `stokService.tuketimEkle`) hâlâ yetersiz stokta sert engelliyor, override yok — kapsam dışı bırakıldı, istenirse eklenebilir
+
   ## bu çözülmelifaz 14 sonu
 
 ## BACKEND API ENDPOINTLERİ (tam liste)

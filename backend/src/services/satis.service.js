@@ -2,10 +2,12 @@ const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 const auditLog = require('./auditLog.service');
 
+// Stok yetersizliğini bilerek geçebilecek roller
+const ZORLA_IZINLI_ROLLER = ['TENANT_ADMIN', 'ADMIN', 'MUDUR'];
+
 const satisService = {
 
     async hepsiniGetir(subeId, tarihBaslangic, tarihBitis, tenantId) {
-        // subeId null ise tüm şubeler (TENANT_ADMIN), değilse o şube
         const where = subeId
             ? { subeId: Number(subeId), sube: { tenantId } }
             : { sube: { tenantId } };
@@ -29,7 +31,6 @@ const satisService = {
         const yarin = new Date(bugun);
         yarin.setDate(yarin.getDate() + 1);
 
-        // subeId null ise tüm şubeler
         const where = subeId
             ? { subeId: Number(subeId), sube: { tenantId }, tarih: { gte: bugun, lt: yarin } }
             : { sube: { tenantId }, tarih: { gte: bugun, lt: yarin } };
@@ -38,7 +39,18 @@ const satisService = {
         return satislar.reduce((t, s) => t + s.toplam, 0);
     },
 
-    async ekle({ receteId, subeId, adet, birimFiyat, aciklama, tarih }, tenantId) {
+    /**
+     * @param {object} data - receteId, subeId, adet, birimFiyat, aciklama, tarih
+     * @param {number} tenantId
+     * @param {object} opts - { zorla: boolean, rol: string }
+     *   zorla: true ise ve rol yetkiliyse, yetersiz stok satışı engellemez.
+     */
+    async ekle({ receteId, subeId, adet, birimFiyat, aciklama, tarih }, tenantId, opts = {}) {
+        const { zorla = false, rol = null } = opts;
+        // zorla=true isteği ROL kontrolünden geçmiyorsa görmezden gelinir —
+        // frontend'den gelen bayrağa asla körü körüne güvenilmez.
+        const zorlamaYetkisiVar = zorla && ZORLA_IZINLI_ROLLER.includes(rol);
+
         const recete = await prisma.recete.findFirst({
             where: { id: Number(receteId), tenantId },
             include: {
@@ -52,10 +64,9 @@ const satisService = {
         });
         if (!sube) throw new Error('Şube bulunamadı');
 
+        const eksikKalemler = [];
+
         return prisma.$transaction(async (tx) => {
-            // Stok kontrolü — transaction içinde, atomik
-            // stokTakipZorunlu === false olan kalemler kontrolden muaf tutulur,
-            // ancak yine de stok hareketi olarak düşülür (aşağıda).
             for (const kalem of recete.kalemler) {
                 if (kalem.stokTakipZorunlu === false) continue;
 
@@ -82,11 +93,23 @@ const satisService = {
                 const mevcutMiktar = (girisler._sum.miktar || 0) - (cikislar._sum.miktar || 0);
 
                 if (mevcutMiktar < gercekMiktar) {
+                    if (zorlamaYetkisiVar) {
+                        eksikKalemler.push({
+                            ad: kalem.stokKart.ad,
+                            mevcut: mevcutMiktar,
+                            gereken: gercekMiktar
+                        });
+                        continue;
+                    }
                     throw new Error(
                         `Yetersiz stok: ${kalem.stokKart.ad} (mevcut: ${mevcutMiktar.toFixed(2)}, gereken: ${gercekMiktar.toFixed(2)})`
                     );
                 }
             }
+
+            const zorlamaNotu = eksikKalemler.length
+                ? ` [ZORLA KAYDEDİLDİ — yetersiz: ${eksikKalemler.map(k => k.ad).join(', ')}]`
+                : '';
 
             const satis = await tx.satis.create({
                 data: {
@@ -95,13 +118,11 @@ const satisService = {
                     adet: Number(adet),
                     birimFiyat: Number(birimFiyat),
                     toplam: Number(adet) * Number(birimFiyat),
-                    aciklama,
+                    aciklama: (aciklama || '') + zorlamaNotu,
                     tarih: tarih ? new Date(tarih) : new Date(),
                 }
             });
 
-            // Stok hareketleri — kontrolden muaf tutulan kalemler dahil HEPSİ için
-            // yine hareket kaydı oluşturulur, böylece gerçek tüketim raporlarda görünür.
             for (const kalem of recete.kalemler) {
                 const gercekMiktar = ((kalem.miktar * kalem.carpan) / kalem.bolen) * Number(adet);
                 await tx.stokHareket.create({
@@ -117,7 +138,7 @@ const satisService = {
                 });
             }
 
-            return satis;
+            return { satis, zorlandi: eksikKalemler.length > 0, eksikKalemler };
         });
     },
 
@@ -126,6 +147,8 @@ const satisService = {
             where: { id, sube: { tenantId } }
         });
         if (!satis) throw new Error('Satış bulunamadı');
+        // Not: stokHareket kayıtları silinir — bu, satışla düşülen stoğu
+        // fiilen geri yükler. Frontend uyarı metni buna göre yazıldı.
         await prisma.stokHareket.deleteMany({ where: { satisId: id } });
         return prisma.satis.delete({ where: { id } });
     }

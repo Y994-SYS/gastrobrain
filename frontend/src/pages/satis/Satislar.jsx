@@ -10,10 +10,15 @@ const fmt = (n) => Number(n || 0).toLocaleString('tr-TR', { minimumFractionDigit
 
 const inputCls = "w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-4 py-2.5 text-sm outline-none focus:border-lime-400 transition-colors";
 
+// Stok yetersizliğini bilerek geçip satışı zorla kaydedebilecek roller.
+// Backend'de de aynı liste var — burası sadece UI'da butonu göstermek/gizlemek için.
+const ZORLA_IZINLI_ROLLER = ['TENANT_ADMIN', 'ADMIN', 'MUDUR'];
+
 export default function Satislar() {
     const { kullanici } = useAuthStore();
     const { seciliSubeId } = useSubeStore();
     const subeParam = seciliSubeId ? `?subeId=${seciliSubeId}` : '';
+    const zorlaYetkisiVar = ZORLA_IZINLI_ROLLER.includes(kullanici?.rol);
 
     const bosForm = useCallback(() => ({
         receteId: '', subeId: kullanici?.subeId || '',
@@ -29,6 +34,9 @@ export default function Satislar() {
     const [tabloYukleniyor, setTabloYukleniyor] = useState(true);
     const [gunlukToplam, setGunlukToplam] = useState(0);
     const [silOnayId, setSilOnayId] = useState(null);
+
+    // Yetersiz stok hatası geldiğinde, zorla kaydet onayı için bekleyen hata mesajı
+    const [zorlaOnayMesaji, setZorlaOnayMesaji] = useState(null);
 
     const getir = useCallback(async () => {
         setTabloYukleniyor(true);
@@ -49,18 +57,30 @@ export default function Satislar() {
 
     useEffect(() => { getir(); }, [getir]);
 
-    const kaydet = async () => {
+    const kaydet = async (zorla = false) => {
         if (!form.receteId || !form.adet || !form.birimFiyat)
             return toast.error('Reçete, adet ve fiyat zorunlu');
         setYukleniyor(true);
         try {
-            await api.post('/api/satislar', form);
-            toast.success('Satış kaydedildi');
+            const res = await api.post('/api/satislar', { ...form, zorla });
+            if (res.data?.zorlandi) {
+                toast.success('Satış stok yetersizliğine rağmen kaydedildi', { icon: '⚠️' });
+            } else {
+                toast.success('Satış kaydedildi');
+            }
             setModal(false);
             setForm(bosForm());
+            setZorlaOnayMesaji(null);
             getir();
         } catch (err) {
-            toast.error(err.response?.data?.mesaj || 'Hata oluştu');
+            const mesaj = err.response?.data?.mesaj || 'Hata oluştu';
+            // Yetersiz stok hatası ve kullanıcının zorlama yetkisi varsa,
+            // hatayı direkt göstermek yerine onay sorusuna çevir.
+            if (mesaj.startsWith('Yetersiz stok') && zorlaYetkisiVar && !zorla) {
+                setZorlaOnayMesaji(mesaj);
+            } else {
+                toast.error(mesaj);
+            }
         } finally {
             setYukleniyor(false);
         }
@@ -144,7 +164,12 @@ export default function Satislar() {
                                 </tr>
                             ) : veri.map((s) => (
                                 <tr key={s.id} className="border-b border-zinc-800/50 hover:bg-zinc-800/30 transition-colors">
-                                    <td className="py-3 px-4 text-sm text-white font-medium">{s.recete?.ad}</td>
+                                    <td className="py-3 px-4 text-sm text-white font-medium">
+                                        {s.recete?.ad}
+                                        {s.aciklama?.includes('ZORLA KAYDEDİLDİ') && (
+                                            <span className="ml-2 text-amber-400 text-xs" title="Yetersiz stoğa rağmen zorla kaydedildi">⚠️</span>
+                                        )}
+                                    </td>
                                     <td className="py-3 px-4 text-right text-sm font-mono text-zinc-300 hidden sm:table-cell">{s.adet}</td>
                                     <td className="py-3 px-4 text-right text-sm font-mono text-zinc-300 hidden sm:table-cell">₺{fmt(s.birimFiyat)}</td>
                                     <td className="py-3 px-4 text-right text-sm font-mono font-bold text-lime-400">₺{fmt(s.toplam)}</td>
@@ -232,13 +257,42 @@ export default function Satislar() {
                             <span className="text-lime-400 font-bold text-lg">₺{toplamTutar}</span>
                         </div>
 
-                        <button
-                            onClick={kaydet}
-                            disabled={yukleniyor || !form.receteId || !form.adet || !form.birimFiyat}
-                            className="w-full bg-lime-400 hover:bg-lime-300 disabled:opacity-40 disabled:cursor-not-allowed text-black font-bold rounded-lg py-2.5 text-sm transition-colors"
-                        >
-                            {yukleniyor ? 'Kaydediliyor...' : 'Satışı Kaydet'}
-                        </button>
+                        {/* Zorla kaydet onay bloğu — sadece yetersiz stok hatası geldiğinde ve yetkili rol ise görünür */}
+                        {zorlaOnayMesaji && (
+                            <div className="bg-amber-400/10 border border-amber-400/40 rounded-xl p-4 space-y-3">
+                                <p className="text-amber-300 text-sm">
+                                    {zorlaOnayMesaji}
+                                    <span className="block mt-1 text-amber-400/80 text-xs">
+                                        Stok yetersiz. Yine de kaydetmek istiyor musunuz? Bu tercih kayıt altına alınır.
+                                    </span>
+                                </p>
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={() => setZorlaOnayMesaji(null)}
+                                        className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 py-2 rounded-lg text-sm transition-colors"
+                                    >
+                                        Vazgeç
+                                    </button>
+                                    <button
+                                        onClick={() => kaydet(true)}
+                                        disabled={yukleniyor}
+                                        className="flex-1 bg-amber-400 hover:bg-amber-300 disabled:opacity-50 text-black font-bold py-2 rounded-lg text-sm transition-colors"
+                                    >
+                                        Yine de Kaydet
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
+                        {!zorlaOnayMesaji && (
+                            <button
+                                onClick={() => kaydet(false)}
+                                disabled={yukleniyor || !form.receteId || !form.adet || !form.birimFiyat}
+                                className="w-full bg-lime-400 hover:bg-lime-300 disabled:opacity-40 disabled:cursor-not-allowed text-black font-bold rounded-lg py-2.5 text-sm transition-colors"
+                            >
+                                {yukleniyor ? 'Kaydediliyor...' : 'Satışı Kaydet'}
+                            </button>
+                        )}
                     </div>
                 </Modal>
             )}
@@ -250,7 +304,9 @@ export default function Satislar() {
                         <h2 className="text-white font-bold">Satışı Sil</h2>
                         <p className="text-zinc-400 text-sm">
                             <span className="text-white font-medium">{silOnay?.recete?.ad}</span> satışını silmek istediğinize emin misiniz?
-                            <span className="block mt-1 text-zinc-500 text-xs">Bu işlem geri alınamaz. Stok geri yüklenmez.</span>
+                            <span className="block mt-1 text-zinc-500 text-xs">
+                                Bu satış için düşülen stok geri yüklenecektir. İşlem geri alınamaz.
+                            </span>
                         </p>
                         <div className="flex gap-3">
                             <button

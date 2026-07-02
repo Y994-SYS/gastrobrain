@@ -5,8 +5,13 @@ import useAuthStore from '../../store/auth.store';
 
 const fmt3 = (n) => Number(n || 0).toLocaleString('tr-TR', { minimumFractionDigits: 3, maximumFractionDigits: 3 });
 
+// Stok yetersizliğini bilerek geçip zorla kaydedebilecek roller.
+// stok.controller.js'deki ZORLA_IZINLI_ROLLER ile aynı liste.
+const ZORLA_IZINLI_ROLLER = ['TENANT_ADMIN', 'ADMIN', 'MUDUR'];
+
 export default function TuketimGideri() {
     const { kullanici } = useAuthStore();
+    const zorlaYetkisiVar = ZORLA_IZINLI_ROLLER.includes(kullanici?.rol);
 
     const bosTekli = {
         stokKartId: '', subeId: kullanici?.subeId || '', miktar: '',
@@ -25,6 +30,10 @@ export default function TuketimGideri() {
     const [receteler, setReceteler] = useState([]);
     const [yukleniyor, setYukleniyor] = useState(false);
 
+    // Reçete bazlı tüketimde yetersiz stok hatası geldiğinde, zorla kaydet
+    // onayı için bekleyen hata mesajı (tekli modda backend zorla desteklemiyor)
+    const [zorlaOnayMesaji, setZorlaOnayMesaji] = useState(null);
+
     useEffect(() => {
         api.get('/api/stok-kartlari').then(res => setStokKartlari(res.data.data));
         api.get('/api/receteler').then(res => setReceteler(res.data.data));
@@ -38,6 +47,7 @@ export default function TuketimGideri() {
             receteId,
             porsiyonSayisi: r?.porsiyonSayisi ? String(r.porsiyonSayisi) : prev.porsiyonSayisi,
         }));
+        setZorlaOnayMesaji(null);
     };
 
     // Seçili reçete ve önizleme hesabı
@@ -71,17 +81,29 @@ export default function TuketimGideri() {
     };
 
     // Reçete bazlı kaydet
-    const kaydetRecete = async () => {
+    const kaydetRecete = async (zorla = false) => {
         if (!receteForm.receteId) return toast.error('Reçete seçin');
         if (!receteForm.porsiyonSayisi || porsiyon <= 0) return toast.error('Porsiyon sayısı girilmedi');
         if (!seciliRecete?.kalemler?.length) return toast.error('Reçetede kalem yok');
         setYukleniyor(true);
         try {
-            const res = await api.post('/api/stok/tuketim-recete', receteForm);
-            toast.success(res.data.mesaj);
+            const res = await api.post('/api/stok/tuketim-recete', { ...receteForm, zorla });
+            if (res.data?.zorlandi) {
+                toast.success(res.data.mesaj, { icon: '⚠️' });
+            } else {
+                toast.success(res.data.mesaj);
+            }
             setReceteForm(bosRecete);
+            setZorlaOnayMesaji(null);
         } catch (err) {
-            toast.error(err.response?.data?.mesaj || 'Hata oluştu');
+            const mesaj = err.response?.data?.mesaj || 'Hata oluştu';
+            // Yetersiz stok hatası ve kullanıcının zorlama yetkisi varsa,
+            // hatayı direkt göstermek yerine onay sorusuna çevir.
+            if (mesaj.startsWith('Yetersiz stok') && zorlaYetkisiVar && !zorla) {
+                setZorlaOnayMesaji(mesaj);
+            } else {
+                toast.error(mesaj);
+            }
         } finally {
             setYukleniyor(false);
         }
@@ -215,7 +237,7 @@ export default function TuketimGideri() {
                                 <input
                                     type="number"
                                     value={receteForm.porsiyonSayisi}
-                                    onChange={(e) => setReceteForm({ ...receteForm, porsiyonSayisi: e.target.value })}
+                                    onChange={(e) => { setReceteForm({ ...receteForm, porsiyonSayisi: e.target.value }); setZorlaOnayMesaji(null); }}
                                     placeholder="örn. 10"
                                     min="1"
                                     className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-4 py-2.5 text-sm outline-none focus:border-lime-400 transition-colors"
@@ -270,13 +292,42 @@ export default function TuketimGideri() {
                             </div>
                         )}
 
-                        <button
-                            onClick={kaydetRecete}
-                            disabled={yukleniyor || !receteForm.receteId || !porsiyon}
-                            className="w-full bg-lime-400 hover:bg-lime-300 disabled:opacity-50 text-black font-bold rounded-lg py-2.5 text-sm transition-colors"
-                        >
-                            {yukleniyor ? 'Kaydediliyor...' : `Tüketim Düş${onizleme.length > 0 ? ` (${onizleme.length} kalem)` : ''}`}
-                        </button>
+                        {/* Zorla kaydet onay bloğu — sadece yetersiz stok hatası geldiğinde ve yetkili rol ise görünür */}
+                        {zorlaOnayMesaji && (
+                            <div className="bg-amber-400/10 border border-amber-400/40 rounded-xl p-4 space-y-3">
+                                <p className="text-amber-300 text-sm">
+                                    {zorlaOnayMesaji}
+                                    <span className="block mt-1 text-amber-400/80 text-xs">
+                                        Stok yetersiz. Yine de düşmek istiyor musunuz? Bu tercih kayıt altına alınır.
+                                    </span>
+                                </p>
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={() => setZorlaOnayMesaji(null)}
+                                        className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 py-2 rounded-lg text-sm transition-colors"
+                                    >
+                                        Vazgeç
+                                    </button>
+                                    <button
+                                        onClick={() => kaydetRecete(true)}
+                                        disabled={yukleniyor}
+                                        className="flex-1 bg-amber-400 hover:bg-amber-300 disabled:opacity-50 text-black font-bold py-2 rounded-lg text-sm transition-colors"
+                                    >
+                                        Yine de Düş
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
+                        {!zorlaOnayMesaji && (
+                            <button
+                                onClick={() => kaydetRecete(false)}
+                                disabled={yukleniyor || !receteForm.receteId || !porsiyon}
+                                className="w-full bg-lime-400 hover:bg-lime-300 disabled:opacity-50 text-black font-bold rounded-lg py-2.5 text-sm transition-colors"
+                            >
+                                {yukleniyor ? 'Kaydediliyor...' : `Tüketim Düş${onizleme.length > 0 ? ` (${onizleme.length} kalem)` : ''}`}
+                            </button>
+                        )}
                     </div>
                 </>
             )}

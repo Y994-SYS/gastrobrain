@@ -23,7 +23,7 @@ import Personel from './pages/personel/Personel';
 import Dashboard from './pages/Dashboard';
 import Raporlar from './pages/raporlar/Raporlar';
 import Subeler from './pages/tanimlamalar/Subeler';
-import Kullanicilar from './pages/tanimlamalar/Kullanicilar';
+import Kullanicilar from './pages/personel/Kullanicilar';
 import SuperAdmin from './pages/SuperAdmin';
 import Yardim from './pages/Yardim';
 import Abonelik from './pages/Abonelik';

@@ -27,6 +27,7 @@ const auditLogRoutes = require('./routes/auditLog.routes');
 const transferRoutes = require('./routes/transfer.route');
 const dashboardRoutes = require('./routes/dashboard.routes');
 const odemeRoutes = require('./routes/odeme.routes');
+const exportRoutes = require('./routes/export.routes'); // ← EKLENDİ
 
 const { PrismaClient } = require('@prisma/client');
 
@@ -139,6 +140,7 @@ app.use('/api/audit-log', auditLogRoutes);
 app.use('/api/transfer', transferRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/odeme', odemeRoutes);
+app.use('/api/export', exportRoutes); // ← EKLENDİ
 
 // ── Sağlık kontrolü ───────────────────────────────────────────────────────────
 app.get('/', (req, res) => {

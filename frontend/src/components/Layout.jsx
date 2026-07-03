@@ -3,6 +3,7 @@ import { NavLink, useLocation } from 'react-router-dom';
 import useAuthStore from '../store/auth.store';
 import FeedbackModal from './FeedbackModal';
 import LisansBanner from './LisansBanner';
+import DenemeBanner from './DenemeBanner';
 
 // ─── Rol Grupları ─────────────────────────────────────────────────────────────
 const R = {
@@ -56,8 +57,6 @@ const menuGruplari = [
         roller: R.PERSONEL,
         items: [
             { path: '/personel', label: 'Personel', icon: '👥', roller: R.PERSONEL },
-            { path: '/personel/kullanicilar', label: 'Kullanıcılar', icon: '👤', roller: R.ADMIN },
-
         ]
     },
     {
@@ -69,7 +68,7 @@ const menuGruplari = [
             { path: '/tanimlamalar/stok-kartlari', label: 'Stok Kartları', icon: '🗂️', roller: R.STOK },
             { path: '/tanimlamalar/cari-kartlar', label: 'Cari Kartlar', icon: '🏢', roller: R.YONETIM },
             { path: '/tanimlamalar/subeler', label: 'Şubeler', icon: '🏪', roller: R.ADMIN },
-
+            { path: '/tanimlamalar/kullanicilar', label: 'Kullanıcılar', icon: '👤', roller: R.ADMIN },
         ]
     },
     {
@@ -92,12 +91,9 @@ const ROL_ETIKET = {
     PERSONEL: '👤 Personel',
 };
 
-// ─── Sidebar Nav İçeriği ──────────────────────────────────────────────────────
-// Layout dışına alındı → gereksiz re-render önlendi
 function SidebarNav({ navRef, aktifRef, gorunurMenu, kapali, toggleGrup, sidebarKapat, kullanici, rol, cikisYap }) {
     return (
         <>
-            {/* Logo + Kullanıcı */}
             <div className="p-5 border-b border-zinc-800 flex-shrink-0 flex items-center justify-between">
                 <div>
                     <div className="flex items-center gap-2">
@@ -111,7 +107,6 @@ function SidebarNav({ navRef, aktifRef, gorunurMenu, kapali, toggleGrup, sidebar
                         <span className="text-zinc-600 text-xs">{ROL_ETIKET[rol] ?? rol}</span>
                     )}
                 </div>
-                {/* Sadece mobil'de görünen kapat butonu */}
                 <button
                     onClick={sidebarKapat}
                     className="md:hidden text-zinc-400 hover:text-white p-1.5 rounded-lg hover:bg-zinc-800 transition-colors"
@@ -121,14 +116,12 @@ function SidebarNav({ navRef, aktifRef, gorunurMenu, kapali, toggleGrup, sidebar
                 </button>
             </div>
 
-            {/* Navigasyon */}
             <nav
                 ref={navRef}
                 className="flex-1 overflow-y-auto p-2 space-y-1 scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent"
             >
                 {gorunurMenu.map((grup) => (
                     <div key={grup.baslik}>
-                        {/* Grup başlığı — tıklanabilir collapse */}
                         <button
                             onClick={() => toggleGrup(grup.baslik)}
                             className="w-full flex items-center justify-between px-3 py-1.5 text-xs font-bold text-zinc-500 uppercase tracking-wider hover:text-zinc-300 transition-colors rounded-md"
@@ -167,7 +160,6 @@ function SidebarNav({ navRef, aktifRef, gorunurMenu, kapali, toggleGrup, sidebar
                                         >
                                             {({ isActive }) => (
                                                 <>
-                                                    {/* Sol kenar çizgisi — aktif göstergesi */}
                                                     {isActive && (
                                                         <span className="absolute left-0 top-1 bottom-1 w-0.5 bg-lime-400 rounded-full" />
                                                     )}
@@ -184,10 +176,8 @@ function SidebarNav({ navRef, aktifRef, gorunurMenu, kapali, toggleGrup, sidebar
                 ))}
             </nav>
 
-            {/* Geri Bildirim */}
             <FeedbackModal />
 
-            {/* Çıkış */}
             <div className="p-2 border-t border-zinc-800 flex-shrink-0">
                 <button
                     onClick={cikisYap}
@@ -201,7 +191,6 @@ function SidebarNav({ navRef, aktifRef, gorunurMenu, kapali, toggleGrup, sidebar
     );
 }
 
-// ─── Ana Layout ───────────────────────────────────────────────────────────────
 export default function Layout({ children }) {
     const { kullanici, cikisYap } = useAuthStore();
     const location = useLocation();
@@ -211,7 +200,6 @@ export default function Layout({ children }) {
 
     const rol = kullanici?.rol;
 
-    // Görünür menüyü rol'e göre filtrele
     const gorunurMenu = menuGruplari
         .map(grup => ({
             ...grup,
@@ -219,7 +207,6 @@ export default function Layout({ children }) {
         }))
         .filter(grup => grup.items.length > 0);
 
-    // Aktif sayfanın grubu açık, diğerleri kapalı başlar
     const [kapali, setKapali] = useState(() => {
         const aktifGrup = gorunurMenu.find(g =>
             g.items.some(item =>
@@ -234,7 +221,6 @@ export default function Layout({ children }) {
         );
     });
 
-    // Aktif item'a scroll et — sayfa değişince
     useEffect(() => {
         const id = requestAnimationFrame(() => {
             if (aktifRef.current && navRef.current) {
@@ -256,7 +242,6 @@ export default function Layout({ children }) {
         return () => cancelAnimationFrame(id);
     }, [location.pathname]);
 
-    // Sayfa değişince aktif grubun açık kalmasını sağla
     useEffect(() => {
         const aktifGrup = gorunurMenu.find(g =>
             g.items.some(item =>
@@ -278,21 +263,14 @@ export default function Layout({ children }) {
     const sidebarKapat = useCallback(() => setSidebarAcik(false), []);
 
     const sidebarProps = {
-        navRef,
-        aktifRef,
-        gorunurMenu,
-        kapali,
-        toggleGrup,
-        sidebarKapat,
-        kullanici,
-        rol,
-        cikisYap,
+        navRef, aktifRef, gorunurMenu, kapali,
+        toggleGrup, sidebarKapat, kullanici, rol, cikisYap,
     };
 
     return (
         <div className="min-h-screen bg-zinc-950 flex">
 
-            {/* ── Masaüstü Sidebar (sabit) ── */}
+            {/* ── Masaüstü Sidebar ── */}
             <aside className="hidden md:flex w-56 bg-zinc-900 border-r border-zinc-800 flex-col fixed h-full z-30">
                 <SidebarNav {...sidebarProps} />
             </aside>
@@ -306,7 +284,7 @@ export default function Layout({ children }) {
                 />
             )}
 
-            {/* ── Mobil Sidebar (drawer) ── */}
+            {/* ── Mobil Sidebar ── */}
             <aside
                 className={`
                     fixed top-0 left-0 h-full w-64 bg-zinc-900 border-r border-zinc-800
@@ -324,7 +302,6 @@ export default function Layout({ children }) {
                 {/* Mobil Header */}
                 <header className="md:hidden sticky top-0 z-20 bg-zinc-900/95 backdrop-blur border-b border-zinc-800">
                     <div className="grid grid-cols-3 items-center px-4 py-3">
-                        {/* Sol — hamburger */}
                         <button
                             onClick={() => setSidebarAcik(true)}
                             className="text-zinc-400 hover:text-white p-1 justify-self-start"
@@ -334,16 +311,12 @@ export default function Layout({ children }) {
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
                             </svg>
                         </button>
-
-                        {/* Orta — logo */}
                         <div className="flex items-center gap-1.5 justify-self-center">
                             <img src="/logo.png" alt="GastroBRAIN" className="w-6 h-6 object-contain" />
                             <span className="text-base font-black text-white">
                                 Gastro<span className="text-lime-400">BRAIN</span>
                             </span>
                         </div>
-
-                        {/* Sağ — boş ama dengeli */}
                         <div className="w-8 justify-self-end" />
                     </div>
                 </header>
@@ -351,6 +324,7 @@ export default function Layout({ children }) {
                 {/* Sayfa İçeriği */}
                 <div className="flex-1 p-4 md:p-6">
                     <LisansBanner />
+                    <DenemeBanner />  {/* ← YENİ */}
                     {children}
                 </div>
             </main>

@@ -57,6 +57,7 @@ const menuGruplari = [
         roller: R.PERSONEL,
         items: [
             { path: '/personel', label: 'Personel', icon: '👥', roller: R.PERSONEL },
+            { path: '/personel/kullanicilar', label: 'Kullanıcılar', icon: '👤', roller: R.ADMIN },
         ]
     },
     {
@@ -68,7 +69,7 @@ const menuGruplari = [
             { path: '/tanimlamalar/stok-kartlari', label: 'Stok Kartları', icon: '🗂️', roller: R.STOK },
             { path: '/tanimlamalar/cari-kartlar', label: 'Cari Kartlar', icon: '🏢', roller: R.YONETIM },
             { path: '/tanimlamalar/subeler', label: 'Şubeler', icon: '🏪', roller: R.ADMIN },
-            { path: '/tanimlamalar/kullanicilar', label: 'Kullanıcılar', icon: '👤', roller: R.ADMIN },
+
         ]
     },
     {

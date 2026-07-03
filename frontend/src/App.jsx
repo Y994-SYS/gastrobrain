@@ -23,7 +23,7 @@ import Personel from './pages/personel/Personel';
 import Dashboard from './pages/Dashboard';
 import Raporlar from './pages/raporlar/Raporlar';
 import Subeler from './pages/tanimlamalar/Subeler';
-import Kullanicilar from './pages/tanimlamalar/Kullanicilar';
+import Kullanicilar from './pages/personel/Kullanicilar';
 import SuperAdmin from './pages/SuperAdmin';
 import Yardim from './pages/Yardim';
 import Abonelik from './pages/Abonelik';
@@ -136,6 +136,7 @@ export default function App() {
 
         {/* ── Personel — Profesyonel+ ──────────────────────────────────── */}
         <Route path="/personel" element={<PrivateRoute roller={R.PERSONEL} planOzellik="personel"><Personel /></PrivateRoute>} />
+        <Route path="/personel/kullanicilar" element={<PrivateRoute roller={R.ADMIN}><Kullanicilar /></PrivateRoute>} />
 
         {/* ── Tanımlamalar ────────────────────────────────────────────── */}
         <Route path="/tanimlamalar/kategoriler" element={<PrivateRoute roller={R.STOK}><Kategoriler /></PrivateRoute>} />
@@ -144,7 +145,6 @@ export default function App() {
         <Route path="/tanimlamalar/cari-kartlar" element={<PrivateRoute roller={R.YONETIM} planOzellik="cari"><CariKartlar /></PrivateRoute>} />
         <Route path="/tanimlamalar/subeler" element={<PrivateRoute roller={R.ADMIN}><Subeler /></PrivateRoute>} />
         <Route path="/tanimlamalar/subeler/:id" element={<PrivateRoute roller={R.ADMIN}><SubeDetay /></PrivateRoute>} />
-        <Route path="/tanimlamalar/kullanicilar" element={<PrivateRoute roller={R.ADMIN}><Kullanicilar /></PrivateRoute>} />
 
         {/* ── Diğer ───────────────────────────────────────────────────── */}
         <Route path="/yardim" element={<PrivateRoute roller={R.HERKES}><Yardim /></PrivateRoute>} />

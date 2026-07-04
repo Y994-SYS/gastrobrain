@@ -16,6 +16,23 @@ const authMiddleware = async (req, res, next) => {
     }
 };
 
+// Rate limiter'ların tenant+user bazlı key üretebilmesi için kullanılır.
+// Gerçek yetki kontrolü yapmaz — token varsa req.kullanici'yi doldurur,
+// token yoksa veya geçersizse SESSİZCE devam eder (401 dönmez).
+// Route'larda gerçek `authMiddleware`'in yerini TUTMAZ, ona ek olarak kullanılır.
+const tokenVarsaCoz = async (req, res, next) => {
+    try {
+        const authHeader = req.headers.authorization;
+        if (authHeader && authHeader.startsWith('Bearer ')) {
+            const token = authHeader.split(' ')[1];
+            req.kullanici = await authService.tokenDogrula(token);
+        }
+    } catch (error) {
+        // geçersiz/süresi dolmuş token — sessizce yok say, IP bazlı limite düşsün
+    }
+    next();
+};
+
 const rolKontrol = (...roller) => {
     return (req, res, next) => {
         if (!roller.includes(req.kullanici.rol)) {
@@ -25,4 +42,4 @@ const rolKontrol = (...roller) => {
     };
 };
 
-module.exports = { authMiddleware, rolKontrol };
+module.exports = { authMiddleware, rolKontrol, tokenVarsaCoz };

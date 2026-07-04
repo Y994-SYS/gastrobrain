@@ -7,6 +7,7 @@ const helmet = require('helmet');
 const hpp = require('hpp');
 
 const { girisLimit, kayitLimit, genelLimit, kritikLimit } = require('./middleware/rateLimit.middleware');
+const { tokenVarsaCoz } = require('./middleware/auth.middleware');
 
 const authRoutes = require('./routes/auth.routes');
 const kategoriRoutes = require('./routes/kategori.routes');
@@ -107,11 +108,15 @@ app.use((req, res, next) => {
 });
 
 // ── Rate limiting — kritik ve genel limitler ROUTE'LARDAN ÖNCE ───────────────
-// Auth route'ları
+// Auth route'ları — token yok, IP bazlı limitler (tokenVarsaCoz'a gerek yok)
 app.use('/api/auth/giris', girisLimit);
 app.use('/api/auth/tenant-listesi', girisLimit);
 app.use('/api/auth/kayit-firma', kayitLimit);
 app.use('/api/auth/kayit', kayitLimit);
+
+// Token varsa çöz — genelLimit ve kritikLimit'in tenant+user bazlı
+// key üretebilmesi için, gerçek authMiddleware'den ÖNCE çalışır
+app.use('/api', tokenVarsaCoz);
 
 // Kritik işlemler — route'lardan önce tanımlanmalı ki çalışsın
 app.use('/api/stok', kritikLimit);

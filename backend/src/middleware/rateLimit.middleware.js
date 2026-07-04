@@ -1,16 +1,17 @@
-const rateLimit = require('express-rate-limit');
+const { rateLimit, ipKeyGenerator } = require('express-rate-limit');
 
 // ─── KEY GENERATORs ────────────────────────────────────────────
 
 // Giriş öncesi: sadece IP bazlı (token yok henüz)
-const ipKey = (req) => req.ip;
+// ipKeyGenerator: IPv6 adreslerini güvenli şekilde normalize eder
+const ipKey = (req) => ipKeyGenerator(req.ip);
 
 // Giriş sonrası: tenantId + userId bazlı (IP riski ortadan kalkar)
 const tenantUserKey = (req) => {
     if (req.kullanici) {
         return `tenant_${req.kullanici.tenantId}_user_${req.kullanici.id}`;
     }
-    return req.ip;
+    return ipKeyGenerator(req.ip);
 };
 
 // ─── HATA YANITI ───────────────────────────────────────────────

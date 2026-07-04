@@ -1,6 +1,3 @@
-// Zod şemasını route'a bağlayan genel validation middleware.
-// Şema başarısız olursa 400 döner, başarılıysa req.body'yi
-// Zod'un temizlediği (parse edilmiş) veriyle değiştirir.
 const validate = (schema) => (req, res, next) => {
     const sonuc = schema.safeParse(req.body);
 
@@ -34,4 +31,4 @@ const validateParams = (schema) => (req, res, next) => {
     next();
 };
 
-module.exports = { validate };
+module.exports = { validate, validateParams };

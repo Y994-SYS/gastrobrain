@@ -1,6 +1,8 @@
 require('dotenv').config();
 require('./instrument');
 
+const Sentry = require('@sentry/node');
+
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -163,6 +165,7 @@ app.use((err, req, res, next) => {
     if (err.message?.includes('CORS')) {
         return res.status(403).json({ basarili: false, mesaj: 'Erişim reddedildi' });
     }
+    console.error('GERÇEK HATA:', err.message, err.stack);   // ← GEÇİCİ, teşhis için
     Sentry.captureException(err);
     console.error(err.stack);
     res.status(500).json({ basarili: false, mesaj: 'Sunucu hatası' });

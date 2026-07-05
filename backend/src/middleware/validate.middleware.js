@@ -31,4 +31,21 @@ const validateParams = (schema) => (req, res, next) => {
     next();
 };
 
-module.exports = { validate, validateParams };
+// Query string parametrelerini (örn. ?baslangic=...&bitis=...) doğrular
+const validateQuery = (schema) => (req, res, next) => {
+    const sonuc = schema.safeParse(req.query);
+
+    if (!sonuc.success) {
+        const ilkHata = sonuc.error.issues[0];
+        return res.status(400).json({
+            basarili: false,
+            mesaj: ilkHata?.message || 'Geçersiz sorgu parametresi',
+            alan: ilkHata?.path?.join('.') || undefined,
+        });
+    }
+
+    req.query = sonuc.data;
+    next();
+};
+
+module.exports = { validate, validateParams, validateQuery };

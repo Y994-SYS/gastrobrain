@@ -1,17 +1,19 @@
 const express = require('express');
 const router = express.Router();
-const stokKartController = require('../controllers/stokKart.controller');
+const cariKartController = require('../controllers/cariKart.controller');
 const { authMiddleware, rolKontrol } = require('../middleware/auth.middleware');
+const { validate, validateParams } = require('../middleware/validate.middleware');
+const { cariKartSchema, idParamSchema } = require('../schemas/cariKart.schema');
 
 router.use(authMiddleware);
 
-// Stok kartı tanımları: DEPO + MUDUR + ADMIN
-const stokRol = rolKontrol('SUPER_ADMIN', 'TENANT_ADMIN', 'MUDUR', 'DEPO');
+const yonetimRol = rolKontrol('TENANT_ADMIN', 'MUDUR');
 
-router.get('/', stokRol, stokKartController.hepsiniGetir);
-router.get('/:id', stokRol, stokKartController.biriniGetir);
-router.post('/', stokRol, stokKartController.olustur);
-router.put('/:id', stokRol, stokKartController.guncelle);
-router.delete('/:id', stokRol, stokKartController.sil);
+router.get('/', yonetimRol, cariKartController.hepsiniGetir);
+router.get('/:id', yonetimRol, validateParams(idParamSchema), cariKartController.biriniGetir);
+router.get('/:id/bakiye', yonetimRol, validateParams(idParamSchema), cariKartController.bakiyeGetir);
+router.post('/', yonetimRol, validate(cariKartSchema), cariKartController.olustur);
+router.put('/:id', yonetimRol, validateParams(idParamSchema), validate(cariKartSchema), cariKartController.guncelle);
+router.delete('/:id', yonetimRol, validateParams(idParamSchema), cariKartController.sil);
 
 module.exports = router;

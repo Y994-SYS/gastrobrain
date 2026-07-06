@@ -30,23 +30,22 @@ const kolonAyarla = (sheet, kolonlar) => {
 };
 
 // POST /api/export
-// body: { moduller: ['stok', 'satis', ...], subeId: 2 }
+// body: { moduller: ['stok', 'satis', ...], subeId?: number }
 const tumVeriExport = async (req, res) => {
     try {
         const tenantId = req.kullanici.tenantId;
-        const moduller = req.body.moduller || [];
+        const moduller = req.body.moduller; // Zod tarafından doğrulanmış, en az 1 elemanlı dizi
         const rol = req.kullanici.rol;
 
         // Şube filtresi: MUDUR/DEPO/KASA kendi şubesine kilitli, TENANT_ADMIN seçebilir
+        // Not: route seviyesinde şu an sadece TENANT_ADMIN/ADMIN erişebiliyor,
+        // bu yüzden MUDUR/DEPO/KASA dalı fiilen çalışmıyor — ileride bu roller
+        // export'a eklenirse diye korunuyor.
         let subeId = null;
         if (rol === 'MUDUR' || rol === 'DEPO' || rol === 'KASA') {
             subeId = req.kullanici.subeId;
         } else if (req.body.subeId) {
-            subeId = Number(req.body.subeId);
-        }
-
-        if (!moduller.length) {
-            return res.status(400).json({ hata: 'En az bir modül seçmelisiniz' });
+            subeId = req.body.subeId; // Zod tarafından zaten sayıya çevrilmiş
         }
 
         const wb = new ExcelJS.Workbook();

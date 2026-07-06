@@ -27,9 +27,7 @@ const bakiyeHesapla = async (subeId, stokKartId) => {
 const subeStoklar = async (req, res) => {
     try {
         const tenantId = req.kullanici.tenantId;
-        const subeId = parseInt(req.query.subeId);
-
-        if (!subeId) return res.status(400).json({ hata: 'subeId zorunlu' });
+        const { subeId } = req.query; // Zod tarafından sayıya çevrilmiş ve pozitifliği doğrulanmış
 
         // Şubenin bu tenant'a ait olduğunu doğrula
         const sube = await prisma.sube.findFirst({
@@ -82,23 +80,14 @@ const transferYap = async (req, res) => {
     try {
         const tenantId = req.kullanici.tenantId;
         const { kaynakSubeId, hedefSubeId, stokKartId, miktar, aciklama } = req.body;
-
-        // ── Validasyon ──────────────────────────────────────────
-        if (!kaynakSubeId || !hedefSubeId || !stokKartId || !miktar) {
-            return res.status(400).json({ hata: 'kaynakSubeId, hedefSubeId, stokKartId ve miktar zorunlu' });
-        }
-        if (kaynakSubeId === hedefSubeId) {
-            return res.status(400).json({ hata: 'Kaynak ve hedef şube aynı olamaz' });
-        }
-        if (miktar <= 0) {
-            return res.status(400).json({ hata: 'Miktar sıfırdan büyük olmalı' });
-        }
+        // Not: kaynakSubeId/hedefSubeId/stokKartId/miktar artık Zod tarafından
+        // sayı tipine çevrilmiş, pozitifliği ve kaynak≠hedef kuralı doğrulanmış.
 
         // ── Tenant sahiplik kontrolleri ──────────────────────────
         const [kaynakSube, hedefSube, stokKart] = await Promise.all([
-            prisma.sube.findFirst({ where: { id: parseInt(kaynakSubeId), tenantId } }),
-            prisma.sube.findFirst({ where: { id: parseInt(hedefSubeId), tenantId } }),
-            prisma.stokKart.findFirst({ where: { id: parseInt(stokKartId), tenantId } }),
+            prisma.sube.findFirst({ where: { id: kaynakSubeId, tenantId } }),
+            prisma.sube.findFirst({ where: { id: hedefSubeId, tenantId } }),
+            prisma.stokKart.findFirst({ where: { id: stokKartId, tenantId } }),
         ]);
 
         if (!kaynakSube) return res.status(404).json({ hata: 'Kaynak şube bulunamadı' });
@@ -106,7 +95,7 @@ const transferYap = async (req, res) => {
         if (!stokKart) return res.status(404).json({ hata: 'Stok kartı bulunamadı' });
 
         // ── Bakiye yeterlilik kontrolü ───────────────────────────
-        const mevcutBakiye = await bakiyeHesapla(parseInt(kaynakSubeId), parseInt(stokKartId));
+        const mevcutBakiye = await bakiyeHesapla(kaynakSubeId, stokKartId);
         if (mevcutBakiye < miktar) {
             return res.status(400).json({
                 hata: `Yetersiz stok. Mevcut: ${mevcutBakiye} ${stokKart.ad}`,
@@ -123,22 +112,22 @@ const transferYap = async (req, res) => {
             prisma.stokHareket.create({
                 data: {
                     tip: 'SUBE_TRANSFER_OUT',
-                    miktar: parseFloat(miktar),
+                    miktar,
                     aciklama: aciklamaMetni,
                     tarih,
-                    stokKartId: parseInt(stokKartId),
-                    subeId: parseInt(kaynakSubeId),
+                    stokKartId,
+                    subeId: kaynakSubeId,
                 },
             }),
             // Hedef şubeye giriş
             prisma.stokHareket.create({
                 data: {
                     tip: 'SUBE_TRANSFER_IN',
-                    miktar: parseFloat(miktar),
+                    miktar,
                     aciklama: aciklamaMetni,
                     tarih,
-                    stokKartId: parseInt(stokKartId),
-                    subeId: parseInt(hedefSubeId),
+                    stokKartId,
+                    subeId: hedefSubeId,
                 },
             }),
         ]);
@@ -158,8 +147,7 @@ const transferYap = async (req, res) => {
 const transferGecmisi = async (req, res) => {
     try {
         const tenantId = req.kullanici.tenantId;
-        const subeId = req.query.subeId ? parseInt(req.query.subeId) : null;
-        const limit = Math.min(parseInt(req.query.limit) || 50, 200);
+        const { subeId, limit } = req.query; // Zod tarafından doğrulanmış/dönüştürülmüş
 
         const where = {
             sube: { tenantId },

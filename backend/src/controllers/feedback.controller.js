@@ -1,5 +1,13 @@
 const nodemailer = require('nodemailer');
 
+// E-posta HTML injection önlemi — kullanıcıdan gelen serbest metni
+// HTML'e gömmeden önce kaçışlıyoruz (<script> veya <img onerror=...> gibi
+// içerik e-posta istemcisinde render edilmesin diye)
+const htmlKacisla = (str) => String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+
 const transporter = nodemailer.createTransport({
     host: process.env.SMTP_HOST,
     port: Number(process.env.SMTP_PORT),
@@ -37,11 +45,11 @@ const feedbackController = {
                     <div style="font-family: sans-serif; max-width: 600px;">
                         <h2 style="color: #a3e635;">${tipEtiket}</h2>
                         <table style="width:100%; border-collapse: collapse; margin-bottom: 20px;">
-                            <tr><td style="padding: 8px; color: #666;">Kullanıcı</td><td style="padding: 8px;"><b>${ad}</b></td></tr>
-                            <tr><td style="padding: 8px; color: #666;">Email</td><td style="padding: 8px;">${email}</td></tr>
+                            <tr><td style="padding: 8px; color: #666;">Kullanıcı</td><td style="padding: 8px;"><b>${htmlKacisla(ad)}</b></td></tr>
+                            <tr><td style="padding: 8px; color: #666;">Email</td><td style="padding: 8px;">${htmlKacisla(email)}</td></tr>
                             <tr><td style="padding: 8px; color: #666;">Tenant ID</td><td style="padding: 8px;">${tenantId}</td></tr>
                         </table>
-                        <div style="background: #f4f4f4; padding: 16px; border-radius: 8px; white-space: pre-wrap;">${mesaj}</div>
+                        <div style="background: #f4f4f4; padding: 16px; border-radius: 8px; white-space: pre-wrap;">${htmlKacisla(mesaj)}</div>
                     </div>
                 `,
             });

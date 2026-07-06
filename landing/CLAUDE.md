@@ -1,341 +1,208 @@
-@AGENTS.md
-# GastroBrain — Proje Context Dosyası
+# GastroBRAIN Backend — Güvenlik Sertleştirme Çalışması (Context)
 
-## PROJE BİLGİLERİ
-- **Proje:** GastroBrain — Restoran Yönetim SaaS Sistemi
-- **Lokasyon:** C:\Users\alkan\Projects\gastroiq
-- **Son Güncelleme:** Haziran 2026
+Bu dosya, GastroBRAIN backend'inde yürütülen güvenlik iyileştirmelerinin
+tam kaydıdır. Yeni bir oturumda kaldığımız yerden devam etmek için bu
+dosyayı paylaşman yeterli.
 
-## STACK
-- **Backend:** Node.js v22 + Express + Prisma ORM v6 + PostgreSQL 18
-- **Frontend:** React + Vite + Tailwind CSS v4
-- **Landing:** Next.js v16 (App Router, static export)
-- **Veritabanı:** gastroiq_dev (PostgreSQL, localhost:5432)
-- **Auth:** JWT (bcryptjs + jsonwebtoken)
-- **Mail:** Nodemailer (SMTP/Gmail)
-- **Cron:** node-cron (lisans uyarı job'ları)
-- **Veritabanı:** Supabase PostgreSQL (production), localhost:5432 (local)
-- **Error Monitoring:** Sentry (@sentry/node)
+---
 
-## ÖNEMLİ NOTLAR
-- Prisma v6 kullanılıyor (v7 DEĞİL — prisma.config.ts olmadan çalışıyor)
-- Tailwind v4 kullanılıyor (@tailwindcss/vite plugin ile, tailwind.config.js YOK)
-- PostgreSQL path'e ekli değil: `& "C:\Program Files\PostgreSQL\18\bin\psql.exe" -U postgres`
-- Frontend port: 5173, Backend port: 3001, Landing port: 3000
-- Tema: Koyu (zinc-950 bg), lime-400 accent rengi
-- PowerShell'de `$disconnect` ve `$transaction` inline node -e komutlarında sorun çıkarıyor → dosya olarak çalıştır
-- landing klasörü gastroiq/landing altında (submodule değil, normal klasör)
-- auth.store.js'de setKullanici fonksiyonu var — profil güncellemede kullanılıyor
+## Genel Yaklaşım
 
-## PORT & URL
-- Frontend: http://localhost:5173
-- Backend: http://localhost:3001
-- Landing: http://localhost:3000
-- Super Admin: http://localhost:5173/super-admin
-- Kullanım Kılavuzu: http://localhost:3000/rehber
-- Yardım (uygulama içi): http://localhost:5173/yardim
-- Profil: http://localhost:5173/profil
-- Abonelik: http://localhost:5173/abonelik
+Başlangıç değerlendirmesinde şu eksikler tespit edildi:
+1. Rate limiting yok
+2. Input validation yok (Zod/express-validator yok)
+3. HTTPS kontrolü
+4. Loglama yok
 
-## PRODUCTION URL'LERİ (Render)
-- Frontend: https://gastrobrain-frontend.onrender.com
-- Backend: https://gastrobrain-backend.onrender.com
-- Landing: https://gastrobrain-landing.onrender.com
+Öncelik sırasıyla **rate limiting** ve **Zod ile input validation**
+üzerinde çalışıldı. Her route grubu için: ilgili route/controller/service
+dosyaları incelendi, Zod şeması yazıldı, route dosyasına `validate` /
+`validateParams` / `validateQuery` middleware'leri eklendi, deploy edilip
+tarayıcı konsolundan `fetch` ile test edildi.
 
-## VERİTABANI
-- **gastroiq_dev** — PostgreSQL localhost:5432 (local)
-- **Supabase** — aws-0-eu-west-1.pooler.supabase.com (production) ← GÜNCELLENDİ
-- Toplam 18 tablo (Prisma schema)
-- Connection pooling: Supabase pgBouncer (transaction mode, port 6543)
-- Direct URL: session mode (port 5432, migration için)
+---
 
-## TEST KULLANICILARI (local)
-| Email | Şifre | Rol | Firma |
-|-------|-------|-----|-------|
-| admin@gastroiq.com | 123456 | TENANT_ADMIN | merkez-restoran |
-| test@gastroiq.com | 123456 | MUDUR | merkez-restoran |
-| super@gastroiq.com | 123456 | SUPER_ADMIN | merkez-restoran |
+## 1. Rate Limiting (TAMAMLANDI ✅)
 
-## PRODUCTION KULLANICILARI
-| Email | Şifre | Rol |
-|-------|-------|-----|
-| super@gastroiq.com | 123456 | SUPER_ADMIN |
-| nazar@gmail.com | — | TENANT_ADMIN (nazaret) |
+- `express-rate-limit` zaten kuruluydu, `middleware/rateLimit.middleware.js`
+  içinde `girisLimit`, `kayitLimit`, `genelLimit`, `kritikLimit` tanımlıydı.
+- **Bulunan sorun 1:** `genelLimit`/`kritikLimit` tenant+user bazlı key
+  üretmek için `req.kullanici`'ye bakıyordu, ama gerçek `authMiddleware`
+  sadece route içinde çalışıyordu — rate limiter'lar ondan önce tetiklendiği
+  için `req.kullanici` hep `undefined` kalıyordu.
+  - **Çözüm:** `middleware/auth.middleware.js`'e yeni bir `tokenVarsaCoz`
+    fonksiyonu eklendi — token varsa `req.kullanici`'yi dolduruyor, token
+    yoksa/geçersizse sessizce geçiyor (401 vermiyor). `index.js`'te
+    `app.use('/api', tokenVarsaCoz)` olarak `kritikLimit`/`genelLimit`'ten
+    önce eklendi.
+- **Bulunan sorun 2 (prod deploy hatası):** `express-rate-limit` v8, IPv6
+  adreslerini güvenli normalize etmek için özel `ipKeyGenerator` helper'ı
+  zorunlu kılıyor. Eski kod `req.ip`'yi doğrudan kullanıyordu →
+  `ERR_ERL_KEY_GEN_IPV6` hatasıyla prod'da çöktü.
+  - **Çözüm:** `ipKey` ve `tenantUserKey` fonksiyonlarında
+    `ipKeyGenerator(req.ip)` kullanıldı.
 
-## ORTAM DEĞİŞKENLERİ
+---
 
-### Backend (.env)
-```
-DATABASE_URL=postgresql://...
-JWT_SECRET=...
-JWT_EXPIRES_IN=7d
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_USER=senin@gmail.com
-SMTP_PASS=gmail_uygulama_sifresi (16 haneli)
-FEEDBACK_EMAIL=senin@gmail.com
-APP_URL=https://gastrobrain-frontend.onrender.com
-NODE_ENV=production
-```
+## 2. Zod ile Input Validation — Tamamlanan Route Grupları ✅
 
-### Frontend (.env)
-```
-VITE_API_URL=https://gastrobrain-backend.onrender.com
-```
+Genel middleware dosyası: `middleware/validate.middleware.js`
+İçerdiği fonksiyonlar:
+- `validate(schema)` — `req.body`'yi doğrular
+- `validateParams(schema)` — `req.params`'ı doğrular (örn. `:id`)
+- `validateQuery(schema)` — `req.query`'yi doğrular (Express 5'te
+  `req.query` salt-okunur olabilir diye dikkat edildi, ama test sorunsuz
+  geçti)
 
-## TAMAMLANAN FAZLAR
+Her şema dosyası `schemas/<isim>.schema.js` altında.
 
-### Faz 1 — Altyapı ✅
-- Node.js v22, PostgreSQL 18, Git kurulu
-- Backend: Express + Prisma + JWT auth
-- Frontend: React + Vite + Tailwind
-- Veritabanı şeması: 18 tablo
-- Authentication: kayıt, giriş, JWT token, middleware
-- Login sayfası çalışıyor
+### Tamamlanan gruplar (sırayla):
+1. **auth** (`kayit`, `giris`, `kayit-firma`, `tenant-listesi`,
+   `sifre-sifirlama-talep`, `sifre-sifirla`) — email/şifre format
+   kontrolleri. Boş string/`null` karışıklığı `z.preprocess` ile çözüldü.
+2. **kategori** — `ad` zorunlu, `renk` opsiyonel, `.strict()` ile mass
+   assignment koruması.
+3. **olcuBirimi** — `ad` + `kisaltma` zorunlu.
+4. **stokKart** — `kod`, `ad`, `kategoriId`, `birimId` zorunlu;
+   `aciklama`/`minStok` opsiyonel.
+   - ⚠️ **Tespit edilen ama henüz düzeltilmeyen açık:** `kategoriId` ve
+     `birimId`'nin gerçekten o tenant'a ait olup olmadığı servis
+     katmanında kontrol edilmiyor (potansiyel IDOR — biri başka tenant'ın
+     kategori/birim ID'sini kullanabilir). Zod format kontrolü yapıyor
+     ama sahiplik kontrolü yapmıyor. **Bu, service katmanı sertleştirme
+     turunda ele alınmalı.**
+5. **cariKart** — email boş string geldiğinde `.email()` validasyonuna
+   takılmaması için `z.preprocess` ile `''` → `undefined` çevrildi.
+6. **stok** (stok hareketleri: giriş faturası, iade faturası, zayi,
+   tüketim, tüketim-reçete, ay sonu sayım) — `subeId` opsiyonel bırakıldı
+   çünkü controller `req.body.subeId` boşsa `req.kullanici.subeId` ile
+   dolduruyor (validate'ten sonra çalışıyor ama sorun çıkarmıyor çünkü
+   Zod'da alan zaten opsiyonel).
+7. **recete** — nested `kalemler` dizisi (`z.array(...).min(1)`).
+   `satisFiyati`/`porsiyonSayisi`/`satisKodu` boş string geldiğinde
+   `undefined`'a çevrildi (aksi halde `0` olarak yanlış kaydolabilirdi).
+   - ⚠️ **Not (service katmanı, Zod dışı):** `guncelle` fonksiyonu
+     güncellemede önce tüm `receteKalem` kayıtlarını siliyor, sonra
+     yenilerini oluşturuyor — bu iki işlem `$transaction` içinde değil,
+     aralarında hata olursa reçete kalemsiz kalabilir. **Sertleştirme
+     turunda ele alınmalı.**
+8. **satis** — `receteId`, `adet`, `birimFiyat` zorunlu.
+9. **cariHareket** (`odeme`, `manuel`) — `tip` enum ile sınırlandı
+   (`BORC`, `ALACAK`, `ODEME`, `TAHSILAT`).
+10. **personel** (+ `maas`, `avans`, `devam` alt kayıtları) — `tcKimlik`
+    11 haneli regex kontrolü, `devam.durum` enum.
+    - 📌 **Kullanıcı isteği (yapılacak, ayrı iş):** Personel kaydına
+      "izin günleri" eklensin. Not: `PersonelDevam` tablosu zaten
+      `durum: IZIN` değerini destekliyor, yani günlük izin kaydı teknik
+      olarak zaten mümkün. Eğer istenen "yıllık izin hakkı takibi"
+      (örn. personelin kaç gün izin hakkı var, kaçını kullandı) ise, bu
+      şema değişikliği + migration + yeni endpoint gerektirir — validation
+      turu bitince ayrı ele alınacak.
+11. **rapor** (`satis`, `stok`, `cari`, `maliyet`, `excel`) —
+    `req.query` doğrulaması (`validateQuery` kullanıldı). `excel`
+    endpoint'inde `tip` enum (`satis|stok|cari|maliyet`).
+12. **sube** — `ad` zorunlu (oluşturma), güncellemede tüm alanlar
+    opsiyonel (`aktif` tek başına gönderilebilir).
+13. **kullanici** — `rol` alanı `ATANABILIR_ROLLER` enum'una sabitlendi
+    (`SUPER_ADMIN` hariç) — bu, controller'daki eski manuel kontrole ek
+    bir savunma katmanı sağladı. `sifreDegistir`, `profilGuncelle` de
+    kapsandı.
+    - ⚠️ **Not (Zod dışı, service katmanı):** `guncelle` fonksiyonunda
+      `subeId: subeId || null` satırı var — eğer güncelleme isteğinde
+      `subeId` gönderilmezse kullanıcının şubesi yanlışlıkla `null`'a
+      düşebilir. Frontend'in her zaman `subeId` gönderip göndermediği
+      teyit edilmeli.
+14. **superAdmin** (`tenantlar/:id/aktif`, `/plan`, `/lisans`) — `plan`
+    enum, `aktif` boolean zorunlu. Test edildi ve doğrulandı.
+15. **feedback** — `mesaj` zorunlu (max 5000 karakter), `tip` enum
+    opsiyonel.
+    - ✅ **Bugün eklenen ek düzeltme:** Controller, kullanıcının girdiği
+      `mesaj`'ı hiç kaçışlamadan (HTML-escape) doğrudan e-posta HTML'ine
+      gömüyordu — bu bir **e-posta HTML injection** açığıydı (biri
+      `<img onerror=...>` gibi içerik gönderebilirdi). `htmlKacisla()`
+      yardımcı fonksiyonu eklenerek `ad`, `email`, `mesaj` alanları artık
+      HTML'e gömülmeden önce kaçışlanıyor.
 
-### Faz 2 — Çekirdek Modüller ✅
-**Backend API'leri:**
-- /api/auth — kayıt, giriş, token doğrulama, tenant listesi
-- /api/kategoriler — CRUD
-- /api/olcu-birimleri — CRUD
-- /api/stok-kartlari — CRUD
-- /api/cari-kartlar — CRUD
-- /api/stok — giriş/iade faturası, zayi, tüketim, ay sonu sayım, stok durumu
-- /api/receteler — CRUD + maliyet hesaplama
-- /api/satislar — ekleme, listeleme, günlük toplam, silme
-- /api/cari-hareketler — bakiyeler, ödeme, manuel hareket
-- /api/personel — CRUD + maaş, avans, devam kayıtları
-- /api/raporlar — satış, stok, cari, maliyet + Excel export
-- /api/subeler — CRUD şube yönetimi
-- /api/kullanicilar — CRUD + rol yönetimi
+---
 
-**Frontend Sayfaları:**
-- Dashboard (günlük satış, kritik stok, bekleyen borç, hızlı erişim)
-- Stok: Durum, Giriş/İade Faturası, Zayi, Tüketim, Ay Sonu Sayım
-- Reçeteler (maliyet analizi dahil)
-- Satışlar, Cari Hesap, Personel, Raporlama
-- Tanımlamalar: Kategori, Ölçü Birimi, Stok Kartı, Cari Kart, Şube, Kullanıcı
-- Gruplu sidebar menü (açılır/kapanır)
+## 3. Yol Boyunca Bulunan ve Düzeltilen Ayrı Hatalar
 
-**Test:** Vitest kurulu, 11/11 unit test geçiyor
+- **Kritik prod hatası:** `index.js`'teki global hata yakalama
+  middleware'i `Sentry.captureException(err)` çağırıyordu ama `Sentry`
+  hiçbir yerde import edilmemişti (`ReferenceError: Sentry is not
+  defined`). Bu, her hata oluştuğunda hata yakalamanın kendisinin
+  patlamasına ve bozuk/eksik response dönmesine yol açıyordu.
+  **Düzeltildi:** `const Sentry = require('@sentry/node');` eklendi.
+- **Kopyala-yapıştır hatası (validation'la ilgisiz):**
+  `routes/stokKart.routes.js` dosyasının içeriği yanlışlıkla
+  `cariKart.routes.js` içeriğiyle doldurulmuştu (muhtemelen manuel
+  kopyalama sırasında). Bu yüzden `/api/stok-kartlari` ve
+  `/api/cari-kartlar` aynı (yanlış) veriyi dönüyordu. Doğru içerikle
+  değiştirilip düzeltildi.
 
-### Faz 3 — Multi-Tenant ✅
-- Tenant modeli + tüm tablolara tenantId
-- JWT token'a tenantId eklendi
-- Login 2 adım: email → firma seç + şifre
-- /api/auth/kayit-firma — tenant+şube+admin transaction
-- /api/super-admin — SUPER_ADMIN korumalı
-- Lisans bitiş kontrolü giriş sırasında
+---
 
-### Faz 4 — Production Ready ✅
-- XSS, HPP koruması
-- Rate limiting (IP bazlı + tenant+user bazlı)
-- DB index'leri
-- [x] Supabase migration (connection pooling dahil) ← YENİ
-- [x] Race condition fix (stok azaltma atomik) ← YENİ
-- [x] Prisma middleware (tenantId zorunluluğu) ← YENİ
-- [x] Hata izleme (Sentry) ✅ ← GÜNCELLENDİ
-- [ ] Otomatik yedekleme — Supabase otomatik yapıyor ✅ ← GÜNCELLENDİ
+## 4. Henüz Yapılmayan / Sıradaki İşler
 
-### Faz 5 — Satış & Büyüme ✅
-- [x] Landing page (Next.js static export, Render'da canlı)
-- [x] Demo ortamı (demoSeed.service.js — kayıt olunca otomatik)
-- [x] Kullanım kılavuzu
-  - Landing: /rehber (8 konu, adım adım)
-  - Uygulama içi: /yardim (SSS + arama)
-- [x] Geri bildirim (FeedbackModal + /api/feedback + nodemailer)
-- [x] Deploy — Render (backend + frontend + landing)
+### A) Zod validation turu — kalan route grupları
+`index.js`'teki route sırasına göre henüz işlenmedi:
+- `auditLog`
+- `transfer`
+- `dashboard`
+- `odeme`
+- `export`
 
-### Faz 5 Devam — Lisans & Abonelik ✅
-- [x] Otomatik 30 gün ücretsiz lisans (kayıt olunca)
-- [x] Hoşgeldin e-postası (kayıt sonrası otomatik)
-- [x] Lisans bitiş uyarı maili (7 gün + 3 gün kala, cron job)
-- [x] Uygulama içi Abonelik sayfası (/abonelik)
-  - Aylık (₺799) / Yıllık (₺7.990) plan seçimi
-  - IBAN + açıklama kopyalama
-  - Ödeme talimatları
-- [x] Super Admin hızlı lisans uzatma (+1 Ay / +1 Yıl butonları)
-- [x] Lisans bitiş banner'ı (14 gün kala sarı, 3 gün kala kırmızı)
-- [x] Profil sayfası (/profil)
-  - Ad güncelleme
-  - Şifre değiştirme
-- [ ] İlk 5 beta müşteri — devam ediyor
+Bu gruplar için aynı yöntem izlenecek: route/controller/service
+dosyalarını iste → Zod şeması yaz → route'a `validate`/`validateParams`/
+`validateQuery` ekle → deploy → tarayıcı konsolundan `fetch` ile test.
 
-## BACKEND API ENDPOINTLERİ (tam liste)
+### B) Servis katmanı sertleştirme (Zod bitince ele alınacak)
+1. **IDOR riski** — `stokKart` oluşturma/güncellemede `kategoriId` ve
+   `birimId`'nin tenant sahipliği kontrol edilmiyor. Benzer bir kontrolün
+   diğer nested-relation alanlarında (örn. `recete.kalemler[].stokKartId`,
+   `satis.receteId`) da olup olmadığı topluca gözden geçirilmeli.
+2. **`recete.guncelle` transaction eksikliği** — kalem silme + yeniden
+   oluşturma `$transaction` içine alınmalı.
+3. **`kullanici.guncelle` subeId sıfırlama riski** — `subeId || null`
+   davranışı gözden geçirilmeli.
 
-### Auth
-- POST /api/auth/kayit
-- POST /api/auth/giris
-- GET  /api/auth/beni-getir
-- POST /api/auth/kayit-firma
-- POST /api/auth/tenant-listesi
-- GET  /api/auth/lisans-durum ← YENİ
+### C) Ayrı özellik istekleri (security taramasının dışında)
+1. **Personel izin günleri** — yıllık izin hakkı takibi isteniyorsa yeni
+   alan/tablo + migration + endpoint gerekir.
 
-### Kullanıcılar
-- GET    /api/kullanicilar
-- POST   /api/kullanicilar
-- PUT    /api/kullanicilar/profil ← YENİ
-- PUT    /api/kullanicilar/sifre-degistir ← YENİ
-- PUT    /api/kullanicilar/:id
-- DELETE /api/kullanicilar/:id
+### D) Orijinal checklist'ten henüz başlanmayan maddeler
+3. **HTTPS zorunluluğu kontrolü** — Render'da SSL var mı doğrulanmadı.
+4. **Loglama (Morgan + Winston)** — hiç eklenmedi.
+5. **Environment variable güvenliği** — Render ayarları gözden
+   geçirilmedi.
 
-### Diğerleri
-- /api/kategoriler, /api/olcu-birimleri, /api/stok-kartlari, /api/cari-kartlar — CRUD
-- /api/stok — giriş/iade/zayi/tüketim/sayım/durum
-- /api/receteler — CRUD + maliyet
-- /api/satislar — CRUD + günlük toplam
-- /api/cari-hareketler — bakiye/ödeme/hareket
-- /api/personel — CRUD + maaş/avans/devam
-- /api/raporlar — satış/stok/cari/maliyet + Excel
-- /api/subeler — CRUD
-- /api/super-admin — istatistik/tenant/lisans yönetimi
-- /api/feedback — mail gönderimi
+---
 
-## DOSYA YAPISI
-```
-gastroiq/
-├── backend/
-│   ├── src/
-│   │   ├── controllers/
-│   │   │   ├── auth.controller.js         (lisansDurum eklendi)
-│   │   │   ├── cariHareket.controller.js
-│   │   │   ├── cariKart.controller.js
-│   │   │   ├── feedback.controller.js
-│   │   │   ├── kategori.controller.js
-│   │   │   ├── kullanici.controller.js    (profilGuncelle, sifreDegistir eklendi)
-│   │   │   ├── olcuBirimi.controller.js
-│   │   │   ├── personel.controller.js
-│   │   │   ├── rapor.controller.js
-│   │   │   ├── recete.controller.js
-│   │   │   ├── satis.controller.js
-│   │   │   ├── stok.controller.js
-│   │   │   ├── stokKart.controller.js
-│   │   │   ├── sube.controller.js
-│   │   │   └── superAdmin.controller.js
-│   │   ├── middleware/
-│   │   │   ├── auth.middleware.js
-│   │   │   └── rateLimit.middleware.js
-│   │   ├── routes/
-│   │   │   ├── auth.routes.js             (lisans-durum eklendi)
-│   │   │   ├── cariHareket.routes.js
-│   │   │   ├── cariKart.routes.js
-│   │   │   ├── feedback.routes.js
-│   │   │   ├── kategori.routes.js
-│   │   │   ├── kullanici.routes.js        (profil, sifre-degistir eklendi)
-│   │   │   ├── olcuBirimi.routes.js
-│   │   │   ├── personel.routes.js
-│   │   │   ├── rapor.routes.js
-│   │   │   ├── recete.routes.js
-│   │   │   ├── satis.routes.js
-│   │   │   ├── stok.routes.js
-│   │   │   ├── stokKart.routes.js
-│   │   │   ├── sube.routes.js
-│   │   │   └── superAdmin.routes.js
-│   │   ├── services/
-│   │   │   ├── auth.service.js            (otomatik 30 gün lisans eklendi)
-│   │   │   ├── cariHareket.service.js
-│   │   │   ├── cariKart.service.js
-│   │   │   ├── demoSeed.service.js
-│   │   │   ├── kategori.service.js
-│   │   │   ├── lisansUyari.service.js     ← YENİ (cron job)
-│   │   │   ├── mail.service.js            ← YENİ (hosgeldin + uyari maili)
-│   │   │   ├── olcuBirimi.service.js
-│   │   │   ├── personel.service.js
-│   │   │   ├── recete.service.js
-│   │   │   ├── satis.service.js
-│   │   │   ├── stok.service.js
-│   │   │   └── stokKart.service.js
-│   │   └── index.js                       (cron job başlatma eklendi)
-│   ├── prisma/
-│   │   ├── schema.prisma
-│   │   └── seed.js
-│   ├── create-super-admin.js
-│   ├── create-tenant2.js
-│   ├── fix-tenant.js
-│   ├── fix-super-admin.js
-│   └── .env
-│
-├── frontend/
-│   ├── src/
-│   │   ├── components/
-│   │   │   ├── FeedbackModal.jsx
-│   │   │   ├── Layout.jsx                 (LisansBanner + Profil linki eklendi)
-│   │   │   ├── LisansBanner.jsx           ← YENİ
-│   │   │   ├── LoadingSpinner.jsx
-│   │   │   ├── Modal.jsx
-│   │   │   └── Table.jsx
-│   │   ├── pages/
-│   │   │   ├── Abonelik.jsx               ← YENİ
-│   │   │   ├── Dashboard.jsx
-│   │   │   ├── KayitFirma.jsx
-│   │   │   ├── Login.jsx
-│   │   │   ├── Profil.jsx                 ← YENİ
-│   │   │   ├── SuperAdmin.jsx             (hızlı uzatma eklendi)
-│   │   │   ├── Yardim.jsx
-│   │   │   ├── cari/CariHesap.jsx
-│   │   │   ├── personel/Personel.jsx
-│   │   │   ├── raporlar/Raporlar.jsx
-│   │   │   ├── recete/Receteler.jsx
-│   │   │   ├── satis/Satislar.jsx
-│   │   │   ├── stok/
-│   │   │   │   ├── AySonuSayim.jsx
-│   │   │   │   ├── GirisFaturasi.jsx
-│   │   │   │   ├── IadeFaturasi.jsx
-│   │   │   │   ├── StokDurumu.jsx
-│   │   │   │   ├── TuketimGideri.jsx
-│   │   │   │   └── ZayiGideri.jsx
-│   │   │   └── tanimlamalar/
-│   │   │       ├── CariKartlar.jsx
-│   │   │       ├── Kategoriler.jsx
-│   │   │       ├── Kullanicilar.jsx
-│   │   │       ├── OlcuBirimleri.jsx
-│   │   │       ├── StokKartlari.jsx
-│   │   │       └── Subeler.jsx
-│   │   ├── services/
-│   │   │   ├── api.js
-│   │   │   └── auth.service.js
-│   │   ├── store/
-│   │   │   └── auth.store.js              (setKullanici eklendi)
-│   │   └── App.jsx                        (Abonelik, Profil route'ları eklendi)
-│   └── .env
-│
-├── landing/
-│   ├── app/
-│   │   ├── layout.tsx
-│   │   ├── page.tsx
-│   │   ├── globals.css
-│   │   └── rehber/
-│   │       └── page.tsx
-│   ├── public/
-│   │   └── logo.png
-│   ├── next.config.ts                     (output: export eklendi)
-│   └── package.json
-│
-└── CONTEXT.md
+## 5. Ortam / Altyapı Notları
 
-## SUNUCU BAŞLATMA
-```powershell
-# Backend
-cd C:\Users\alkan\Projects\gastroiq\backend
-node src/index.js
+- Backend: Render'da barındırılıyor (`gastrobrain-backend`), prod URL:
+  `https://api.gastrobrain.com.tr`
+- Veritabanı: Supabase (Postgres), Prisma ORM ile erişiliyor.
+- Frontend: `https://app.gastrobrain.com.tr`
+- Token localStorage key'i: **`gastroiq_token`** (test için önemli —
+  tarayıcı konsolunda `localStorage.getItem('gastroiq_token')` ile
+  alınabilir).
+- Test yöntemi: Kullanıcı PowerShell/curl yerine tarayıcı konsolunda
+  `fetch(...)` ile manuel istek atarak test ediyor (giriş yapılmış
+  oturumdaki token'ı kullanarak). `allow pasting` yazması gerekebiliyor
+  (Chrome DevTools güvenlik uyarısı).
+- SUPER_ADMIN paneli: `app.gastrobrain.com.tr/super-admin` — ayrı bir
+  hesapla giriş gerektiriyor.
 
-# Frontend
-cd C:\Users\alkan\Projects\gastroiq\frontend
-npm run dev
+---
 
-# Landing
-cd C:\Users\alkan\Projects\gastroiq\landing
-npm run dev
-```
+## 6. Bir Sonraki Oturumda Nereden Devam Edilecek
 
-## LİSANS SİSTEMİ
-- Kayıt → otomatik 30 gün ücretsiz
-- 7 gün kala → uyarı maili
-- 3 gün kala → uyarı maili
-- Uygulama içi banner (14 gün kala sarı, 3 gün kala kırmızı)
-- Ödeme: havale/EFT → IBAN → super admin manuel uzatma
-- Planlar: Aylık ₺799 / Yıllık ₺7.990
-
-## GİTHUB
-- Repo: https://github.com/Y994-SYS/gastrobrain
-- Branch: main
+1. Bu dosyayı Claude'a ver.
+2. "Zod'a devam edelim" de — sıradaki grup **`auditLog`**.
+3. Aynı akış: route/controller/service dosyalarını paylaş → şema
+   yazılır → test edilir.
+4. Tüm route grupları bitince, **Bölüm 4-B**'deki servis katmanı
+   sertleştirme maddelerine geçilecek.
+5. Ardından orijinal checklist'in kalan maddeleri (HTTPS kontrolü,
+   loglama, env variable güvenliği) ele alınacak.

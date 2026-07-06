@@ -1,13 +1,29 @@
 const satisService = require('../services/satis.service');
 const auditLog = require('../services/auditLog.service');
 
-// Şube ID'sini belirle
+// Kısıtlı roller: sadece kendi şubeleriyle ilgili işlem yapabilir
+// (okuma ve yazma dahil). Bu roller için gönderilen subeId göz ardı edilir.
+const SUBE_KISITLI_ROLLER = ['MUDUR', 'DEPO', 'KASA', 'PERSONEL'];
+
+// Şube ID'sini belirle (okuma işlemleri için)
 const subeIdBelirle = (req) => {
     const rol = req.kullanici.rol;
-    if (rol === 'MUDUR' || rol === 'DEPO' || rol === 'KASA' || rol === 'PERSONEL') {
+    if (SUBE_KISITLI_ROLLER.includes(rol)) {
         return req.kullanici.subeId;
     }
     return req.query.subeId ? Number(req.query.subeId) : null;
+};
+
+// Şube ID'sini belirle (satış oluşturma için — body üzerinden gelir).
+// Kısıtlı roller için body'de ne gönderilirse gönderilsin kullanıcının
+// kendi şubesi zorlanır; aksi halde bir kasiyer/personel başka bir şubenin
+// stoğunu düşürüp satış kaydı oluşturabilirdi (tenant içi yetki atlatma).
+const satisSubeIdBelirle = (req) => {
+    const rol = req.kullanici.rol;
+    if (SUBE_KISITLI_ROLLER.includes(rol)) {
+        return req.kullanici.subeId;
+    }
+    return req.body.subeId ? Number(req.body.subeId) : req.kullanici.subeId;
 };
 
 const satisController = {
@@ -35,8 +51,9 @@ const satisController = {
 
     async ekle(req, res) {
         try {
-            // Şube: body'den gelirse onu kullan, yoksa kullanıcının şubesi
-            if (!req.body.subeId) req.body.subeId = req.kullanici.subeId;
+            // Şube: kısıtlı roller için her zaman kendi şubesi zorlanır;
+            // diğer roller için body'den gelirse onu kullan, yoksa kullanıcının şubesi
+            req.body.subeId = satisSubeIdBelirle(req);
 
             const zorla = req.body.zorla === true;
             const { satis, zorlandi, eksikKalemler } = await satisService.ekle(

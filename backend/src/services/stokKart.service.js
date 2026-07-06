@@ -1,6 +1,31 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
+// IDOR koruması: kategoriId ve/veya birimId gönderildiyse, bunların
+// gerçekten istek sahibinin tenant'ına ait olduğunu doğrular.
+// Aksi halde biri başka bir tenant'ın kategori/birim ID'sini vererek
+// stok kartını yabancı bir kayda "bağlayabilir" (ör. include ile
+// başka tenant'ın kategori adı sızdırılabilir).
+async function iliskileriDogrula({ kategoriId, birimId }, tenantId) {
+    const kontroller = [];
+
+    if (kategoriId !== undefined && kategoriId !== null) {
+        kontroller.push(
+            prisma.kategori.findFirst({ where: { id: kategoriId, tenantId } })
+                .then(k => { if (!k) throw new Error('Geçersiz kategori: bu kategori bulunamadı veya erişim yetkiniz yok'); })
+        );
+    }
+
+    if (birimId !== undefined && birimId !== null) {
+        kontroller.push(
+            prisma.olcuBirimi.findFirst({ where: { id: birimId, tenantId } })
+                .then(b => { if (!b) throw new Error('Geçersiz ölçü birimi: bu birim bulunamadı veya erişim yetkiniz yok'); })
+        );
+    }
+
+    await Promise.all(kontroller);
+}
+
 const stokKartService = {
 
     async hepsiniGetir(tenantId) {
@@ -21,6 +46,7 @@ const stokKartService = {
     },
 
     async olustur(data, tenantId) {
+        await iliskileriDogrula(data, tenantId);
         return prisma.stokKart.create({
             data: { ...data, tenantId },
             include: { kategori: true, birim: true }
@@ -29,6 +55,7 @@ const stokKartService = {
 
     async guncelle(id, data, tenantId) {
         await this.biriniGetir(id, tenantId);
+        await iliskileriDogrula(data, tenantId);
         return prisma.stokKart.update({
             where: { id },
             data,

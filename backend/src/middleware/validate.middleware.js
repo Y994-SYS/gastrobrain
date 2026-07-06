@@ -44,7 +44,19 @@ const validateQuery = (schema) => (req, res, next) => {
         });
     }
 
-    req.query = sonuc.data;
+    // Express 5'te req.query salt-okunur bir getter olarak tanımlı.
+    // Doğrudan atama (`req.query = sonuc.data`) strict olmayan modda
+    // sessizce hiçbir etki yapmıyor — coerce edilmiş (örn. string->number)
+    // değerler controller'a hiç ulaşmıyor, orijinal string değerler kalıyordu.
+    // Property'yi configurable:true olarak yeniden tanımlayarak gerçek
+    // değişikliği sağlıyoruz.
+    Object.defineProperty(req, 'query', {
+        value: sonuc.data,
+        writable: true,
+        enumerable: true,
+        configurable: true,
+    });
+
     next();
 };
 

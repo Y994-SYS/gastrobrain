@@ -59,17 +59,20 @@ const prisma = new PrismaClient().$extends({
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// ── Güvenlik başlıkları ───────────────────────────────────────────────────────
+// NOT: helmet() her zaman EN BAŞTA kalmalı — X-Powered-By gizleme, HSTS,
+// vb. tüm response'lara (health check dahil) uygulanmalı.
+app.use(helmet());
+
 // ── Sağlık kontrolü ───────────────────────────────────────────────────────────
-// NOT: Bu route CORS/helmet/rate-limit middleware'lerinden ÖNCE tanımlanıyor.
-// Render (ve benzeri hosting'ler) health check için Origin header'ı olmayan
-// HEAD/GET istekleri atar; bu istekler CORS kontrolüne hiç girmeden burada
-// karşılanıp log gürültüsü (ve gereksiz middleware yükü) engellenmiş olur.
+// NOT: Bu route CORS'tan ÖNCE ama helmet'ten SONRA tanımlanıyor. Render (ve
+// benzeri hosting'ler) health check için Origin header'ı olmayan HEAD/GET
+// istekleri atar; bu istekler CORS'un origin kontrolüne hiç girmeden burada
+// karşılanır (log gürültüsü engellenir) ama yine de helmet'in güvenlik
+// header'larını (HSTS, X-Powered-By gizleme vb.) alır.
 app.get('/', (req, res) => {
     res.json({ message: 'GastroBRAIN API çalışıyor 🚀', version: '1.0.0' });
 });
-
-// ── Güvenlik başlıkları ───────────────────────────────────────────────────────
-app.use(helmet());
 
 // ── CORS — sadece kendi domaininden istek kabul et ────────────────────────────
 const izinliOriginler = (process.env.ALLOWED_ORIGINS || 'https://app.gastrobrain.com.tr')
@@ -173,7 +176,7 @@ app.use((req, res) => {
 // ── Hata yakalama ─────────────────────────────────────────────────────────────
 app.use((err, req, res, next) => {
     // CORS hatalarını özel handle et
-    if (err.message?.includes('CORS')) {
+    if (err.message?.includes('CORS') || err.message === 'Origin zorunlu') {
         return res.status(403).json({ basarili: false, mesaj: 'Erişim reddedildi' });
     }
     logger.error(err.message, {

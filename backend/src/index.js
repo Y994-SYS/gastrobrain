@@ -8,6 +8,9 @@ const cors = require('cors');
 const helmet = require('helmet');
 const hpp = require('hpp');
 
+const logger = require('./config/logger');
+const requestLogger = require('./middleware/requestLogger.middleware');
+
 const { girisLimit, kayitLimit, genelLimit, kritikLimit } = require('./middleware/rateLimit.middleware');
 const { tokenVarsaCoz } = require('./middleware/auth.middleware');
 
@@ -31,8 +34,6 @@ const transferRoutes = require('./routes/transfer.route');
 const dashboardRoutes = require('./routes/dashboard.routes');
 const odemeRoutes = require('./routes/odeme.routes');
 const exportRoutes = require('./routes/export.routes'); // ← EKLENDİ
-const logger = require('./config/logger');
-const requestLogger = require('./middleware/requestLogger.middleware');
 
 const { PrismaClient } = require('@prisma/client');
 
@@ -57,6 +58,15 @@ const prisma = new PrismaClient().$extends({
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+
+// ── Sağlık kontrolü ───────────────────────────────────────────────────────────
+// NOT: Bu route CORS/helmet/rate-limit middleware'lerinden ÖNCE tanımlanıyor.
+// Render (ve benzeri hosting'ler) health check için Origin header'ı olmayan
+// HEAD/GET istekleri atar; bu istekler CORS kontrolüne hiç girmeden burada
+// karşılanıp log gürültüsü (ve gereksiz middleware yükü) engellenmiş olur.
+app.get('/', (req, res) => {
+    res.json({ message: 'GastroBRAIN API çalışıyor 🚀', version: '1.0.0' });
+});
 
 // ── Güvenlik başlıkları ───────────────────────────────────────────────────────
 app.use(helmet());
@@ -122,7 +132,10 @@ app.use('/api/auth/kayit', kayitLimit);
 // key üretebilmesi için, gerçek authMiddleware'den ÖNCE çalışır
 app.use('/api', tokenVarsaCoz);
 
+// Request logger — tokenVarsaCoz'dan SONRA mount edilir ki req.kullanici
+// dolu olsun ve loglara tenant/kullanıcı bilgisi yansısın
 app.use('/api', requestLogger);
+
 // Kritik işlemler — route'lardan önce tanımlanmalı ki çalışsın
 app.use('/api/stok', kritikLimit);
 app.use('/api/satislar', kritikLimit);
@@ -152,11 +165,6 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/odeme', odemeRoutes);
 app.use('/api/export', exportRoutes); // ← EKLENDİ
 
-// ── Sağlık kontrolü ───────────────────────────────────────────────────────────
-app.get('/', (req, res) => {
-    res.json({ message: 'GastroBRAIN API çalışıyor 🚀', version: '1.0.0' });
-});
-
 // ── 404 ───────────────────────────────────────────────────────────────────────
 app.use((req, res) => {
     res.status(404).json({ basarili: false, mesaj: 'Endpoint bulunamadı' });
@@ -164,6 +172,7 @@ app.use((req, res) => {
 
 // ── Hata yakalama ─────────────────────────────────────────────────────────────
 app.use((err, req, res, next) => {
+    // CORS hatalarını özel handle et
     if (err.message?.includes('CORS')) {
         return res.status(403).json({ basarili: false, mesaj: 'Erişim reddedildi' });
     }

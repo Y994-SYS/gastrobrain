@@ -31,6 +31,8 @@ const transferRoutes = require('./routes/transfer.route');
 const dashboardRoutes = require('./routes/dashboard.routes');
 const odemeRoutes = require('./routes/odeme.routes');
 const exportRoutes = require('./routes/export.routes'); // ← EKLENDİ
+const logger = require('./config/logger');
+const requestLogger = require('./middleware/requestLogger.middleware');
 
 const { PrismaClient } = require('@prisma/client');
 
@@ -39,13 +41,13 @@ const prisma = new PrismaClient().$extends({
         $allModels: {
             async findMany({ args, query }) {
                 if (!args.where?.tenantId && !args.where?.sube?.tenantId && !args.where?.stokKart?.tenantId) {
-                    console.warn('⚠️  tenantId olmadan sorgu:', new Error().stack);
+                    logger.warn('tenantId olmadan sorgu', { stack: new Error().stack });
                 }
                 return query(args);
             },
             async findFirst({ args, query }) {
                 if (!args.where?.tenantId && !args.where?.sube?.tenantId && !args.where?.stokKart?.tenantId) {
-                    console.warn('⚠️  tenantId olmadan sorgu:', new Error().stack);
+                    logger.warn('tenantId olmadan sorgu', { stack: new Error().stack });
                 }
                 return query(args);
             }
@@ -120,6 +122,7 @@ app.use('/api/auth/kayit', kayitLimit);
 // key üretebilmesi için, gerçek authMiddleware'den ÖNCE çalışır
 app.use('/api', tokenVarsaCoz);
 
+app.use('/api', requestLogger);
 // Kritik işlemler — route'lardan önce tanımlanmalı ki çalışsın
 app.use('/api/stok', kritikLimit);
 app.use('/api/satislar', kritikLimit);
@@ -161,13 +164,17 @@ app.use((req, res) => {
 
 // ── Hata yakalama ─────────────────────────────────────────────────────────────
 app.use((err, req, res, next) => {
-    // CORS hatalarını özel handle et
     if (err.message?.includes('CORS')) {
         return res.status(403).json({ basarili: false, mesaj: 'Erişim reddedildi' });
     }
-    console.error('GERÇEK HATA:', err.message, err.stack);   // ← GEÇİCİ, teşhis için
+    logger.error(err.message, {
+        stack: err.stack,
+        method: req.method,
+        url: req.originalUrl,
+        tenant: req.kullanici?.tenantId,
+        kullaniciId: req.kullanici?.id,
+    });
     Sentry.captureException(err);
-    console.error(err.stack);
     res.status(500).json({ basarili: false, mesaj: 'Sunucu hatası' });
 });
 
@@ -175,10 +182,10 @@ app.use((err, req, res, next) => {
 const lisansUyariService = require('./services/lisansUyari.service');
 const { CronJob } = require('cron');
 new CronJob('0 9 * * *', async () => {
-    console.log('🔔 Lisans uyarı kontrolü başladı...');
+    logger.info('Lisans uyarı kontrolü başladı');
     await lisansUyariService.kontrol();
 }, null, true, 'Europe/Istanbul');
 
 app.listen(PORT, () => {
-    console.log(`✅ Server http://localhost:${PORT} adresinde çalışıyor`);
+    logger.info(`Server http://localhost:${PORT} adresinde çalışıyor`);
 });

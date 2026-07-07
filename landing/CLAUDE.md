@@ -14,11 +14,12 @@ Başlangıç değerlendirmesinde şu eksikler tespit edildi:
 3. HTTPS kontrolü
 4. Loglama yok
 
-Öncelik sırasıyla **rate limiting** ve **Zod ile input validation**
-üzerinde çalışıldı. Her route grubu için: ilgili route/controller/service
-dosyaları incelendi, Zod şeması yazıldı, route dosyasına `validate` /
-`validateParams` / `validateQuery` middleware'leri eklendi, deploy edilip
-tarayıcı konsolundan `fetch` ile test edildi.
+Öncelik sırasıyla **rate limiting**, **Zod ile input validation** ve
+**servis katmanı sertleştirme** üzerinde çalışıldı. Her route grubu için:
+ilgili route/controller/service dosyaları incelendi, Zod şeması yazıldı,
+route dosyasına `validate` / `validateParams` / `validateQuery`
+middleware'leri eklendi, deploy edilip tarayıcı konsolundan `fetch` ile
+test edildi.
 
 ---
 
@@ -44,7 +45,7 @@ tarayıcı konsolundan `fetch` ile test edildi.
 
 ---
 
-## 2. Zod ile Input Validation — Tamamlanan Route Grupları ✅
+## 2. Zod ile Input Validation (TAMAMLANDI ✅)
 
 Genel middleware dosyası: `middleware/validate.middleware.js`
 İçerdiği fonksiyonlar:
@@ -56,7 +57,7 @@ Genel middleware dosyası: `middleware/validate.middleware.js`
 
 Her şema dosyası `schemas/<isim>.schema.js` altında.
 
-### Tamamlanan gruplar (sırayla):
+### Tamamlanan tüm gruplar (sırayla):
 1. **auth** (`kayit`, `giris`, `kayit-firma`, `tenant-listesi`,
    `sifre-sifirlama-talep`, `sifre-sifirla`) — email/şifre format
    kontrolleri. Boş string/`null` karışıklığı `z.preprocess` ile çözüldü.
@@ -64,29 +65,20 @@ Her şema dosyası `schemas/<isim>.schema.js` altında.
    assignment koruması.
 3. **olcuBirimi** — `ad` + `kisaltma` zorunlu.
 4. **stokKart** — `kod`, `ad`, `kategoriId`, `birimId` zorunlu;
-   `aciklama`/`minStok` opsiyonel.
-   - ⚠️ **Tespit edilen ama henüz düzeltilmeyen açık:** `kategoriId` ve
-     `birimId`'nin gerçekten o tenant'a ait olup olmadığı servis
-     katmanında kontrol edilmiyor (potansiyel IDOR — biri başka tenant'ın
-     kategori/birim ID'sini kullanabilir). Zod format kontrolü yapıyor
-     ama sahiplik kontrolü yapmıyor. **Bu, service katmanı sertleştirme
-     turunda ele alınmalı.**
+   `aciklama`/`minStok` opsiyonel. (IDOR riski Bölüm 3'te ayrıca ele
+   alındı, ✅ düzeltildi.)
 5. **cariKart** — email boş string geldiğinde `.email()` validasyonuna
    takılmaması için `z.preprocess` ile `''` → `undefined` çevrildi.
 6. **stok** (stok hareketleri: giriş faturası, iade faturası, zayi,
    tüketim, tüketim-reçete, ay sonu sayım) — `subeId` opsiyonel bırakıldı
    çünkü controller `req.body.subeId` boşsa `req.kullanici.subeId` ile
-   dolduruyor (validate'ten sonra çalışıyor ama sorun çıkarmıyor çünkü
-   Zod'da alan zaten opsiyonel).
+   dolduruyor.
 7. **recete** — nested `kalemler` dizisi (`z.array(...).min(1)`).
    `satisFiyati`/`porsiyonSayisi`/`satisKodu` boş string geldiğinde
-   `undefined`'a çevrildi (aksi halde `0` olarak yanlış kaydolabilirdi).
-   - ⚠️ **Not (service katmanı, Zod dışı):** `guncelle` fonksiyonu
-     güncellemede önce tüm `receteKalem` kayıtlarını siliyor, sonra
-     yenilerini oluşturuyor — bu iki işlem `$transaction` içinde değil,
-     aralarında hata olursa reçete kalemsiz kalabilir. **Sertleştirme
-     turunda ele alınmalı.**
-8. **satis** — `receteId`, `adet`, `birimFiyat` zorunlu.
+   `undefined`'a çevrildi. (IDOR + transaction sorunları Bölüm 3'te ayrıca
+   ele alındı, ✅ düzeltildi.)
+8. **satis** — `receteId`, `adet`, `birimFiyat` zorunlu. (Şube yetki
+   atlatma sorunu Bölüm 3'te ayrıca ele alındı, ✅ düzeltildi.)
 9. **cariHareket** (`odeme`, `manuel`) — `tip` enum ile sınırlandı
    (`BORC`, `ALACAK`, `ODEME`, `TAHSILAT`).
 10. **personel** (+ `maas`, `avans`, `devam` alt kayıtları) — `tcKimlik`
@@ -96,8 +88,8 @@ Her şema dosyası `schemas/<isim>.schema.js` altında.
       `durum: IZIN` değerini destekliyor, yani günlük izin kaydı teknik
       olarak zaten mümkün. Eğer istenen "yıllık izin hakkı takibi"
       (örn. personelin kaç gün izin hakkı var, kaçını kullandı) ise, bu
-      şema değişikliği + migration + yeni endpoint gerektirir — validation
-      turu bitince ayrı ele alınacak.
+      şema değişikliği + migration + yeni endpoint gerektirir — sonraki
+      turlarda ayrı ele alınacak.
 11. **rapor** (`satis`, `stok`, `cari`, `maliyet`, `excel`) —
     `req.query` doğrulaması (`validateQuery` kullanıldı). `excel`
     endpoint'inde `tip` enum (`satis|stok|cari|maliyet`).
@@ -106,26 +98,67 @@ Her şema dosyası `schemas/<isim>.schema.js` altında.
 13. **kullanici** — `rol` alanı `ATANABILIR_ROLLER` enum'una sabitlendi
     (`SUPER_ADMIN` hariç) — bu, controller'daki eski manuel kontrole ek
     bir savunma katmanı sağladı. `sifreDegistir`, `profilGuncelle` de
-    kapsandı.
-    - ⚠️ **Not (Zod dışı, service katmanı):** `guncelle` fonksiyonunda
-      `subeId: subeId || null` satırı var — eğer güncelleme isteğinde
-      `subeId` gönderilmezse kullanıcının şubesi yanlışlıkla `null`'a
-      düşebilir. Frontend'in her zaman `subeId` gönderip göndermediği
-      teyit edilmeli.
+    kapsandı. (`subeId` sıfırlama riski Bölüm 3'te ayrıca ele alındı,
+    ✅ düzeltildi.)
 14. **superAdmin** (`tenantlar/:id/aktif`, `/plan`, `/lisans`) — `plan`
     enum, `aktif` boolean zorunlu. Test edildi ve doğrulandı.
 15. **feedback** — `mesaj` zorunlu (max 5000 karakter), `tip` enum
     opsiyonel.
-    - ✅ **Bugün eklenen ek düzeltme:** Controller, kullanıcının girdiği
-      `mesaj`'ı hiç kaçışlamadan (HTML-escape) doğrudan e-posta HTML'ine
-      gömüyordu — bu bir **e-posta HTML injection** açığıydı (biri
-      `<img onerror=...>` gibi içerik gönderebilirdi). `htmlKacisla()`
-      yardımcı fonksiyonu eklenerek `ad`, `email`, `mesaj` alanları artık
-      HTML'e gömülmeden önce kaçışlanıyor.
+    - ✅ **Ek düzeltme:** Controller, kullanıcının girdiği `mesaj`'ı hiç
+      kaçışlamadan (HTML-escape) doğrudan e-posta HTML'ine gömüyordu —
+      bu bir **e-posta HTML injection** açığıydı. `htmlKacisla()`
+      yardımcı fonksiyonu eklenerek `ad`, `email`, `mesaj` alanları
+      artık HTML'e gömülmeden önce kaçışlanıyor.
+16. **auditLog**, **transfer**, **dashboard**, **odeme**, **export** —
+    hepsi tamamlandı. `odeme` testleri: geçersiz plan, bilinmeyen alan,
+    tip hatası, iş kuralı (bekleyen ödeme bildirimi) senaryoları
+    doğrulandı.
 
 ---
 
-## 3. Yol Boyunca Bulunan ve Düzeltilen Ayrı Hatalar
+## 3. Servis Katmanı Sertleştirme (TAMAMLANDI ✅)
+
+Zod turu bitince ele alınan, servis/controller katmanındaki mantıksal ve
+yetkilendirme açıkları:
+
+1. **IDOR — `stokKart`** ✅ Düzeltildi.
+   `olustur`/`guncelle`, `kategoriId` ve `birimId` gönderildiğinde artık
+   `iliskileriDogrula()` ile bu ID'lerin gerçekten istek sahibinin
+   `tenantId`'sine ait olduğunu kontrol ediyor. Değilse
+   `"Geçersiz kategori/birim: ... erişim yetkiniz yok"` hatası dönüyor.
+   Dosya: `services/stokKart.service.js`.
+
+2. **IDOR — `recete`** ✅ Düzeltildi.
+   `olustur`/`guncelle`, `kalemler[].stokKartId` listesindeki tüm ID'leri
+   tek bir toplu sorguyla (`kalemleriDogrula()`) tenant sahipliğine göre
+   doğruluyor; eksik/yabancı ID'ler açıkça hata mesajında listeleniyor.
+   Dosya: `services/recete.service.js`.
+
+3. **Bonus bulgu — `satis.ekle` şube yetki atlatma** ✅ Düzeltildi.
+   `receteId`/`subeId` zaten tenant bazında korunuyordu (klasik IDOR
+   yoktu), ama kısıtlı roller (`MUDUR`, `DEPO`, `KASA`, `PERSONEL`) için
+   `body.subeId` sadece *gönderilmediğinde* varsayılan atanıyordu —
+   bilerek başka bir (aynı tenant'taki) şube ID'si gönderilirse kabul
+   ediliyordu. `subeIdBelirle` (okuma) ile aynı mantık `ekle`'ye de
+   (`satisSubeIdBelirle`) uygulandı: kısıtlı roller için `body.subeId`
+   artık tamamen göz ardı edilip her zaman `req.kullanici.subeId`
+   zorlanıyor. Dosya: `controllers/satis.controller.js`.
+
+4. **`recete.guncelle` transaction eksikliği** ✅ Düzeltildi.
+   Kalem `deleteMany` + yeniden `create` işlemleri artık
+   `prisma.$transaction(async (tx) => {...})` içinde atomik olarak
+   çalışıyor — aralarında hata olursa reçete eski kalemleriyle sağlam
+   kalıyor. Dosya: `services/recete.service.js`.
+
+5. **`kullanici.guncelle` subeId sıfırlama riski** ✅ Düzeltildi.
+   Eski `subeId: subeId || null` satırı kaldırıldı. Artık: `subeId`
+   body'de hiç gönderilmediyse (`undefined`) dokunulmuyor; açıkça `null`
+   (veya boş string) gönderilirse kullanıcı bilerek şubeden çıkarılmış
+   sayılıp `null` yazılıyor. Dosya: `controllers/kullanici.controller.js`.
+
+---
+
+## 4. Yol Boyunca Bulunan ve Düzeltilen Ayrı Hatalar
 
 - **Kritik prod hatası:** `index.js`'teki global hata yakalama
   middleware'i `Sentry.captureException(err)` çağırıyordu ama `Sentry`
@@ -142,43 +175,23 @@ Her şema dosyası `schemas/<isim>.schema.js` altında.
 
 ---
 
-## 4. Henüz Yapılmayan / Sıradaki İşler
+## 5. Henüz Yapılmayan / Sıradaki İşler
 
-### A) Zod validation turu — kalan route grupları
-`index.js`'teki route sırasına göre henüz işlenmedi:
-- `auditLog`
-- `transfer`
-- `dashboard`
-- `odeme`
-- `export`
+### A) Orijinal checklist'ten henüz başlanmayan maddeler (SIRADA)
+1. **HTTPS zorunluluğu kontrolü** — Render'da SSL var mı, HTTP→HTTPS
+   redirect / HSTS header var mı doğrulanmadı.
+2. **Loglama (Morgan + Winston)** — hiç eklenmedi.
+3. **Environment variable güvenliği** — Render ayarları (env var'ların
+   nerede/nasıl saklandığı, secret'ların expose olup olmadığı) gözden
+   geçirilmedi.
 
-Bu gruplar için aynı yöntem izlenecek: route/controller/service
-dosyalarını iste → Zod şeması yaz → route'a `validate`/`validateParams`/
-`validateQuery` ekle → deploy → tarayıcı konsolundan `fetch` ile test.
-
-### B) Servis katmanı sertleştirme (Zod bitince ele alınacak)
-1. **IDOR riski** — `stokKart` oluşturma/güncellemede `kategoriId` ve
-   `birimId`'nin tenant sahipliği kontrol edilmiyor. Benzer bir kontrolün
-   diğer nested-relation alanlarında (örn. `recete.kalemler[].stokKartId`,
-   `satis.receteId`) da olup olmadığı topluca gözden geçirilmeli.
-2. **`recete.guncelle` transaction eksikliği** — kalem silme + yeniden
-   oluşturma `$transaction` içine alınmalı.
-3. **`kullanici.guncelle` subeId sıfırlama riski** — `subeId || null`
-   davranışı gözden geçirilmeli.
-
-### C) Ayrı özellik istekleri (security taramasının dışında)
+### B) Ayrı özellik istekleri (security taramasının dışında)
 1. **Personel izin günleri** — yıllık izin hakkı takibi isteniyorsa yeni
    alan/tablo + migration + endpoint gerekir.
 
-### D) Orijinal checklist'ten henüz başlanmayan maddeler
-3. **HTTPS zorunluluğu kontrolü** — Render'da SSL var mı doğrulanmadı.
-4. **Loglama (Morgan + Winston)** — hiç eklenmedi.
-5. **Environment variable güvenliği** — Render ayarları gözden
-   geçirilmedi.
-
 ---
 
-## 5. Ortam / Altyapı Notları
+## 6. Ortam / Altyapı Notları
 
 - Backend: Render'da barındırılıyor (`gastrobrain-backend`), prod URL:
   `https://api.gastrobrain.com.tr`
@@ -196,13 +209,14 @@ dosyalarını iste → Zod şeması yaz → route'a `validate`/`validateParams`/
 
 ---
 
-## 6. Bir Sonraki Oturumda Nereden Devam Edilecek
+## 7. Bir Sonraki Oturumda Nereden Devam Edilecek
 
 1. Bu dosyayı Claude'a ver.
-2. "Zod'a devam edelim" de — sıradaki grup **`auditLog`**.
-3. Aynı akış: route/controller/service dosyalarını paylaş → şema
-   yazılır → test edilir.
-4. Tüm route grupları bitince, **Bölüm 4-B**'deki servis katmanı
-   sertleştirme maddelerine geçilecek.
-5. Ardından orijinal checklist'in kalan maddeleri (HTTPS kontrolü,
-   loglama, env variable güvenliği) ele alınacak.
+2. Zod ile input validation ve servis katmanı sertleştirme (Bölüm 2-3)
+   **tamamen bitti** — tekrar ele almaya gerek yok.
+3. Sıradaki iş: **Bölüm 5-A** — HTTPS kontrolü, loglama (Morgan +
+   Winston), environment variable güvenliği. Hangisinden başlamak
+   istediğini belirt, ilgili dosyaları (örn. `index.js`, Render ayarları
+   ekran görüntüsü/listesi) paylaş.
+4. Bölüm 5-A bitince Bölüm 5-B'deki ayrı özellik isteğine (personel izin
+   günleri) geçilebilir.

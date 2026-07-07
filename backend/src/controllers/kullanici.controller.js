@@ -108,7 +108,15 @@ const guncelle = async (req, res) => {
             return res.status(403).json({ hata: 'Bu rol atanamaz' });
         }
 
-        const data = { ad, email, rol, aktif, subeId: subeId || null };
+        const data = { ad, email, rol, aktif };
+        // subeId: body'de hiç gönderilmediyse (undefined) mevcut değere
+        // dokunulmaz. Açıkça null gönderildiyse (kullanıcı şubeden bilerek
+        // çıkarılmak isteniyorsa) null yapılır. Eskiden `subeId || null`
+        // kullanılıyordu — bu, subeId hiç gönderilmese bile şubeyi
+        // yanlışlıkla null'a düşürüyordu.
+        if (subeId !== undefined) {
+            data.subeId = subeId === null || subeId === '' ? null : subeId;
+        }
         if (sifre) data.sifre = await bcrypt.hash(sifre, 10);
 
         const kullanici = await prisma.kullanici.update({

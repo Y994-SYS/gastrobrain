@@ -168,6 +168,11 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/odeme', odemeRoutes);
 app.use('/api/export', exportRoutes); // ← EKLENDİ
 
+// ── GEÇİCİ: Sentry entegrasyon testi — test bitince kaldırılacak ─────────────
+app.get('/api/sentry-test', () => {
+    throw new Error('Sentry test hatası — bu görünüyorsa entegrasyon çalışıyor');
+});
+
 // ── 404 ───────────────────────────────────────────────────────────────────────
 app.use((req, res) => {
     res.status(404).json({ basarili: false, mesaj: 'Endpoint bulunamadı' });

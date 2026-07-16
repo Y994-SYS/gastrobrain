@@ -93,6 +93,16 @@ const personelController = {
             res.status(400).json({ basarili: false, mesaj: error.message });
         }
     },
+
+    async devamTopluEkle(req, res) {
+        try {
+            const data = await personelService.devamTopluEkle(req.body, req.kullanici.tenantId);
+            res.status(201).json({ basarili: true, data });
+        } catch (error) {
+            res.status(400).json({ basarili: false, mesaj: error.message });
+        }
+    },
+
     async izinDurumuGetir(req, res) {
         try {
             const yil = req.query.yil;

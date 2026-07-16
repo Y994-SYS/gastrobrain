@@ -171,6 +171,43 @@ const personelService = {
         });
     },
 
+    /**
+     * Tarih aralığındaki her gün için ayrı bir PersonelDevam kaydı oluşturur.
+     * Örn. 15.07.2026 - 19.07.2026 arası "İzin" seçilirse 5 ayrı gün kaydı açar.
+     */
+    async devamTopluEkle({ personelId, baslangicTarihi, bitisTarihi, durum, mesai, aciklama }, tenantId) {
+        await this.biriniGetir(Number(personelId), tenantId);
+
+        const baslangic = new Date(baslangicTarihi);
+        const bitis = new Date(bitisTarihi);
+        if (bitis < baslangic) {
+            throw new Error('Bitiş tarihi başlangıç tarihinden önce olamaz');
+        }
+
+        const gunler = [];
+        const gun = new Date(baslangic);
+        while (gun <= bitis) {
+            gunler.push(new Date(gun));
+            gun.setDate(gun.getDate() + 1);
+        }
+
+        if (gunler.length > 90) {
+            throw new Error('Tek seferde en fazla 90 gün girilebilir');
+        }
+
+        const veriler = gunler.map((tarih) => ({
+            personelId: Number(personelId),
+            tarih,
+            durum,
+            mesai: mesai ? Number(mesai) : null,
+            aciklama,
+        }));
+
+        await prisma.personelDevam.createMany({ data: veriler });
+
+        return { eklenenGunSayisi: gunler.length, ilkGun: gunler[0], sonGun: gunler[gunler.length - 1] };
+    },
+
     // ── Yıllık izin takibi ───────────────────────────────────────────────────
 
     /**

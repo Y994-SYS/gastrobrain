@@ -45,6 +45,20 @@ const devamEkleSchema = z.object({
     aciklama: opsiyonelMetin(500),
 }).strict();
 
+const devamTopluEkleSchema = z.object({
+    personelId: z.coerce.number().int('Geçersiz personel').positive('Geçersiz personel'),
+    baslangicTarihi: z.string().min(1, 'Başlangıç tarihi zorunlu'),
+    bitisTarihi: z.string().min(1, 'Bitiş tarihi zorunlu'),
+    durum: z.enum(['CALISTI', 'IZIN', 'RAPOR', 'DEVAMSIZ'], {
+        errorMap: () => ({ message: 'Geçersiz devam durumu' })
+    }),
+    mesai: z.preprocess(
+        (val) => (val === '' ? undefined : val),
+        z.coerce.number().min(0, 'Mesai negatif olamaz').optional().nullable()
+    ),
+    aciklama: opsiyonelMetin(500),
+}).strict();
+
 const izinKullanimSchema = z.object({
     personelId: z.coerce.number().int('Geçersiz personel').positive('Geçersiz personel'),
     yil: z.coerce.number().int('Geçersiz yıl').min(2000).max(2100),
@@ -64,6 +78,6 @@ const idParamSchema = z.object({
 });
 
 module.exports = {
-    personelSchema, maasEkleSchema, avansEkleSchema, devamEkleSchema,
+    personelSchema, maasEkleSchema, avansEkleSchema, devamEkleSchema, devamTopluEkleSchema,
     idParamSchema, izinKullanimSchema, izinDurumuQuerySchema
 };

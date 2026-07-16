@@ -21,6 +21,7 @@ export default function Personel() {
     const [maasModal, setMaasModal] = useState(false);
     const [avansModal, setAvansModal] = useState(false);
     const [devamModal, setDevamModal] = useState(false);
+    const [izinModal, setIzinModal] = useState(false);
     const [form, setForm] = useState(bosPersonel);
     const [duzenleId, setDuzenleId] = useState(null);
     const [yukleniyor, setYukleniyor] = useState(false);
@@ -32,6 +33,10 @@ export default function Personel() {
     const [avansForm, setAvansForm] = useState({ tutar: '', aciklama: '', tarih: new Date().toISOString().split('T')[0] });
     const [devamForm, setDevamForm] = useState({ tarih: new Date().toISOString().split('T')[0], durum: 'CALISTI', mesai: '', aciklama: '' });
 
+    const [izinDurumu, setIzinDurumu] = useState(null);
+    const [izinYukleniyor, setIzinYukleniyor] = useState(false);
+    const [izinForm, setIzinForm] = useState({ yil: buYil, kullanilanGun: '', aciklama: '' });
+
     const getir = async () => {
         try {
             const res = await api.get(`/api/personel${subeParam}`);
@@ -41,10 +46,24 @@ export default function Personel() {
         }
     };
 
+    const izinDurumuGetir = async (personelId, yil = buYil) => {
+        setIzinYukleniyor(true);
+        try {
+            const res = await api.get(`/api/personel/${personelId}/izin-durumu?yil=${yil}`);
+            setIzinDurumu(res.data?.data || null);
+        } catch (err) {
+            console.error('İzin durumu alınamadı:', err);
+            setIzinDurumu(null);
+        } finally {
+            setIzinYukleniyor(false);
+        }
+    };
+
     const personelDetay = async (p) => {
         try {
             const res = await api.get(`/api/personel/${p.id}`);
             setSecili(res.data?.data || null);
+            izinDurumuGetir(p.id, buYil);
         } catch (err) {
             console.error('Personel detayı alınamadı:', err);
         }
@@ -86,7 +105,7 @@ export default function Personel() {
         if (!confirm('Personeli silmek istediğine emin misin?')) return;
         const silinen = veri.find(p => p.id === id);
         setVeri(prev => prev.filter(p => p.id !== id));
-        if (secili?.id === id) setSecili(null);
+        if (secili?.id === id) { setSecili(null); setIzinDurumu(null); }
         try {
             await api.delete(`/api/personel/${id}`);
             toast.success('Silindi');
@@ -144,6 +163,35 @@ export default function Personel() {
             setDevamModal(true);
             toast.error(err.response?.data?.mesaj || 'Hata oluştu');
         } finally { setYukleniyor(false); }
+    };
+
+    const izinKaydet = async () => {
+        if (izinForm.kullanilanGun === '' || izinForm.kullanilanGun === null) return toast.error('Kullanılan gün zorunlu');
+        setYukleniyor(true);
+        try {
+            await api.post('/api/personel/izin-kullanim', {
+                personelId: secili.id,
+                yil: Number(izinForm.yil),
+                kullanilanGun: Number(izinForm.kullanilanGun),
+                aciklama: izinForm.aciklama,
+            });
+            toast.success('İzin kaydı güncellendi');
+            setIzinModal(false);
+            await izinDurumuGetir(secili.id, Number(izinForm.yil));
+        } catch (err) {
+            toast.error(err.response?.data?.mesaj || 'Hata oluştu');
+        } finally {
+            setYukleniyor(false);
+        }
+    };
+
+    const izinModalAc = () => {
+        setIzinForm({
+            yil: izinDurumu?.yil || buYil,
+            kullanilanGun: izinDurumu?.kullanilanGun ?? '',
+            aciklama: '',
+        });
+        setIzinModal(true);
     };
 
     const durumRenk = (durum) => ({ CALISTI: 'text-lime-400', IZIN: 'text-blue-400', RAPOR: 'text-orange-400', DEVAMSIZ: 'text-red-400' }[durum] || 'text-zinc-400');
@@ -205,8 +253,39 @@ export default function Personel() {
                                         <button onClick={() => setMaasModal(true)} className="text-xs border border-zinc-700 text-zinc-400 hover:text-lime-400 hover:border-lime-400 px-3 py-1.5 rounded-lg transition-colors">💰 Maaş</button>
                                         <button onClick={() => setAvansModal(true)} className="text-xs border border-zinc-700 text-zinc-400 hover:text-orange-400 hover:border-orange-400 px-3 py-1.5 rounded-lg transition-colors">💳 Avans</button>
                                         <button onClick={() => setDevamModal(true)} className="text-xs border border-zinc-700 text-zinc-400 hover:text-blue-400 hover:border-blue-400 px-3 py-1.5 rounded-lg transition-colors">📋 Devam</button>
+                                        <button onClick={izinModalAc} className="text-xs border border-zinc-700 text-zinc-400 hover:text-emerald-400 hover:border-emerald-400 px-3 py-1.5 rounded-lg transition-colors">🏖️ İzin</button>
                                     </div>
                                 </div>
+                            </div>
+
+                            {/* Yıllık İzin Durumu kartı */}
+                            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
+                                <div className="p-4 border-b border-zinc-800 flex justify-between items-center">
+                                    <h3 className="text-sm font-bold text-white">Yıllık İzin Durumu {izinDurumu?.yil || buYil}</h3>
+                                    {izinYukleniyor && <span className="text-xs text-zinc-600">yükleniyor...</span>}
+                                </div>
+                                {izinDurumu ? (
+                                    <div className="grid grid-cols-2 sm:grid-cols-4 divide-x divide-zinc-800">
+                                        <div className="p-4 text-center">
+                                            <div className="text-xs text-zinc-500 mb-1">Kıdem</div>
+                                            <div className="text-lg font-bold text-white">{izinDurumu.kidemYili} yıl</div>
+                                        </div>
+                                        <div className="p-4 text-center">
+                                            <div className="text-xs text-zinc-500 mb-1">Hak Edilen</div>
+                                            <div className="text-lg font-bold text-lime-400">{izinDurumu.hakEdilenGun} gün</div>
+                                        </div>
+                                        <div className="p-4 text-center">
+                                            <div className="text-xs text-zinc-500 mb-1">Kullanılan</div>
+                                            <div className="text-lg font-bold text-orange-400">{izinDurumu.kullanilanGun} gün</div>
+                                        </div>
+                                        <div className="p-4 text-center">
+                                            <div className="text-xs text-zinc-500 mb-1">Kalan</div>
+                                            <div className={`text-lg font-bold ${izinDurumu.kalanGun < 0 ? 'text-red-400' : 'text-blue-400'}`}>{izinDurumu.kalanGun} gün</div>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="text-center py-6 text-zinc-500 text-xs">İzin bilgisi alınamadı</div>
+                                )}
                             </div>
 
                             {[
@@ -374,6 +453,29 @@ export default function Personel() {
                             <input value={devamForm.aciklama} onChange={(e) => setDevamForm({ ...devamForm, aciklama: e.target.value })} className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-4 py-2.5 text-sm outline-none focus:border-lime-400 transition-colors" />
                         </div>
                         <button onClick={devamKaydet} disabled={yukleniyor} className="w-full bg-lime-400 hover:bg-lime-300 disabled:opacity-50 text-black font-bold rounded-lg py-2.5 text-sm transition-colors">
+                            {yukleniyor ? 'Kaydediliyor...' : 'Kaydet'}
+                        </button>
+                    </div>
+                </Modal>
+            )}
+
+            {izinModal && (
+                <Modal baslik="Yıllık İzin Kaydı" onKapat={() => setIzinModal(false)}>
+                    <div className="space-y-4">
+                        <div>
+                            <label className="text-zinc-400 text-sm mb-1.5 block">Yıl</label>
+                            <input type="number" value={izinForm.yil} onChange={(e) => setIzinForm({ ...izinForm, yil: e.target.value })} className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-3 py-2.5 text-sm outline-none focus:border-lime-400 transition-colors" />
+                        </div>
+                        <div>
+                            <label className="text-zinc-400 text-sm mb-1.5 block">Kullanılan Gün *</label>
+                            <input type="number" step="0.5" value={izinForm.kullanilanGun} onChange={(e) => setIzinForm({ ...izinForm, kullanilanGun: e.target.value })} className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-4 py-2.5 text-sm outline-none focus:border-lime-400 transition-colors" />
+                            <p className="text-xs text-zinc-500 mt-1">Bu yıl için toplam kullanılan gün sayısını gir (üzerine yazar).</p>
+                        </div>
+                        <div>
+                            <label className="text-zinc-400 text-sm mb-1.5 block">Açıklama</label>
+                            <input value={izinForm.aciklama} onChange={(e) => setIzinForm({ ...izinForm, aciklama: e.target.value })} placeholder="Örn. Yaz tatili" className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-4 py-2.5 text-sm outline-none focus:border-lime-400 transition-colors" />
+                        </div>
+                        <button onClick={izinKaydet} disabled={yukleniyor} className="w-full bg-lime-400 hover:bg-lime-300 disabled:opacity-50 text-black font-bold rounded-lg py-2.5 text-sm transition-colors">
                             {yukleniyor ? 'Kaydediliyor...' : 'Kaydet'}
                         </button>
                     </div>

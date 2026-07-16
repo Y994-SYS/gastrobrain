@@ -48,7 +48,10 @@ const devamEkleSchema = z.object({
 const izinKullanimSchema = z.object({
     personelId: z.coerce.number().int('Geçersiz personel').positive('Geçersiz personel'),
     yil: z.coerce.number().int('Geçersiz yıl').min(2000).max(2100),
-    kullanilanGun: z.coerce.number().min(0, 'Kullanılan gün negatif olamaz').max(365),
+    // Bu TOPLAM kullanılan gün değil, otomatik sayıma eklenecek/çıkarılacak
+    // MANUEL DÜZELTME miktarıdır (negatif olabilir, örn. yanlış girilen bir
+    // Devam Kaydı'nı telafi etmek için).
+    kullanilanGun: z.coerce.number().min(-365, 'Geçersiz değer').max(365, 'Geçersiz değer'),
     aciklama: opsiyonelMetin(500),
 }).strict();
 

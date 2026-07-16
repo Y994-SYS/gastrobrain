@@ -151,13 +151,18 @@ export default function Personel() {
 
     const devamKaydet = async () => {
         setYukleniyor(true);
-        const yeniDevam = { id: Date.now(), ...devamForm, mesai: Number(devamForm.mesai), _gecici: true };
+        const yeniDevam = { id: Date.now(), ...devamForm, mesai: devamForm.mesai ? Number(devamForm.mesai) : null, _gecici: true };
         setSecili(prev => ({ ...prev, devamlar: [yeniDevam, ...(prev.devamlar || [])] }));
         setDevamModal(false);
         try {
             const res = await api.post('/api/personel/devam', { ...devamForm, personelId: secili.id });
             setSecili(prev => ({ ...prev, devamlar: prev.devamlar.map(d => d.id === yeniDevam.id ? res.data.data : d) }));
             toast.success('Devam kaydedildi');
+            // Devam kaydı IZIN ise, yıllık izin sayacı otomatik değiştiği için tazele
+            if (devamForm.durum === 'IZIN') {
+                const devamYili = new Date(devamForm.tarih).getFullYear();
+                izinDurumuGetir(secili.id, devamYili);
+            }
         } catch (err) {
             setSecili(prev => ({ ...prev, devamlar: prev.devamlar.filter(d => d.id !== yeniDevam.id) }));
             setDevamModal(true);
@@ -166,7 +171,7 @@ export default function Personel() {
     };
 
     const izinKaydet = async () => {
-        if (izinForm.kullanilanGun === '' || izinForm.kullanilanGun === null) return toast.error('Kullanılan gün zorunlu');
+        if (izinForm.kullanilanGun === '' || izinForm.kullanilanGun === null) return toast.error('Düzeltme miktarı zorunlu');
         setYukleniyor(true);
         try {
             await api.post('/api/personel/izin-kullanim', {
@@ -175,7 +180,7 @@ export default function Personel() {
                 kullanilanGun: Number(izinForm.kullanilanGun),
                 aciklama: izinForm.aciklama,
             });
-            toast.success('İzin kaydı güncellendi');
+            toast.success('İzin düzeltmesi kaydedildi');
             setIzinModal(false);
             await izinDurumuGetir(secili.id, Number(izinForm.yil));
         } catch (err) {
@@ -188,7 +193,7 @@ export default function Personel() {
     const izinModalAc = () => {
         setIzinForm({
             yil: izinDurumu?.yil || buYil,
-            kullanilanGun: izinDurumu?.kullanilanGun ?? '',
+            kullanilanGun: izinDurumu?.manuelDuzeltme ?? '',
             aciklama: '',
         });
         setIzinModal(true);
@@ -253,7 +258,7 @@ export default function Personel() {
                                         <button onClick={() => setMaasModal(true)} className="text-xs border border-zinc-700 text-zinc-400 hover:text-lime-400 hover:border-lime-400 px-3 py-1.5 rounded-lg transition-colors">💰 Maaş</button>
                                         <button onClick={() => setAvansModal(true)} className="text-xs border border-zinc-700 text-zinc-400 hover:text-orange-400 hover:border-orange-400 px-3 py-1.5 rounded-lg transition-colors">💳 Avans</button>
                                         <button onClick={() => setDevamModal(true)} className="text-xs border border-zinc-700 text-zinc-400 hover:text-blue-400 hover:border-blue-400 px-3 py-1.5 rounded-lg transition-colors">📋 Devam</button>
-                                        <button onClick={izinModalAc} className="text-xs border border-zinc-700 text-zinc-400 hover:text-emerald-400 hover:border-emerald-400 px-3 py-1.5 rounded-lg transition-colors">🏖️ İzin</button>
+                                        <button onClick={izinModalAc} className="text-xs border border-zinc-700 text-zinc-400 hover:text-emerald-400 hover:border-emerald-400 px-3 py-1.5 rounded-lg transition-colors">🏖️ Düzeltme</button>
                                     </div>
                                 </div>
                             </div>
@@ -277,6 +282,9 @@ export default function Personel() {
                                         <div className="p-4 text-center">
                                             <div className="text-xs text-zinc-500 mb-1">Kullanılan</div>
                                             <div className="text-lg font-bold text-orange-400">{izinDurumu.kullanilanGun} gün</div>
+                                            <div className="text-[11px] text-zinc-600 mt-1">
+                                                {izinDurumu.otomatikGun} devam kaydı{izinDurumu.manuelDuzeltme !== 0 ? ` + ${izinDurumu.manuelDuzeltme} düzeltme` : ''}
+                                            </div>
                                         </div>
                                         <div className="p-4 text-center">
                                             <div className="text-xs text-zinc-500 mb-1">Kalan</div>
@@ -323,7 +331,7 @@ export default function Personel() {
                                             <div className="flex items-center gap-3">
                                                 <span className={`text-xs font-semibold ${durumRenk(d.durum)}`}>{d.durum}</span>
                                                 {d._gecici && <span className="text-xs text-zinc-600">kaydediliyor...</span>}
-                                                {d.mesai > 0 && <span className="text-xs text-zinc-500">{d.mesai} saat mesai</span>}
+                                                {d.durum === 'CALISTI' && d.mesai > 0 && <span className="text-xs text-zinc-500">{d.mesai} saat mesai</span>}
                                             </div>
                                             <span className="text-xs text-zinc-500">{new Date(d.tarih).toLocaleDateString('tr-TR')}</span>
                                         </div>
@@ -436,7 +444,7 @@ export default function Personel() {
                             </div>
                             <div>
                                 <label className="text-zinc-400 text-sm mb-1.5 block">Durum</label>
-                                <select value={devamForm.durum} onChange={(e) => setDevamForm({ ...devamForm, durum: e.target.value })} className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-3 py-2.5 text-sm outline-none focus:border-lime-400 transition-colors">
+                                <select value={devamForm.durum} onChange={(e) => setDevamForm({ ...devamForm, durum: e.target.value, mesai: e.target.value === 'CALISTI' ? devamForm.mesai : '' })} className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-3 py-2.5 text-sm outline-none focus:border-lime-400 transition-colors">
                                     <option value="CALISTI">Çalıştı</option>
                                     <option value="IZIN">İzin</option>
                                     <option value="RAPOR">Rapor</option>
@@ -444,10 +452,17 @@ export default function Personel() {
                                 </select>
                             </div>
                         </div>
-                        <div>
-                            <label className="text-zinc-400 text-sm mb-1.5 block">Mesai (saat)</label>
-                            <input type="number" value={devamForm.mesai} onChange={(e) => setDevamForm({ ...devamForm, mesai: e.target.value })} placeholder="0" className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-4 py-2.5 text-sm outline-none focus:border-lime-400 transition-colors" />
-                        </div>
+                        {devamForm.durum === 'CALISTI' && (
+                            <div>
+                                <label className="text-zinc-400 text-sm mb-1.5 block">Mesai (saat)</label>
+                                <input type="number" value={devamForm.mesai} onChange={(e) => setDevamForm({ ...devamForm, mesai: e.target.value })} placeholder="0" className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-4 py-2.5 text-sm outline-none focus:border-lime-400 transition-colors" />
+                            </div>
+                        )}
+                        {devamForm.durum === 'IZIN' && (
+                            <p className="text-xs text-emerald-400 bg-emerald-400/10 rounded-lg px-3 py-2">
+                                Bu kayıt, yıllık izin sayacına otomatik olarak 1 gün ekleyecek.
+                            </p>
+                        )}
                         <div>
                             <label className="text-zinc-400 text-sm mb-1.5 block">Açıklama</label>
                             <input value={devamForm.aciklama} onChange={(e) => setDevamForm({ ...devamForm, aciklama: e.target.value })} className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-4 py-2.5 text-sm outline-none focus:border-lime-400 transition-colors" />
@@ -460,20 +475,22 @@ export default function Personel() {
             )}
 
             {izinModal && (
-                <Modal baslik="Yıllık İzin Kaydı" onKapat={() => setIzinModal(false)}>
+                <Modal baslik="İzin Düzeltmesi" onKapat={() => setIzinModal(false)}>
                     <div className="space-y-4">
                         <div>
                             <label className="text-zinc-400 text-sm mb-1.5 block">Yıl</label>
                             <input type="number" value={izinForm.yil} onChange={(e) => setIzinForm({ ...izinForm, yil: e.target.value })} className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-3 py-2.5 text-sm outline-none focus:border-lime-400 transition-colors" />
                         </div>
                         <div>
-                            <label className="text-zinc-400 text-sm mb-1.5 block">Kullanılan Gün *</label>
+                            <label className="text-zinc-400 text-sm mb-1.5 block">Düzeltme (gün) *</label>
                             <input type="number" step="0.5" value={izinForm.kullanilanGun} onChange={(e) => setIzinForm({ ...izinForm, kullanilanGun: e.target.value })} className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-4 py-2.5 text-sm outline-none focus:border-lime-400 transition-colors" />
-                            <p className="text-xs text-zinc-500 mt-1">Bu yıl için toplam kullanılan gün sayısını gir (üzerine yazar).</p>
+                            <p className="text-xs text-zinc-500 mt-1">
+                                Bu, Devam Kaydı'ndan otomatik sayılan izin gününe <b>eklenecek</b> (veya negatif girilirse <b>çıkarılacak</b>) ek miktardır — toplam kullanılan gün değildir. Örn. geçen yıldan devreden izin için pozitif, hatalı bir Devam Kaydı'nı telafi etmek için negatif gir.
+                            </p>
                         </div>
                         <div>
                             <label className="text-zinc-400 text-sm mb-1.5 block">Açıklama</label>
-                            <input value={izinForm.aciklama} onChange={(e) => setIzinForm({ ...izinForm, aciklama: e.target.value })} placeholder="Örn. Yaz tatili" className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-4 py-2.5 text-sm outline-none focus:border-lime-400 transition-colors" />
+                            <input value={izinForm.aciklama} onChange={(e) => setIzinForm({ ...izinForm, aciklama: e.target.value })} placeholder="Örn. Geçen yıldan devreden izin" className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-4 py-2.5 text-sm outline-none focus:border-lime-400 transition-colors" />
                         </div>
                         <button onClick={izinKaydet} disabled={yukleniyor} className="w-full bg-lime-400 hover:bg-lime-300 disabled:opacity-50 text-black font-bold rounded-lg py-2.5 text-sm transition-colors">
                             {yukleniyor ? 'Kaydediliyor...' : 'Kaydet'}

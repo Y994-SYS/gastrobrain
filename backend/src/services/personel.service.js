@@ -107,7 +107,6 @@ const personelService = {
     async maasEkle({ personelId, yil, ay, tutar, odendi, tarih }, tenantId) {
         await this.biriniGetir(Number(personelId), tenantId);
 
-        // Aynı ay için maaş kaydı var mı kontrol et
         const mevcutMaas = await prisma.personelMaas.findFirst({
             where: {
                 personelId: Number(personelId),
@@ -174,11 +173,18 @@ const personelService = {
 
     // ── Yıllık izin takibi ───────────────────────────────────────────────────
 
+    /**
+     * Bir personelin belirli bir yıl için izin durumunu hesaplar.
+     * kullanılanGun = otomatikGun (Devam Kaydı'ndaki IZIN kayıtlarının sayısı)
+     *               + manuelDuzeltme (admin tarafından elle girilen ek/eksi düzeltme)
+     */
     async izinDurumuGetir(personelId, yil, tenantId) {
         const personel = await this.biriniGetir(Number(personelId), tenantId);
 
         const hedefYil = yil ? Number(yil) : new Date().getFullYear();
-        // Kıdem, ilgili yılın son günü itibarıyla hesaplanır
+        const yilBaslangic = new Date(hedefYil, 0, 1);
+        const yilBitis = new Date(hedefYil, 11, 31, 23, 59, 59, 999);
+
         const referansTarihi = new Date(hedefYil, 11, 31);
         const kidemYili = tamYilHesapla(new Date(personel.baslangicTarihi), referansTarihi);
         const hakEdilenGun = yillikIzinHakkiHesapla(
@@ -187,21 +193,37 @@ const personelService = {
             referansTarihi
         );
 
+        const otomatikGun = await prisma.personelDevam.count({
+            where: {
+                personelId: Number(personelId),
+                durum: 'IZIN',
+                tarih: { gte: yilBaslangic, lte: yilBitis },
+            }
+        });
+
         const kayit = await prisma.personelIzin.findUnique({
             where: { personelId_yil: { personelId: Number(personelId), yil: hedefYil } }
         });
-        const kullanilanGun = kayit?.kullanilanGun || 0;
+        const manuelDuzeltme = kayit?.kullanilanGun || 0;
+
+        const kullanilanGun = otomatikGun + manuelDuzeltme;
 
         return {
             personelId: Number(personelId),
             yil: hedefYil,
             kidemYili,
             hakEdilenGun,
+            otomatikGun,
+            manuelDuzeltme,
             kullanilanGun,
             kalanGun: hakEdilenGun - kullanilanGun,
         };
     },
 
+    /**
+     * Manuel düzeltme miktarını kaydeder. Bu TOPLAM kullanılan gün DEĞİL,
+     * otomatik sayıma eklenecek/çıkarılacak ek miktardır (negatif olabilir).
+     */
     async izinKullanimGuncelle({ personelId, yil, kullanilanGun, aciklama }, tenantId, guncelleyenId) {
         await this.biriniGetir(Number(personelId), tenantId);
 

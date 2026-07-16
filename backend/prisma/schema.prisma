@@ -348,6 +348,7 @@ model Personel {
   soyad           String
   telefon         String?
   tcKimlik        String?
+  dogumTarihi     DateTime?
   baslangicTarihi DateTime
   maas            Float
   aktif           Boolean  @default(true)
@@ -362,6 +363,7 @@ model Personel {
   maaslar  PersonelMaas[]
   avanslar PersonelAvans[]
   devamlar PersonelDevam[]
+  izinKayitlari PersonelIzin[]
 
   @@unique([tcKimlik, tenantId])
   @@index([tenantId])
@@ -463,4 +465,20 @@ enum OdemeDurum {
   BEKLIYOR
   ONAYLANDI
   REDDEDILDI
+}
+
+model PersonelIzin {
+  id            Int      @id @default(autoincrement())
+  yil           Int
+  kullanilanGun Float    @default(0)
+  aciklama      String?
+  guncelleyen   Int?     // hangi kullanıcının girdiği (audit)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  personel   Personel @relation(fields: [personelId], references: [id])
+  personelId Int
+
+  @@unique([personelId, yil])
+  @@index([personelId])
 }

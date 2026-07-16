@@ -2,13 +2,15 @@ const express = require('express');
 const router = express.Router();
 const personelController = require('../controllers/personel.controller');
 const { authMiddleware, rolKontrol } = require('../middleware/auth.middleware');
-const { validate, validateParams } = require('../middleware/validate.middleware');
+const { validate, validateParams, validateQuery } = require('../middleware/validate.middleware');
 const {
     personelSchema,
     maasEkleSchema,
     avansEkleSchema,
     devamEkleSchema,
     idParamSchema,
+    izinKullanimSchema,
+    izinDurumuQuerySchema,
 } = require('../schemas/personel.schema');
 
 router.use(authMiddleware);
@@ -26,5 +28,20 @@ router.post('/maas', yonetimRol, validate(maasEkleSchema), personelController.ma
 router.put('/maas/:id/odendi', yonetimRol, validateParams(idParamSchema), personelController.maasOdendi);
 router.post('/avans', yonetimRol, validate(avansEkleSchema), personelController.avansEkle);
 router.post('/devam', yonetimRol, validate(devamEkleSchema), personelController.devamEkle);
+
+// ── Yıllık izin takibi ────────────────────────────────────────────────────────
+router.get(
+    '/:id/izin-durumu',
+    yonetimRol,
+    validateParams(idParamSchema),
+    validateQuery(izinDurumuQuerySchema),
+    personelController.izinDurumuGetir
+);
+router.post(
+    '/izin-kullanim',
+    yonetimRol,
+    validate(izinKullanimSchema),
+    personelController.izinKullanimGuncelle
+);
 
 module.exports = router;

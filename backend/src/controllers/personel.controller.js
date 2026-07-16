@@ -92,7 +92,33 @@ const personelController = {
         } catch (error) {
             res.status(400).json({ basarili: false, mesaj: error.message });
         }
-    }
+    },
+    async izinDurumuGetir(req, res) {
+        try {
+            const yil = req.query.yil;
+            const data = await personelService.izinDurumuGetir(
+                Number(req.params.id),
+                yil,
+                req.kullanici.tenantId
+            );
+            res.json({ basarili: true, data });
+        } catch (error) {
+            res.status(404).json({ basarili: false, mesaj: error.message });
+        }
+    },
+
+    async izinKullanimGuncelle(req, res) {
+        try {
+            const data = await personelService.izinKullanimGuncelle(
+                req.body,
+                req.kullanici.tenantId,
+                req.kullanici.id
+            );
+            res.status(201).json({ basarili: true, data });
+        } catch (error) {
+            res.status(400).json({ basarili: false, mesaj: error.message });
+        }
+    },
 };
 
 module.exports = personelController;

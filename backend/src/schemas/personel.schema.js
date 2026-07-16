@@ -10,6 +10,7 @@ const personelSchema = z.object({
         (val) => (val === '' ? undefined : val),
         z.string().trim().length(11, 'TC Kimlik 11 haneli olmalı').regex(/^\d+$/, 'TC Kimlik sadece rakam içermeli').optional().nullable()
     ),
+    dogumTarihi: z.string().optional().nullable(),
     baslangicTarihi: z.string().min(1, 'Başlangıç tarihi zorunlu'),
     maas: z.coerce.number().positive('Maaş 0’dan büyük olmalı'),
     subeId: z.coerce.number().int('Geçersiz şube').positive('Geçersiz şube').optional(),
@@ -44,8 +45,22 @@ const devamEkleSchema = z.object({
     aciklama: opsiyonelMetin(500),
 }).strict();
 
+const izinKullanimSchema = z.object({
+    personelId: z.coerce.number().int('Geçersiz personel').positive('Geçersiz personel'),
+    yil: z.coerce.number().int('Geçersiz yıl').min(2000).max(2100),
+    kullanilanGun: z.coerce.number().min(0, 'Kullanılan gün negatif olamaz').max(365),
+    aciklama: opsiyonelMetin(500),
+}).strict();
+
+const izinDurumuQuerySchema = z.object({
+    yil: z.coerce.number().int('Geçersiz yıl').min(2000).max(2100).optional(),
+});
+
 const idParamSchema = z.object({
     id: z.coerce.number().int('Geçersiz id').positive('Geçersiz id'),
 });
 
-module.exports = { personelSchema, maasEkleSchema, avansEkleSchema, devamEkleSchema, idParamSchema };
+module.exports = {
+    personelSchema, maasEkleSchema, avansEkleSchema, devamEkleSchema,
+    idParamSchema, izinKullanimSchema, izinDurumuQuerySchema
+};

@@ -175,19 +175,65 @@ yetkilendirme açıkları:
 
 ---
 
-## 5. Henüz Yapılmayan / Sıradaki İşler
+## 5. Tamamlanan / Sıradaki İşler
 
-### A) Orijinal checklist'ten henüz başlanmayan maddeler (SIRADA)
-1. **HTTPS zorunluluğu kontrolü** — Render'da SSL var mı, HTTP→HTTPS
-   redirect / HSTS header var mı doğrulanmadı.
-2. **Loglama (Morgan + Winston)** — hiç eklenmedi.
-3. **Environment variable güvenliği** — Render ayarları (env var'ların
-   nerede/nasıl saklandığı, secret'ların expose olup olmadığı) gözden
-   geçirilmedi.
+### A) Orijinal checklist'ten tamamlanan maddeler (TAMAMLANDI ✅)
 
-### B) Ayrı özellik istekleri (security taramasının dışında)
+1. **HTTPS zorunluluğu / HSTS** ✅ Tamamlandı.
+   - Render custom domain (`api.gastrobrain.com.tr`) zaten SSL sertifikalı
+     ve doğrulanmış durumdaydı (Cloudflare üzerinden proxy'leniyor).
+   - Cloudflare → SSL/TLS → Edge Certificates altında **"Always Use HTTPS"**
+     açıldı.
+   - **HSTS** etkinleştirildi: Max-Age 6 ay, `includeSubDomains` ve
+     `Preload` kapalı bırakıldı (güvenli/temkinli başlangıç), No-Sniff
+     Header açıldı.
+   - **Bulunan bonus hata:** Health check route'u (`/`) ilk düzeltmede
+     `helmet()`'ten önceye taşınmıştı, bu da bu endpoint'in güvenlik
+     header'larını (X-Powered-By gizleme, HSTS) hiç almamasına yol
+     açıyordu. Route, `helmet()`'ten SONRA ama `cors()`'tan ÖNCE olacak
+     şekilde düzeltildi.
+
+2. **Loglama (Morgan + Winston)** ✅ Tamamlandı.
+   - `config/logger.js` — Winston logger, prod'da JSON format, dev'de
+     renkli/okunabilir format. Hassas alanlar (`password`, `sifre`,
+     `token`, `authorization` vb.) otomatik maskeleniyor.
+   - `middleware/requestLogger.middleware.js` — Morgan, Winston'a stream
+     ediliyor; `tenant` ve `kullaniciId` etiketleriyle her HTTP isteği
+     loglanıyor (`tokenVarsaCoz`'dan SONRA mount edildi ki bu bilgiler
+     dolu gelsin).
+   - Prisma `tenantId` uyarıları ve global hata yakalayıcı `console.*`
+     yerine `logger.*` kullanacak şekilde güncellendi.
+   - Prod'da (Render Logs) test edildi ve doğrulandı — JSON format,
+     `tenant=6 kullanici=12` gibi doğru etiketlerle çalışıyor.
+
+3. **Environment variable güvenliği** ✅ Tamamlandı.
+   - Render → Environment: 13 değişkenin hepsi (JWT, DB, SMTP, CORS,
+     Sentry) env variable olarak tutuluyor, kod içine hardcode edilmiş
+     secret yok (`grep`/`Select-String` ile doğrulandı).
+   - `.gitignore` `.env`/`.env.local`/`.env.production` varyasyonlarının
+     hepsini kapsıyor; `git log --all --full-history` ile `.env`
+     dosyasının hiçbir zaman commit edilmediği doğrulandı.
+   - GitHub reposu **private**.
+   - **Bulunan eksik:** `SENTRY_DSN` Render'da tanımlı değildi — Sentry
+     hiç hata almıyordu (`Sentry.init({ dsn: undefined })` sessizce
+     hiçbir şey göndermiyordu). Sentry projesinden (`node`) doğru DSN
+     bulunup Render'a `SENTRY_DSN` olarak eklendi. Geçici bir test
+     route'uyla (`/api/sentry-test`) uçtan uca doğrulandı — Sentry'ye
+     hata düştü, e-posta bildirimi geldi. Test route'u sonradan
+     kaldırıldı.
+   - **Bulunan bonus hata:** Global hata yakalayıcıdaki CORS kontrolü
+     sadece `err.message.includes('CORS')` bakıyordu; ama origin
+     eksikliğinde fırlatılan `"Origin zorunlu"` hatası bu koşula
+     uymadığı için yanlışlıkla generic 500 dönüyordu (403 dönmesi
+     gerekirken). Düzeltildi.
+
+### B) Ayrı özellik istekleri (security taramasının dışında, SIRADA)
+
 1. **Personel izin günleri** — yıllık izin hakkı takibi isteniyorsa yeni
-   alan/tablo + migration + endpoint gerekir.
+   alan/tablo + migration + endpoint gerekir. `PersonelDevam` tablosu
+   zaten günlük `IZIN` durumunu destekliyor (basit izin kaydı teknik
+   olarak mümkün); "kaç gün hakkı var / kaçını kullandı" takibi ayrı bir
+   iştir, henüz başlanmadı.
 
 ---
 

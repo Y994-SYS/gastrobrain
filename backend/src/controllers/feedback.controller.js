@@ -8,6 +8,15 @@ const htmlKacisla = (str) => String(str)
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;');
 
+// GÜVENLİK DÜZELTMESİ: `tls: { rejectUnauthorized: false }` kaldırıldı.
+// Bu ayar SMTP sunucusunun TLS sertifikasının doğrulanmasını tamamen
+// atlıyordu — bir saldırganın araya girip (MITM) SMTP kimlik bilgilerini
+// veya gönderilen e-posta içeriğini ele geçirmesini teorik olarak mümkün
+// kılıyordu. Nodemailer'ın varsayılan (güvenli) TLS doğrulaması kullanılıyor.
+// Eğer SMTP sağlayıcısı gerçekten geçersiz/self-signed bir sertifika
+// kullanıyorsa, bağlantı hata verecektir — bu durumda sertifikayı sağlayıcı
+// tarafında düzeltmek (ya da CA'yı `ca:` ile açıkça belirtmek), TLS
+// doğrulamasını tamamen kapatmaktan çok daha güvenlidir.
 const transporter = nodemailer.createTransport({
     host: process.env.SMTP_HOST,
     port: Number(process.env.SMTP_PORT),
@@ -16,9 +25,6 @@ const transporter = nodemailer.createTransport({
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS,
     },
-    tls: {
-        rejectUnauthorized: false
-    }
 });
 
 const feedbackController = {

@@ -54,10 +54,17 @@ const mevcutStokParamsSchema = z.object({
     subeId: z.coerce.number().int('Geçersiz şube').positive('Geçersiz şube'),
 });
 
+// /hareketler route'unun query parametresi — daha önce hiç doğrulanmıyordu.
+// stokKartId opsiyonel: verilmezse tüm kartların son hareketleri listelenir.
+const hareketlerQuerySchema = z.object({
+    stokKartId: z.coerce.number().int('Geçersiz stok kartı').positive('Geçersiz stok kartı').optional(),
+});
+
 module.exports = {
     faturaSchema,
     hareketSchema,
     aySonuSayimSchema,
     tuketimReceteSchema,
     mevcutStokParamsSchema,
+    hareketlerQuerySchema,
 };

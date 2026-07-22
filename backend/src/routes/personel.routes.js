@@ -8,6 +8,7 @@ const {
     maasEkleSchema,
     avansEkleSchema,
     devamEkleSchema,
+    devamTopluEkleSchema,
     idParamSchema,
     izinKullanimSchema,
     izinDurumuQuerySchema,
@@ -28,6 +29,7 @@ router.post('/maas', yonetimRol, validate(maasEkleSchema), personelController.ma
 router.put('/maas/:id/odendi', yonetimRol, validateParams(idParamSchema), personelController.maasOdendi);
 router.post('/avans', yonetimRol, validate(avansEkleSchema), personelController.avansEkle);
 router.post('/devam', yonetimRol, validate(devamEkleSchema), personelController.devamEkle);
+router.post('/devam-toplu', yonetimRol, validate(devamTopluEkleSchema), personelController.devamTopluEkle);
 
 // ── Yıllık izin takibi ────────────────────────────────────────────────────────
 router.get(

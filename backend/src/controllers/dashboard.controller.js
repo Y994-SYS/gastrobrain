@@ -6,9 +6,17 @@ const dashboardController = {
     async subeOzeti(req, res) {
         try {
             const tenantId = req.kullanici.tenantId;
+            const rol = req.kullanici.rol;
+
+            // MUDUR sadece kendi şubesini görür — diğer modüllerle (rapor,
+            // export, personel, stok, sube) tutarlı olacak şekilde.
+            const where = { tenantId, aktif: true };
+            if (rol === 'MUDUR') {
+                where.id = req.kullanici.subeId;
+            }
 
             const subeler = await prisma.sube.findMany({
-                where: { tenantId, aktif: true },
+                where,
                 include: {
                     kullanicilar: { where: { aktif: true }, select: { id: true } },
                     personeller: { select: { id: true } },

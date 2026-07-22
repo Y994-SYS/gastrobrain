@@ -81,6 +81,9 @@ const stokController = {
         }
     },
 
+    // GÜVENLİK: TOCTOU race condition düzeltmesi sonrası, eşzamanlı çakışma
+    // durumunda stok.service.js P2034 (Prisma serializable conflict) hatası
+    // fırlatabiliyor — bunu ayrı yakalayıp anlamlı bir 409 dönüyoruz.
     async zayiEkle(req, res) {
         try {
             if (!req.body.subeId) req.body.subeId = req.kullanici.subeId;
@@ -94,6 +97,12 @@ const stokController = {
             });
             res.status(201).json({ basarili: true, data });
         } catch (error) {
+            if (error.code === 'P2034') {
+                return res.status(409).json({
+                    basarili: false,
+                    mesaj: 'Bu stok kartı üzerinde eşzamanlı bir işlem tespit edildi. Lütfen tekrar deneyin.'
+                });
+            }
             res.status(400).json({ basarili: false, mesaj: error.message });
         }
     },
@@ -111,6 +120,12 @@ const stokController = {
             });
             res.status(201).json({ basarili: true, data });
         } catch (error) {
+            if (error.code === 'P2034') {
+                return res.status(409).json({
+                    basarili: false,
+                    mesaj: 'Bu stok kartı üzerinde eşzamanlı bir işlem tespit edildi. Lütfen tekrar deneyin.'
+                });
+            }
             res.status(400).json({ basarili: false, mesaj: error.message });
         }
     },
@@ -140,19 +155,12 @@ const stokController = {
 
             const tarihObj = tarih ? new Date(tarih) : new Date();
 
-            // Reçetenin kendi kazan porsiyonu (örn. 50) — kalem miktarları bu porsiyon için tanımlı.
-            // Eğer reçetede porsiyonSayisi tanımlı değilse, kalemler "1 porsiyon" için kabul edilir (oran = girilen porsiyon).
             const receteninKendiPorsiyonu = recete.porsiyonSayisi || 1;
             const oran = Number(porsiyonSayisi) / receteninKendiPorsiyonu;
 
-            // zorla=true isteği ROL kontrolünden geçmiyorsa görmezden gelinir —
-            // frontend'den gelen bayrağa asla körü körüne güvenilmez.
             const zorlamaYetkisiVar = zorla === true && ZORLA_IZINLI_ROLLER.includes(rol);
             const eksikKalemler = [];
 
-            // Stok kontrolü — satış akışıyla aynı mantık: stokTakipZorunlu=false olan
-            // kalemler (tuz, baharat vb.) kontrolden muaf; diğerleri yetersizse
-            // yetkisiz kullanıcı için engellenir, yetkili kullanıcı zorla=true ile geçebilir.
             for (const kalem of recete.kalemler) {
                 if (kalem.stokTakipZorunlu === false) continue;
 
@@ -175,10 +183,6 @@ const stokController = {
                 }
             }
 
-            // Açıklamaya net etiket eklenir — bu kaydın bir SATIŞ olmadığı,
-            // mutfak içi üretim/tüketim olduğu raporlarda ayırt edilebilsin.
-            // Aynı üretim için Satışlar ekranından AYRICA satış girilmemelidir —
-            // aksi halde aynı malzemeler iki kez düşer.
             const zorlamaNotu = eksikKalemler.length
                 ? ` [ZORLA KAYDEDİLDİ — yetersiz: ${eksikKalemler.map(k => k.ad).join(', ')}]`
                 : '';
@@ -236,6 +240,12 @@ const stokController = {
             });
             res.status(201).json({ basarili: true, data });
         } catch (error) {
+            if (error.code === 'P2034') {
+                return res.status(409).json({
+                    basarili: false,
+                    mesaj: 'Bu stok kartı üzerinde eşzamanlı bir işlem tespit edildi. Lütfen tekrar deneyin.'
+                });
+            }
             res.status(400).json({ basarili: false, mesaj: error.message });
         }
     }

@@ -28,10 +28,13 @@ export default function Personel() {
 
     const buAy = new Date().getMonth() + 1;
     const buYil = new Date().getFullYear();
+    const bugun = new Date().toISOString().split('T')[0];
 
-    const [maasForm, setMaasForm] = useState({ yil: buYil, ay: buAy, tutar: '', odendi: false, tarih: new Date().toISOString().split('T')[0] });
-    const [avansForm, setAvansForm] = useState({ tutar: '', aciklama: '', tarih: new Date().toISOString().split('T')[0] });
-    const [devamForm, setDevamForm] = useState({ tarih: new Date().toISOString().split('T')[0], durum: 'CALISTI', mesai: '', aciklama: '' });
+    const [maasForm, setMaasForm] = useState({ yil: buYil, ay: buAy, tutar: '', odendi: false, tarih: bugun });
+    const [avansForm, setAvansForm] = useState({ tutar: '', aciklama: '', tarih: bugun });
+
+    const [devamModu, setDevamModu] = useState('tekGun'); // 'tekGun' | 'aralik'
+    const [devamForm, setDevamForm] = useState({ tarih: bugun, bitisTarihi: bugun, durum: 'CALISTI', mesai: '', aciklama: '' });
 
     const [izinDurumu, setIzinDurumu] = useState(null);
     const [izinYukleniyor, setIzinYukleniyor] = useState(false);
@@ -59,14 +62,18 @@ export default function Personel() {
         }
     };
 
-    const personelDetay = async (p) => {
+    const personelDetayYenile = async (id) => {
         try {
-            const res = await api.get(`/api/personel/${p.id}`);
+            const res = await api.get(`/api/personel/${id}`);
             setSecili(res.data?.data || null);
-            izinDurumuGetir(p.id, buYil);
         } catch (err) {
             console.error('Personel detayı alınamadı:', err);
         }
+    };
+
+    const personelDetay = async (p) => {
+        await personelDetayYenile(p.id);
+        izinDurumuGetir(p.id, buYil);
     };
 
     useEffect(() => { getir(); }, [seciliSubeId]);
@@ -150,24 +157,48 @@ export default function Personel() {
     };
 
     const devamKaydet = async () => {
+        if (devamModu === 'aralik' && devamForm.bitisTarihi < devamForm.tarih) {
+            return toast.error('Bitiş tarihi başlangıçtan önce olamaz');
+        }
         setYukleniyor(true);
-        const yeniDevam = { id: Date.now(), ...devamForm, mesai: devamForm.mesai ? Number(devamForm.mesai) : null, _gecici: true };
-        setSecili(prev => ({ ...prev, devamlar: [yeniDevam, ...(prev.devamlar || [])] }));
-        setDevamModal(false);
         try {
-            const res = await api.post('/api/personel/devam', { ...devamForm, personelId: secili.id });
-            setSecili(prev => ({ ...prev, devamlar: prev.devamlar.map(d => d.id === yeniDevam.id ? res.data.data : d) }));
-            toast.success('Devam kaydedildi');
+            if (devamModu === 'tekGun') {
+                const yeniDevam = { id: Date.now(), ...devamForm, mesai: devamForm.mesai ? Number(devamForm.mesai) : null, _gecici: true };
+                setSecili(prev => ({ ...prev, devamlar: [yeniDevam, ...(prev.devamlar || [])] }));
+                setDevamModal(false);
+                try {
+                    const res = await api.post('/api/personel/devam', { ...devamForm, personelId: secili.id });
+                    setSecili(prev => ({ ...prev, devamlar: prev.devamlar.map(d => d.id === yeniDevam.id ? res.data.data : d) }));
+                    toast.success('Devam kaydedildi');
+                } catch (err) {
+                    setSecili(prev => ({ ...prev, devamlar: prev.devamlar.filter(d => d.id !== yeniDevam.id) }));
+                    setDevamModal(true);
+                    throw err;
+                }
+            } else {
+                const res = await api.post('/api/personel/devam-toplu', {
+                    personelId: secili.id,
+                    baslangicTarihi: devamForm.tarih,
+                    bitisTarihi: devamForm.bitisTarihi,
+                    durum: devamForm.durum,
+                    mesai: devamForm.mesai,
+                    aciklama: devamForm.aciklama,
+                });
+                setDevamModal(false);
+                toast.success(`${res.data.data.eklenenGunSayisi} günlük kayıt eklendi`);
+                await personelDetayYenile(secili.id);
+            }
+
             // Devam kaydı IZIN ise, yıllık izin sayacı otomatik değiştiği için tazele
             if (devamForm.durum === 'IZIN') {
-                const devamYili = new Date(devamForm.tarih).getFullYear();
-                izinDurumuGetir(secili.id, devamYili);
+                const yil = new Date(devamForm.tarih).getFullYear();
+                izinDurumuGetir(secili.id, yil);
             }
         } catch (err) {
-            setSecili(prev => ({ ...prev, devamlar: prev.devamlar.filter(d => d.id !== yeniDevam.id) }));
-            setDevamModal(true);
             toast.error(err.response?.data?.mesaj || 'Hata oluştu');
-        } finally { setYukleniyor(false); }
+        } finally {
+            setYukleniyor(false);
+        }
     };
 
     const izinKaydet = async () => {
@@ -197,6 +228,12 @@ export default function Personel() {
             aciklama: '',
         });
         setIzinModal(true);
+    };
+
+    const devamModalAc = () => {
+        setDevamModu('tekGun');
+        setDevamForm({ tarih: bugun, bitisTarihi: bugun, durum: 'CALISTI', mesai: '', aciklama: '' });
+        setDevamModal(true);
     };
 
     const durumRenk = (durum) => ({ CALISTI: 'text-lime-400', IZIN: 'text-blue-400', RAPOR: 'text-orange-400', DEVAMSIZ: 'text-red-400' }[durum] || 'text-zinc-400');
@@ -257,7 +294,7 @@ export default function Personel() {
                                     <div className="flex flex-wrap gap-2">
                                         <button onClick={() => setMaasModal(true)} className="text-xs border border-zinc-700 text-zinc-400 hover:text-lime-400 hover:border-lime-400 px-3 py-1.5 rounded-lg transition-colors">💰 Maaş</button>
                                         <button onClick={() => setAvansModal(true)} className="text-xs border border-zinc-700 text-zinc-400 hover:text-orange-400 hover:border-orange-400 px-3 py-1.5 rounded-lg transition-colors">💳 Avans</button>
-                                        <button onClick={() => setDevamModal(true)} className="text-xs border border-zinc-700 text-zinc-400 hover:text-blue-400 hover:border-blue-400 px-3 py-1.5 rounded-lg transition-colors">📋 Devam</button>
+                                        <button onClick={devamModalAc} className="text-xs border border-zinc-700 text-zinc-400 hover:text-blue-400 hover:border-blue-400 px-3 py-1.5 rounded-lg transition-colors">📋 Devam</button>
                                         <button onClick={izinModalAc} className="text-xs border border-zinc-700 text-zinc-400 hover:text-emerald-400 hover:border-emerald-400 px-3 py-1.5 rounded-lg transition-colors">🏖️ Düzeltme</button>
                                     </div>
                                 </div>
@@ -437,11 +474,45 @@ export default function Personel() {
             {devamModal && (
                 <Modal baslik="Devam Kaydı" onKapat={() => setDevamModal(false)}>
                     <div className="space-y-4">
+                        <div className="flex bg-zinc-800 rounded-lg p-1 gap-1">
+                            <button
+                                onClick={() => setDevamModu('tekGun')}
+                                className={`flex-1 text-xs font-semibold py-2 rounded-md transition-colors ${devamModu === 'tekGun' ? 'bg-lime-400 text-black' : 'text-zinc-400 hover:text-white'}`}
+                            >
+                                Tek Gün
+                            </button>
+                            <button
+                                onClick={() => setDevamModu('aralik')}
+                                className={`flex-1 text-xs font-semibold py-2 rounded-md transition-colors ${devamModu === 'aralik' ? 'bg-lime-400 text-black' : 'text-zinc-400 hover:text-white'}`}
+                            >
+                                Tarih Aralığı
+                            </button>
+                        </div>
+
                         <div className="grid grid-cols-2 gap-3">
                             <div>
-                                <label className="text-zinc-400 text-sm mb-1.5 block">Tarih</label>
+                                <label className="text-zinc-400 text-sm mb-1.5 block">{devamModu === 'aralik' ? 'Başlangıç' : 'Tarih'}</label>
                                 <input type="date" value={devamForm.tarih} onChange={(e) => setDevamForm({ ...devamForm, tarih: e.target.value })} className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-3 py-2.5 text-sm outline-none focus:border-lime-400 transition-colors" />
                             </div>
+                            {devamModu === 'aralik' ? (
+                                <div>
+                                    <label className="text-zinc-400 text-sm mb-1.5 block">Bitiş</label>
+                                    <input type="date" value={devamForm.bitisTarihi} onChange={(e) => setDevamForm({ ...devamForm, bitisTarihi: e.target.value })} className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-3 py-2.5 text-sm outline-none focus:border-lime-400 transition-colors" />
+                                </div>
+                            ) : (
+                                <div>
+                                    <label className="text-zinc-400 text-sm mb-1.5 block">Durum</label>
+                                    <select value={devamForm.durum} onChange={(e) => setDevamForm({ ...devamForm, durum: e.target.value, mesai: e.target.value === 'CALISTI' ? devamForm.mesai : '' })} className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-3 py-2.5 text-sm outline-none focus:border-lime-400 transition-colors">
+                                        <option value="CALISTI">Çalıştı</option>
+                                        <option value="IZIN">İzin</option>
+                                        <option value="RAPOR">Rapor</option>
+                                        <option value="DEVAMSIZ">Devamsız</option>
+                                    </select>
+                                </div>
+                            )}
+                        </div>
+
+                        {devamModu === 'aralik' && (
                             <div>
                                 <label className="text-zinc-400 text-sm mb-1.5 block">Durum</label>
                                 <select value={devamForm.durum} onChange={(e) => setDevamForm({ ...devamForm, durum: e.target.value, mesai: e.target.value === 'CALISTI' ? devamForm.mesai : '' })} className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-3 py-2.5 text-sm outline-none focus:border-lime-400 transition-colors">
@@ -451,16 +522,19 @@ export default function Personel() {
                                     <option value="DEVAMSIZ">Devamsız</option>
                                 </select>
                             </div>
-                        </div>
+                        )}
+
                         {devamForm.durum === 'CALISTI' && (
                             <div>
-                                <label className="text-zinc-400 text-sm mb-1.5 block">Mesai (saat)</label>
+                                <label className="text-zinc-400 text-sm mb-1.5 block">Mesai (saat{devamModu === 'aralik' ? ' — her gün için' : ''})</label>
                                 <input type="number" value={devamForm.mesai} onChange={(e) => setDevamForm({ ...devamForm, mesai: e.target.value })} placeholder="0" className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-4 py-2.5 text-sm outline-none focus:border-lime-400 transition-colors" />
                             </div>
                         )}
                         {devamForm.durum === 'IZIN' && (
                             <p className="text-xs text-emerald-400 bg-emerald-400/10 rounded-lg px-3 py-2">
-                                Bu kayıt, yıllık izin sayacına otomatik olarak 1 gün ekleyecek.
+                                {devamModu === 'aralik'
+                                    ? 'Bu aralıktaki her gün, yıllık izin sayacına otomatik olarak eklenecek.'
+                                    : 'Bu kayıt, yıllık izin sayacına otomatik olarak 1 gün ekleyecek.'}
                             </p>
                         )}
                         <div>
@@ -468,7 +542,7 @@ export default function Personel() {
                             <input value={devamForm.aciklama} onChange={(e) => setDevamForm({ ...devamForm, aciklama: e.target.value })} className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-4 py-2.5 text-sm outline-none focus:border-lime-400 transition-colors" />
                         </div>
                         <button onClick={devamKaydet} disabled={yukleniyor} className="w-full bg-lime-400 hover:bg-lime-300 disabled:opacity-50 text-black font-bold rounded-lg py-2.5 text-sm transition-colors">
-                            {yukleniyor ? 'Kaydediliyor...' : 'Kaydet'}
+                            {yukleniyor ? 'Kaydediliyor...' : (devamModu === 'aralik' ? 'Aralığı Kaydet' : 'Kaydet')}
                         </button>
                     </div>
                 </Modal>
@@ -485,7 +559,7 @@ export default function Personel() {
                             <label className="text-zinc-400 text-sm mb-1.5 block">Düzeltme (gün) *</label>
                             <input type="number" step="0.5" value={izinForm.kullanilanGun} onChange={(e) => setIzinForm({ ...izinForm, kullanilanGun: e.target.value })} className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-4 py-2.5 text-sm outline-none focus:border-lime-400 transition-colors" />
                             <p className="text-xs text-zinc-500 mt-1">
-                                Bu, Devam Kaydı'ndan otomatik sayılan izin gününe <b>eklenecek</b> (veya negatif girilirse <b>çıkarılacak</b>) ek miktardır — toplam kullanılan gün değildir. Örn. geçen yıldan devreden izin için pozitif, hatalı bir Devam Kaydı'nı telafi etmek için negatif gir.
+                                Bu, Devam Kaydı'ndan otomatik sayılan izin gününe <b>eklenecek</b> (veya negatif girilirse <b>çıkarılacak</b>) ek miktardır — toplam kullanılan gün değildir.
                             </p>
                         </div>
                         <div>

@@ -19,13 +19,25 @@ const PLAN_LIMITLERI = {
     KURUMSAL: { maxSube: Infinity },
 };
 
+// MUDUR rolü sadece kendi şubesini görebilir/yönetebilir — diğer modüllerle
+// (rapor, export, personel, stok, dashboard) tutarlı olacak şekilde.
+const kendiSubesineKilitliMi = (req, id) => {
+    return req.kullanici.rol === 'MUDUR' && id !== req.kullanici.subeId;
+};
+
 const hepsiniGetir = async (req, res) => {
     try {
         const tenantId = req.kullanici.tenantId;
+        const rol = req.kullanici.rol;
         const bugun = bugunBaslangicTR();
 
+        const where = { tenantId };
+        if (rol === 'MUDUR') {
+            where.id = req.kullanici.subeId;
+        }
+
         const subeler = await prisma.sube.findMany({
-            where: { tenantId },
+            where,
             include: { _count: { select: { kullanicilar: true, personeller: true } } },
             orderBy: { id: 'asc' },
         });
@@ -86,8 +98,13 @@ const hepsiniGetir = async (req, res) => {
 
 const tekiniGetir = async (req, res) => {
     try {
+        const id = parseInt(req.params.id);
+        if (kendiSubesineKilitliMi(req, id)) {
+            return res.status(403).json({ hata: 'Bu şubeye erişim yetkiniz yok' });
+        }
+
         const sube = await prisma.sube.findFirst({
-            where: { id: parseInt(req.params.id), tenantId: req.kullanici.tenantId },
+            where: { id, tenantId: req.kullanici.tenantId },
             include: { _count: { select: { kullanicilar: true, personeller: true } } },
         });
         if (!sube) return res.status(404).json({ hata: 'Şube bulunamadı' });
@@ -101,6 +118,11 @@ const detayGetir = async (req, res) => {
     try {
         const tenantId = req.kullanici.tenantId;
         const subeId = parseInt(req.params.id);
+
+        if (kendiSubesineKilitliMi(req, subeId)) {
+            return res.status(403).json({ hata: 'Bu şubeye erişim yetkiniz yok' });
+        }
+
         const bugun = bugunBaslangicTR();
 
         const sube = await prisma.sube.findFirst({

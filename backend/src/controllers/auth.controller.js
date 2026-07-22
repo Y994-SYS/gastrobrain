@@ -6,7 +6,14 @@ const authController = {
 
     async kayitOl(req, res) {
         try {
-            const kullanici = await authService.kayitOl(req.body);
+            // GÜVENLİK: tenantId ASLA req.body'den alınmaz — her zaman
+            // authMiddleware tarafından doğrulanmış req.kullanici.tenantId
+            // kullanılır. Client bir tenantId gönderse bile (zaten şema artık
+            // bunu reddediyor), burada da zorla üzerine yazılır.
+            const kullanici = await authService.kayitOl({
+                ...req.body,
+                tenantId: req.kullanici.tenantId,
+            });
             res.status(201).json({ basarili: true, data: kullanici });
         } catch (error) {
             res.status(400).json({ basarili: false, mesaj: error.message });

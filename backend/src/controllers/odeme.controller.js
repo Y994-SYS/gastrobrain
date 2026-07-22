@@ -2,6 +2,10 @@ const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 const { odemeBildirimMailGonder } = require('../services/mail.service');
 
+// Bir bildirim zaten işlenmişken tekrar işlenmeye çalışıldığını ayırt etmek
+// için özel hata sınıfı (eşzamanlı onay/red çakışması)
+class AlreadyProcessedError extends Error { }
+
 // POST /api/odeme/bildir — kullanıcı "Ödeme Yaptım" der
 const bildirimOlustur = async (req, res) => {
     try {
@@ -91,20 +95,37 @@ const onayla = async (req, res) => {
 
         const planMap = { baslangic: 'BASLANGIC', profesyonel: 'PROFESYONEL', kurumsal: 'KURUMSAL' };
 
-        await prisma.$transaction([
-            prisma.tenant.update({
-                where: { id: bildirim.tenantId },
-                data: {
-                    lisansBitis: yeniBitis,
-                    plan: planMap[bildirim.plan] || bildirim.tenant.plan,
-                    lisansNot: `Ödeme onaylandı — ${bildirim.periyot} (${new Date().toLocaleDateString('tr-TR')})`,
-                },
-            }),
-            prisma.odemeBildirimi.update({
-                where: { id },
-                data: { durum: 'ONAYLANDI', islenmeTarihi: new Date() },
-            }),
-        ]);
+        try {
+            await prisma.$transaction(async (tx) => {
+                // Atomik "claim": sadece bildirim hâlâ BEKLIYOR durumundaysa
+                // güncelle. updateMany'nin döndürdüğü count 0 ise, bildirim bu
+                // sırada başka bir istek tarafından (çift tıklama, eşzamanlı
+                // ikinci bir admin isteği vb.) zaten işlenmiş demektir — bu
+                // sayede lisansın iki kere uzatılması engellenir.
+                const claim = await tx.odemeBildirimi.updateMany({
+                    where: { id, durum: 'BEKLIYOR' },
+                    data: { durum: 'ONAYLANDI', islenmeTarihi: new Date() },
+                });
+
+                if (claim.count === 0) {
+                    throw new AlreadyProcessedError();
+                }
+
+                await tx.tenant.update({
+                    where: { id: bildirim.tenantId },
+                    data: {
+                        lisansBitis: yeniBitis,
+                        plan: planMap[bildirim.plan] || bildirim.tenant.plan,
+                        lisansNot: `Ödeme onaylandı — ${bildirim.periyot} (${new Date().toLocaleDateString('tr-TR')})`,
+                    },
+                });
+            });
+        } catch (err) {
+            if (err instanceof AlreadyProcessedError) {
+                return res.status(409).json({ hata: 'Bu bildirim başka bir işlem tarafından zaten işlendi' });
+            }
+            throw err;
+        }
 
         res.json({ mesaj: 'Ödeme onaylandı, lisans uzatıldı' });
     } catch (err) {
@@ -122,10 +143,16 @@ const reddet = async (req, res) => {
         if (!bildirim) return res.status(404).json({ hata: 'Bildirim bulunamadı' });
         if (bildirim.durum !== 'BEKLIYOR') return res.status(400).json({ hata: 'Bu bildirim zaten işlenmiş' });
 
-        await prisma.odemeBildirimi.update({
-            where: { id },
+        // Aynı atomik "claim" deseni — onayla ile aynı anda tetiklenirse
+        // (ya da reddet çift tıklanırsa) sadece biri işlemi tamamlar.
+        const claim = await prisma.odemeBildirimi.updateMany({
+            where: { id, durum: 'BEKLIYOR' },
             data: { durum: 'REDDEDILDI', redNotu, islenmeTarihi: new Date() },
         });
+
+        if (claim.count === 0) {
+            return res.status(409).json({ hata: 'Bu bildirim başka bir işlem tarafından zaten işlendi' });
+        }
 
         res.json({ mesaj: 'Bildirim reddedildi' });
     } catch (err) {

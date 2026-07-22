@@ -7,12 +7,20 @@ const { hosgeldinMailGonder } = require('./mail.service');
 
 // Deneme süresi kontrolü — lisansBitis > şimdi ise deneme/aktif,
 // ama kayıt tarihinden 30 gün içindeyse "deneme döneminde" sayılır.
+// (Önceden aynı işi yapan iki farklı fonksiyon vardı — birleştirildi.)
 const denemeDonemindeMi = (tenant) => {
     if (!tenant?.createdAt) return false;
     const otuzGun = new Date(tenant.createdAt);
     otuzGun.setDate(otuzGun.getDate() + 30);
     return new Date() <= otuzGun;
 };
+
+// GÜVENLİK: Kullanıcı bulunamadığında bcrypt.compare hiç çalışmadığı için,
+// "email yok" ile "email var, şifre yanlış" durumları arasında ölçülebilir
+// bir zamanlama farkı oluşuyordu (email enumeration riski). Bu sahte hash,
+// kullanıcı bulunamasa bile bir bcrypt.compare çalıştırıp süreyi eşitlemek
+// için kullanılır — gerçek bir şifreye karşılık gelmez.
+const ZAMANLAMA_ESITLEME_HASH = bcrypt.hashSync('zamanlama-esitleme-icin-sahte-deger', 10);
 
 const authService = {
 
@@ -22,9 +30,21 @@ const authService = {
         });
         if (mevcutKullanici) throw new Error('Bu email bu firmada zaten kayıtlı');
 
+        // GÜVENLİK: subeId gönderildiyse, bu şubenin GERÇEKTEN bu tenant'a ait
+        // olduğu doğrulanır — aksi halde başka bir tenant'ın şube ID'si
+        // (IDOR) verilip yeni kullanıcı yanlış/yabancı bir şubeye bağlanabilirdi.
+        let dogrulanmisSubeId = null;
+        if (subeId) {
+            const sube = await prisma.sube.findFirst({
+                where: { id: Number(subeId), tenantId }
+            });
+            if (!sube) throw new Error('Geçersiz şube: erişim yetkiniz yok');
+            dogrulanmisSubeId = sube.id;
+        }
+
         const hashedSifre = await bcrypt.hash(sifre, 10);
         const kullanici = await prisma.kullanici.create({
-            data: { ad, email, sifre: hashedSifre, rol, subeId, tenantId },
+            data: { ad, email, sifre: hashedSifre, rol, subeId: dogrulanmisSubeId, tenantId },
             select: { id: true, ad: true, email: true, rol: true, subeId: true, tenantId: true }
         });
         return kullanici;
@@ -58,7 +78,13 @@ const authService = {
             if (!kullanici) throw new Error('Firma bilgisi gerekli');
         }
 
-        if (!kullanici) throw new Error('Email veya şifre hatalı');
+        if (!kullanici) {
+            // Zamanlama yan kanalını kapatmak için sahte bir bcrypt.compare
+            // çalıştırılır — böylece "kullanıcı yok" cevabı, "kullanıcı var
+            // ama şifre yanlış" cevabıyla yaklaşık aynı sürede döner.
+            await bcrypt.compare(sifre, ZAMANLAMA_ESITLEME_HASH);
+            throw new Error('Email veya şifre hatalı');
+        }
         if (!kullanici.aktif) throw new Error('Hesabınız devre dışı');
 
         if (kullanici.tenantId) {
@@ -77,7 +103,7 @@ const authService = {
             if (kullanici.tenant.lisansBitis) {
                 lisansDoldu = new Date(kullanici.tenant.lisansBitis) < new Date();
             }
-            denemede = denemeDonemindeVe(kullanici.tenant);
+            denemede = denemeDonemindeMi(kullanici.tenant);
         }
 
         const token = jwt.sign(
@@ -102,9 +128,18 @@ const authService = {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
         const kullanici = await prisma.kullanici.findUnique({
             where: { id: decoded.id },
-            include: { tenant: { select: { lisansBitis: true, plan: true, createdAt: true } } },
+            include: { tenant: { select: { lisansBitis: true, plan: true, createdAt: true, aktif: true } } },
         });
         if (!kullanici || !kullanici.aktif) throw new Error('Geçersiz token');
+
+        // GÜVENLİK DÜZELTMESİ: girisYap'ta pasif firma kontrolü vardı ama
+        // her istekte çalışan asıl doğrulama fonksiyonu olan tokenDogrula'da
+        // bu kontrol eksikti — bir firma süper admin tarafından pasife
+        // alındıktan sonra, o firmanın kullanıcıları token süresi dolana
+        // kadar sisteme erişmeye devam edebiliyordu.
+        if (kullanici.tenantId && kullanici.tenant && !kullanici.tenant.aktif) {
+            throw new Error('Firma hesabı devre dışı');
+        }
 
         let lisansDoldu = false;
         let denemede = false;
@@ -114,7 +149,7 @@ const authService = {
             if (kullanici.tenant.lisansBitis) {
                 lisansDoldu = new Date(kullanici.tenant.lisansBitis) < new Date();
             }
-            denemede = denemeDonemindeVe(kullanici.tenant);
+            denemede = denemeDonemindeMi(kullanici.tenant);
         }
 
         return {
@@ -258,13 +293,5 @@ const authService = {
         return { mesaj: 'Şifre güncellendi' };
     },
 };
-
-// İsim çakışması önlemi — fonksiyon adını düzelttik
-function denemeDonemindeVe(tenant) {
-    if (!tenant?.createdAt) return false;
-    const otuzGun = new Date(tenant.createdAt);
-    otuzGun.setDate(otuzGun.getDate() + 30);
-    return new Date() <= otuzGun;
-}
 
 module.exports = authService;

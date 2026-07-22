@@ -1,4 +1,4 @@
-const { PrismaClient } = require('@prisma/client');
+const { PrismaClient, Prisma } = require('@prisma/client');
 const prisma = new PrismaClient();
 
 // Giriş sayılan stok hareket tipleri (bakiye hesabı için)
@@ -8,9 +8,14 @@ const GIRIS_TIPLER = new Set([
     'SUBE_TRANSFER_IN',
 ]);
 
-// Belirli bir şubede bir stok kartının net bakiyesini hesaplar
-const bakiyeHesapla = async (subeId, stokKartId) => {
-    const hareketler = await prisma.stokHareket.groupBy({
+// Yetersiz stok durumunu diğer hatalardan ayırmak için özel hata sınıfı
+class YetersizStokError extends Error { }
+
+// Belirli bir şubede bir stok kartının net bakiyesini hesaplar.
+// `client` parametresi ile hem normal prisma instance'ı hem de bir
+// transaction client'ı ($transaction callback'indeki `tx`) kabul eder.
+const bakiyeHesapla = async (client, subeId, stokKartId) => {
+    const hareketler = await client.stokHareket.groupBy({
         by: ['tip'],
         where: { subeId, stokKartId },
         _sum: { miktar: true },
@@ -94,48 +99,71 @@ const transferYap = async (req, res) => {
         if (!hedefSube) return res.status(404).json({ hata: 'Hedef şube bulunamadı' });
         if (!stokKart) return res.status(404).json({ hata: 'Stok kartı bulunamadı' });
 
-        // ── Bakiye yeterlilik kontrolü ───────────────────────────
-        const mevcutBakiye = await bakiyeHesapla(kaynakSubeId, stokKartId);
-        if (mevcutBakiye < miktar) {
-            return res.status(400).json({
-                hata: `Yetersiz stok. Mevcut: ${mevcutBakiye} ${stokKart.ad}`,
-            });
-        }
-
-        // ── Transaction: OUT + IN aynı anda ─────────────────────
         const tarih = new Date();
         const aciklamaMetni = aciklama?.trim() ||
             `${kaynakSube.ad} → ${hedefSube.ad} transferi`;
 
-        const [cikisHareket, girisHareket] = await prisma.$transaction([
-            // Kaynak şubeden çıkış
-            prisma.stokHareket.create({
-                data: {
-                    tip: 'SUBE_TRANSFER_OUT',
-                    miktar,
-                    aciklama: aciklamaMetni,
-                    tarih,
-                    stokKartId,
-                    subeId: kaynakSubeId,
-                },
-            }),
-            // Hedef şubeye giriş
-            prisma.stokHareket.create({
-                data: {
-                    tip: 'SUBE_TRANSFER_IN',
-                    miktar,
-                    aciklama: aciklamaMetni,
-                    tarih,
-                    stokKartId,
-                    subeId: hedefSubeId,
-                },
-            }),
-        ]);
+        // ── Bakiye kontrolü + hareket kayıtları TEK bir serializable
+        //    transaction içinde yapılır. Böylece iki eşzamanlı transfer
+        //    isteği aynı stok kartını aynı anda kontrol edip ikisi de
+        //    "yeterli bakiye var" sonucuna ulaşamaz — Postgres, çakışan
+        //    işlemlerden birini otomatik olarak reddeder (P2034 hatası),
+        //    biz de bunu kullanıcıya "tekrar dene" olarak döneriz.
+        let sonuc;
+        try {
+            sonuc = await prisma.$transaction(async (tx) => {
+                const mevcutBakiye = await bakiyeHesapla(tx, kaynakSubeId, stokKartId);
+                if (mevcutBakiye < miktar) {
+                    throw new YetersizStokError(
+                        `Yetersiz stok. Mevcut: ${mevcutBakiye} ${stokKart.ad}`
+                    );
+                }
+
+                const cikisHareket = await tx.stokHareket.create({
+                    data: {
+                        tip: 'SUBE_TRANSFER_OUT',
+                        miktar,
+                        aciklama: aciklamaMetni,
+                        tarih,
+                        stokKartId,
+                        subeId: kaynakSubeId,
+                    },
+                });
+
+                const girisHareket = await tx.stokHareket.create({
+                    data: {
+                        tip: 'SUBE_TRANSFER_IN',
+                        miktar,
+                        aciklama: aciklamaMetni,
+                        tarih,
+                        stokKartId,
+                        subeId: hedefSubeId,
+                    },
+                });
+
+                return { cikisHareket, girisHareket };
+            }, {
+                isolation: Prisma.TransactionIsolationLevel.Serializable,
+                maxWait: 5000,
+                timeout: 10000,
+            });
+        } catch (err) {
+            if (err instanceof YetersizStokError) {
+                return res.status(400).json({ hata: err.message });
+            }
+            // P2034: Prisma'nın serializable çakışması / write conflict kodu
+            if (err.code === 'P2034') {
+                return res.status(409).json({
+                    hata: 'Bu stok kartı üzerinde eşzamanlı bir işlem tespit edildi. Lütfen tekrar deneyin.',
+                });
+            }
+            throw err;
+        }
 
         res.status(201).json({
             mesaj: 'Transfer tamamlandı',
-            cikis: cikisHareket,
-            giris: girisHareket,
+            cikis: sonuc.cikisHareket,
+            giris: sonuc.girisHareket,
         });
     } catch (err) {
         res.status(500).json({ hata: err.message });

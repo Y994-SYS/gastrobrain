@@ -1,4 +1,4 @@
-const { PrismaClient } = require('@prisma/client');
+const { PrismaClient, Prisma } = require('@prisma/client');
 const prisma = new PrismaClient();
 
 // Giriş tipleri — bakiyeye eklenir
@@ -16,12 +16,12 @@ const CIKIS_TIPLER = new Set([
     'SUBE_TRANSFER_OUT',
 ]);
 
+// Yetersiz stok durumunu diğer hatalardan ayırmak için özel hata sınıfı
+class YetersizStokError extends Error { }
+
 // AY_SONU_SAYIM özel: fark hareketi olarak kaydedilir.
 // Fark pozitifse miktar pozitif (giriş gibi), negatifse miktar Math.abs() ile
 // kaydedilip negatif işlenmesi gerekir. Acıklama içindeki fark işaretine bakılır.
-// Daha temiz çözüm: AY_SONU_SAYIM her zaman "hedef miktar" olarak işlenir —
-// mevcut stoku sıfırlar ve yeni miktarı ekler. Bunun için ayrı hesaplama gerekir.
-// Şimdilik: acıklamadaki fark işaretine göre giriş/çıkış say.
 const bakiyeHesapla = (hareketler) => {
     return hareketler.reduce((toplam, h) => {
         if (GIRIS_TIPLER.has(h.tip)) return toplam + h.miktar;
@@ -37,6 +37,20 @@ const bakiyeHesapla = (hareketler) => {
     }, 0);
 };
 
+// Bakiye hesaplama artık hem normal prisma instance'ı hem de bir transaction
+// client'ı ($transaction callback'indeki `tx`) kabul ediyor — böylece
+// zayiEkle/tuketimEkle gibi fonksiyonlarda "bakiyeyi oku, sonra yaz" işlemi
+// TEK bir transaction içinde atomik olarak yapılabiliyor (TOCTOU önlemi).
+const mevcutStokHesapla = async (client, stokKartId, subeId, tenantId) => {
+    const where = {
+        stokKartId: Number(stokKartId),
+        stokKart: { tenantId },
+        ...(subeId ? { subeId: Number(subeId) } : {})
+    };
+    const hareketler = await client.stokHareket.findMany({ where });
+    return bakiyeHesapla(hareketler);
+};
+
 const getSubeId = async (subeId, tenantId) => {
     if (subeId) {
         const sube = await prisma.sube.findFirst({ where: { id: Number(subeId), tenantId } });
@@ -49,6 +63,8 @@ const getSubeId = async (subeId, tenantId) => {
 };
 
 const stokService = {
+
+    YetersizStokError, // controller'ın `instanceof` ile ayırt edebilmesi için export edildi
 
     async hareketleriGetir(stokKartId, tenantId) {
         return prisma.stokHareket.findMany({
@@ -63,13 +79,7 @@ const stokService = {
     },
 
     async mevcutStokGetir(stokKartId, subeId, tenantId) {
-        const where = {
-            stokKartId: Number(stokKartId),
-            stokKart: { tenantId },
-            ...(subeId ? { subeId: Number(subeId) } : {})
-        };
-        const hareketler = await prisma.stokHareket.findMany({ where });
-        return bakiyeHesapla(hareketler);
+        return mevcutStokHesapla(prisma, stokKartId, subeId, tenantId);
     },
 
     async tumStokDurumu(subeId, tenantId) {
@@ -177,52 +187,78 @@ const stokService = {
         });
     },
 
+    // GÜVENLİK DÜZELTMESİ: Bakiye kontrolü ile kayıt oluşturma artık TEK bir
+    // serializable transaction içinde yapılıyor (transfer.controller.js'deki
+    // düzeltmeyle aynı desen). Öncesinde iki eşzamanlı zayi isteği aynı stok
+    // kartını kontrol edip ikisi de "yeterli" görüp stoku negatife
+    // düşürebiliyordu (TOCTOU race condition).
     async zayiEkle({ stokKartId, subeId, miktar, aciklama, tarih }, tenantId) {
         const stokKart = await prisma.stokKart.findFirst({ where: { id: Number(stokKartId), tenantId } });
         if (!stokKart) throw new Error('Stok kartı bulunamadı');
 
         const gercekSubeId = await getSubeId(subeId, tenantId);
 
-        const mevcutStok = await stokService.mevcutStokGetir(stokKartId, gercekSubeId, tenantId);
-        if (mevcutStok < Number(miktar)) {
-            throw new Error(`Yetersiz stok: ${stokKart.ad} (mevcut: ${mevcutStok.toFixed(2)}, girilen: ${miktar})`);
-        }
-
-        return prisma.stokHareket.create({
-            data: {
-                tip: 'ZAYI',
-                miktar: Number(miktar),
-                aciklama,
-                tarih: tarih ? new Date(tarih) : new Date(),
-                stokKartId: Number(stokKartId),
-                subeId: gercekSubeId,
+        return prisma.$transaction(async (tx) => {
+            const mevcutStok = await mevcutStokHesapla(tx, stokKartId, gercekSubeId, tenantId);
+            if (mevcutStok < Number(miktar)) {
+                throw new YetersizStokError(
+                    `Yetersiz stok: ${stokKart.ad} (mevcut: ${mevcutStok.toFixed(2)}, girilen: ${miktar})`
+                );
             }
+
+            return tx.stokHareket.create({
+                data: {
+                    tip: 'ZAYI',
+                    miktar: Number(miktar),
+                    aciklama,
+                    tarih: tarih ? new Date(tarih) : new Date(),
+                    stokKartId: Number(stokKartId),
+                    subeId: gercekSubeId,
+                }
+            });
+        }, {
+            isolation: Prisma.TransactionIsolationLevel.Serializable,
+            maxWait: 5000,
+            timeout: 10000,
         });
     },
 
+    // Aynı düzeltme tuketimEkle için de uygulandı.
     async tuketimEkle({ stokKartId, subeId, miktar, aciklama, tarih }, tenantId) {
         const stokKart = await prisma.stokKart.findFirst({ where: { id: Number(stokKartId), tenantId } });
         if (!stokKart) throw new Error('Stok kartı bulunamadı');
 
         const gercekSubeId = await getSubeId(subeId, tenantId);
 
-        const mevcutStok = await stokService.mevcutStokGetir(stokKartId, gercekSubeId, tenantId);
-        if (mevcutStok < Number(miktar)) {
-            throw new Error(`Yetersiz stok: ${stokKart.ad} (mevcut: ${mevcutStok.toFixed(2)}, girilen: ${miktar})`);
-        }
-
-        return prisma.stokHareket.create({
-            data: {
-                tip: 'TUKETIM',
-                miktar: Number(miktar),
-                aciklama,
-                tarih: tarih ? new Date(tarih) : new Date(),
-                stokKartId: Number(stokKartId),
-                subeId: gercekSubeId,
+        return prisma.$transaction(async (tx) => {
+            const mevcutStok = await mevcutStokHesapla(tx, stokKartId, gercekSubeId, tenantId);
+            if (mevcutStok < Number(miktar)) {
+                throw new YetersizStokError(
+                    `Yetersiz stok: ${stokKart.ad} (mevcut: ${mevcutStok.toFixed(2)}, girilen: ${miktar})`
+                );
             }
+
+            return tx.stokHareket.create({
+                data: {
+                    tip: 'TUKETIM',
+                    miktar: Number(miktar),
+                    aciklama,
+                    tarih: tarih ? new Date(tarih) : new Date(),
+                    stokKartId: Number(stokKartId),
+                    subeId: gercekSubeId,
+                }
+            });
+        }, {
+            isolation: Prisma.TransactionIsolationLevel.Serializable,
+            maxWait: 5000,
+            timeout: 10000,
         });
     },
 
+    // DÜZELTME: mevcutStok artık `prisma` yerine `tx` üzerinden okunuyor —
+    // öncesinde yazma transaction içindeydi ama okuma dışındaydı, bu da
+    // "oku sonra hesapla" adımının transaction'ın tutarlılık garantisinden
+    // faydalanmamasına yol açıyordu.
     async aySonuSayimEkle({ stokKartId, subeId, sayimMiktari, aciklama }, tenantId) {
         const stokKart = await prisma.stokKart.findFirst({ where: { id: Number(stokKartId), tenantId } });
         if (!stokKart) throw new Error('Stok kartı bulunamadı');
@@ -230,7 +266,7 @@ const stokService = {
         const gercekSubeId = await getSubeId(subeId, tenantId);
 
         return prisma.$transaction(async (tx) => {
-            const mevcutStok = await stokService.mevcutStokGetir(stokKartId, gercekSubeId, tenantId);
+            const mevcutStok = await mevcutStokHesapla(tx, stokKartId, gercekSubeId, tenantId);
             const fark = Number(sayimMiktari) - mevcutStok;
 
             const hareket = await tx.stokHareket.create({
@@ -244,6 +280,10 @@ const stokService = {
             });
 
             return { hareket, mevcutStok, sayimMiktari: Number(sayimMiktari), fark };
+        }, {
+            isolation: Prisma.TransactionIsolationLevel.Serializable,
+            maxWait: 5000,
+            timeout: 10000,
         });
     }
 };

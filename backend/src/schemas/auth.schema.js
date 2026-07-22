@@ -11,17 +11,22 @@ const opsiyonelString = (maxLen) => z.preprocess(
     z.string().trim().max(maxLen).optional()
 );
 
+// GÜVENLİK: SUPER_ADMIN bu şemayla ASLA atanamaz — client'ın kendini süper
+// admin yapabilmesi (privilege escalation) mümkündü, artık mümkün değil.
+// tenantId de şemadan tamamen çıkarıldı: her zaman authMiddleware'den gelen
+// req.kullanici.tenantId kullanılır, client'ın body'de gönderdiği hiçbir
+// tenantId değeri dikkate alınmaz (bkz. auth.controller.js).
+const KAYIT_ATANABILIR_ROLLER = ['TENANT_ADMIN', 'MUDUR', 'DEPO', 'KASA', 'PERSONEL'];
+
 const kayitOlSchema = z.object({
     ad: z.string().trim().min(2, 'Ad en az 2 karakter olmalı').max(100),
     email,
     sifre,
-    rol: z.preprocess(
-        bosSayilanlariTemizle,
-        z.enum(['TENANT_ADMIN', 'PERSONEL', 'SUPER_ADMIN']).optional()
-    ),
-    subeId: opsiyonelString(50),
-    tenantId: opsiyonelString(50),
-});
+    rol: z.enum(KAYIT_ATANABILIR_ROLLER, {
+        errorMap: () => ({ message: 'Geçersiz rol' })
+    }),
+    subeId: z.coerce.number().int('Geçersiz şube').positive('Geçersiz şube').optional(),
+}).strict();
 
 const girisYapSchema = z.object({
     email,

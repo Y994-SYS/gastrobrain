@@ -1,0 +1,29 @@
+﻿name: Gunluk Veritabani Yedegi
+
+on:
+  schedule:
+    # Her gun TSI 04:00'te calisir (UTC 01:00 = TSI 04:00)
+    - cron: '0 1 * * *'
+  workflow_dispatch: {}
+
+jobs:
+  yedekle:
+    runs-on: ubuntu-latest
+    steps:
+      - name: PostgreSQL client kur
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - name: Yedek al (pg_dump)
+        env:
+          DATABASE_URL: ${{ secrets.SUPABASE_DIRECT_URL }}
+        run: |
+          TARIH=$(date +%Y-%m-%d)
+          pg_dump "$DATABASE_URL" --no-owner --no-privileges --format=custom --file="gastrobrain_${TARIH}.dump"
+          gzip "gastrobrain_${TARIH}.dump"
+
+      - name: Yedegi GitHub Actions'a yukle (90 gun saklanir)
+        uses: actions/upload-artifact@v4
+        with:
+          name: db-yedek-${{ github.run_id }}
+          path: "*.dump.gz"
+          retention-days: 90

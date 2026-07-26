@@ -3,7 +3,7 @@
 on:
   schedule:
     # Her gun TSI 04:00'te calisir (UTC 01:00 = TSI 04:00)
-    - cron: '0 1 * * *'
+    - cron: "0 1 * * *"
   workflow_dispatch: {}
 
 jobs:

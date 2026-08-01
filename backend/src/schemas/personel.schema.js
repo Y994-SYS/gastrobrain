@@ -7,19 +7,9 @@ const personelSchema = z.object({
     ad: z.string().trim().min(1, 'Ad zorunlu').max(100),
     soyad: z.string().trim().min(1, 'Soyad zorunlu').max(100),
     telefon: opsiyonelMetin(20),
-    tcKimlik: z.preprocess(
-        bosSayilanlariTemizle,
-        z.string().trim().length(11, 'TC Kimlik 11 haneli olmalı').regex(/^\d+$/, 'TC Kimlik sadece rakam içermeli').optional().nullable()
-    ),
     dogumTarihi: z.string().optional().nullable(),
     baslangicTarihi: z.string().min(1, 'Başlangıç tarihi zorunlu'),
     maas: z.coerce.number().positive('Maaş 0’dan büyük olmalı'),
-    // DÜZELTME: Frontend, seçili şube olmadığında subeId: '' (boş string)
-    // gönderiyordu. Öncesinde bu doğrudan z.coerce.number()'a gidip 0'a
-    // dönüşüyor, .positive() kuralına takılıp "Geçersiz şube" hatası
-    // veriyordu — controller'daki "boşsa varsayılan şubeyi ata" mantığına
-    // hiç ulaşamıyordu. Artık boş string, diğer alanlarla tutarlı şekilde
-    // undefined'a çevriliyor.
     subeId: z.preprocess(
         bosSayilanlariTemizle,
         z.coerce.number().int('Geçersiz şube').positive('Geçersiz şube').optional()
@@ -72,8 +62,6 @@ const devamTopluEkleSchema = z.object({
 const izinKullanimSchema = z.object({
     personelId: z.coerce.number().int('Geçersiz personel').positive('Geçersiz personel'),
     yil: z.coerce.number().int('Geçersiz yıl').min(2000).max(2100),
-    // Bu TOPLAM kullanılan gün değil, otomatik sayıma eklenecek/çıkarılacak
-    // MANUEL DÜZELTME miktarıdır (negatif olabilir).
     kullanilanGun: z.coerce.number().min(-365, 'Geçersiz değer').max(365, 'Geçersiz değer'),
     aciklama: opsiyonelMetin(500),
 }).strict();

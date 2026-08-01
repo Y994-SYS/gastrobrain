@@ -20,7 +20,7 @@ export default function GizlilikPolitikasi() {
             {/* Content */}
             <main style={{ maxWidth: '800px', margin: '0 auto', padding: '3rem 2rem' }}>
                 <h1 style={{ fontSize: '2rem', fontWeight: 700, marginBottom: '0.5rem' }}>Gizlilik Politikası</h1>
-                <p style={{ color: '#71717a', fontSize: '0.875rem', marginBottom: '3rem' }}>Son güncelleme: Haziran 2026</p>
+                <p style={{ color: '#71717a', fontSize: '0.875rem', marginBottom: '3rem' }}>Son güncelleme: Temmuz 2026</p>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '2.5rem', lineHeight: 1.8, color: '#d4d4d8' }}>
 
@@ -74,7 +74,33 @@ export default function GizlilikPolitikasi() {
                     </section>
 
                     <section>
-                        <h2 style={{ color: '#fff', fontSize: '1.25rem', fontWeight: 600, marginBottom: '0.75rem' }}>5. Çerezler (Cookies)</h2>
+                        <h2 style={{ color: '#fff', fontSize: '1.25rem', fontWeight: 600, marginBottom: '0.75rem' }}>5. Yurt Dışına Veri Aktarımı</h2>
+                        <p style={{ marginBottom: '1rem' }}>
+                            Hizmetimizi sunmak için kullandığımız sunucu ve altyapı sağlayıcılarımız (veritabanı
+                            barındırma için Supabase, uygulama barındırma için Render) verilerinizi
+                            <strong style={{ color: '#fff' }}> Türkiye dışında, Avrupa Birliği/Avrupa Ekonomik Alanı
+                                sınırları içindeki veri merkezlerinde</strong> işlemektedir.
+                        </p>
+                        <p style={{ marginBottom: '1rem' }}>
+                            6698 sayılı Kanun'un 9. maddesi uyarınca, kişisel verilerin yurt dışına aktarılması
+                            için ilgili kişinin açık rızası veya kanunda öngörülen diğer bir hukuki sebep
+                            gerekmektedir. Hizmetimize kayıt olurken onayladığınız kullanım koşulları ve bu
+                            gizlilik politikası kapsamında, verilerinizin yukarıda belirtilen amaçlarla ve
+                            yukarıda belirtilen yurt dışı konumlarda işlenmesine açık rıza vermiş
+                            sayılırsınız.
+                        </p>
+                        <p>
+                            Sağlayıcılarımız, Avrupa Birliği Genel Veri Koruma Tüzüğü (GDPR) kapsamında
+                            faaliyet göstermekte olup kendi güvenlik ve uyumluluk standartlarına sahiptir.
+                            Supabase ve Render'ın kendi gizlilik/güvenlik politikalarına sırasıyla
+                            <a href="https://supabase.com/privacy" target="_blank" rel="noreferrer" style={{ color: '#a3e635' }}> supabase.com/privacy</a> ve
+                            <a href="https://render.com/privacy" target="_blank" rel="noreferrer" style={{ color: '#a3e635' }}> render.com/privacy</a> adreslerinden
+                            ulaşabilirsiniz.
+                        </p>
+                    </section>
+
+                    <section>
+                        <h2 style={{ color: '#fff', fontSize: '1.25rem', fontWeight: 600, marginBottom: '0.75rem' }}>6. Çerezler (Cookies)</h2>
                         <p>
                             Uygulama oturum yönetimi için tarayıcı <strong style={{ color: '#fff' }}>localStorage</strong> kullanmaktadır.
                             Üçüncü taraf reklam çerezi kullanılmamaktadır.
@@ -85,7 +111,7 @@ export default function GizlilikPolitikasi() {
                     </section>
 
                     <section>
-                        <h2 style={{ color: '#fff', fontSize: '1.25rem', fontWeight: 600, marginBottom: '0.75rem' }}>6. Veri Sahibinin Hakları (KVKK)</h2>
+                        <h2 style={{ color: '#fff', fontSize: '1.25rem', fontWeight: 600, marginBottom: '0.75rem' }}>7. Veri Sahibinin Hakları (KVKK)</h2>
                         <p style={{ marginBottom: '1rem' }}>
                             6698 sayılı Kişisel Verilerin Korunması Kanunu kapsamında aşağıdaki haklara sahipsiniz:
                         </p>
@@ -103,7 +129,7 @@ export default function GizlilikPolitikasi() {
                     </section>
 
                     <section>
-                        <h2 style={{ color: '#fff', fontSize: '1.25rem', fontWeight: 600, marginBottom: '0.75rem' }}>7. Veri Saklama Süresi</h2>
+                        <h2 style={{ color: '#fff', fontSize: '1.25rem', fontWeight: 600, marginBottom: '0.75rem' }}>8. Veri Saklama Süresi</h2>
                         <p>
                             Hesabınız aktif olduğu sürece verileriniz saklanır. Hesabınızı silmeniz veya aboneliğinizi
                             sonlandırmanız durumunda verileriniz 30 gün içinde kalıcı olarak silinir.
@@ -113,7 +139,7 @@ export default function GizlilikPolitikasi() {
                     </section>
 
                     <section>
-                        <h2 style={{ color: '#fff', fontSize: '1.25rem', fontWeight: 600, marginBottom: '0.75rem' }}>8. Politika Değişiklikleri</h2>
+                        <h2 style={{ color: '#fff', fontSize: '1.25rem', fontWeight: 600, marginBottom: '0.75rem' }}>9. Politika Değişiklikleri</h2>
                         <p>
                             Bu politikada yapılacak değişiklikler bu sayfada yayımlanacak ve kayıtlı e-posta
                             adresinize bildirim gönderilecektir. Değişiklikler yayımlandıktan sonra hizmeti
@@ -122,7 +148,7 @@ export default function GizlilikPolitikasi() {
                     </section>
 
                     <section>
-                        <h2 style={{ color: '#fff', fontSize: '1.25rem', fontWeight: 600, marginBottom: '0.75rem' }}>9. İletişim</h2>
+                        <h2 style={{ color: '#fff', fontSize: '1.25rem', fontWeight: 600, marginBottom: '0.75rem' }}>10. İletişim</h2>
                         <p>
                             Gizlilik politikamıza ilişkin sorularınız için:
                         </p>

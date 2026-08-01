@@ -8,6 +8,7 @@ export default function KayitFirma() {
         firmaAd: '', firmaSlug: '', firmaEmail: '', firmaTelefon: '',
         adminAd: '', adminEmail: '', adminSifre: '',
     });
+    const [kvkkOnay, setKvkkOnay] = useState(false);
     const [hata, setHata] = useState('');
     const [yukleniyor, setYukleniyor] = useState(false);
     const navigate = useNavigate();
@@ -28,6 +29,13 @@ export default function KayitFirma() {
         setHata('');
         if (!form.firmaAd || !form.firmaEmail || !form.adminAd || !form.adminEmail || !form.adminSifre) {
             setHata('Tüm zorunlu alanları doldurun');
+            return;
+        }
+        // GÜVENLİK/KVKK: Onay kutusu işaretlenmeden kayıt tamamlanamaz.
+        // Sadece footer'da pasif bir link olması yeterli sayılmıyor —
+        // kullanıcının aktif olarak onaylaması (checkbox) gerekiyor.
+        if (!kvkkOnay) {
+            setHata('Devam etmek için Gizlilik Politikası ve Kullanım Koşullarını onaylamanız gerekiyor');
             return;
         }
         setYukleniyor(true);
@@ -158,11 +166,36 @@ export default function KayitFirma() {
                         </div>
                     </div>
 
+                    {/* KVKK / Gizlilik / Kullanım Koşulları Onayı */}
+                    <div className="flex items-start gap-3 bg-zinc-800/50 border border-zinc-700 rounded-lg p-3">
+                        <input
+                            type="checkbox"
+                            id="kvkkOnay"
+                            checked={kvkkOnay}
+                            onChange={(e) => setKvkkOnay(e.target.checked)}
+                            className="w-4 h-4 mt-0.5 accent-lime-400 flex-shrink-0"
+                        />
+                        <label htmlFor="kvkkOnay" className="text-zinc-400 text-sm leading-relaxed cursor-pointer">
+                            <a href="/gizlilik" target="_blank" rel="noreferrer" className="text-lime-400 hover:text-lime-300 underline">
+                                Gizlilik Politikası
+                            </a>
+                            {', '}
+                            <a href="/kullanim-kosullari" target="_blank" rel="noreferrer" className="text-lime-400 hover:text-lime-300 underline">
+                                Kullanım Koşulları
+                            </a>
+                            {' ve '}
+                            <a href="/mesafeli-satis" target="_blank" rel="noreferrer" className="text-lime-400 hover:text-lime-300 underline">
+                                Mesafeli Satış Sözleşmesi
+                            </a>
+                            'ni okudum, kabul ediyorum. <span className="text-red-400">*</span>
+                        </label>
+                    </div>
+
                     <button
                         type="button"
                         onClick={handleSubmit}
-                        disabled={yukleniyor}
-                        className="w-full bg-lime-400 hover:bg-lime-300 disabled:opacity-50 text-black font-bold rounded-lg py-2.5 text-sm transition-colors"
+                        disabled={yukleniyor || !kvkkOnay}
+                        className="w-full bg-lime-400 hover:bg-lime-300 disabled:opacity-50 disabled:cursor-not-allowed text-black font-bold rounded-lg py-2.5 text-sm transition-colors"
                     >
                         {yukleniyor ? 'Kayıt yapılıyor...' : 'Firmayı Kaydet ve Başla'}
                     </button>

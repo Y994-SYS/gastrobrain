@@ -347,7 +347,6 @@ model Personel {
   ad              String
   soyad           String
   telefon         String?
-  tcKimlik        String?
   dogumTarihi     DateTime?
   baslangicTarihi DateTime
   maas            Float
@@ -365,7 +364,6 @@ model Personel {
   devamlar PersonelDevam[]
   izinKayitlari PersonelIzin[]
 
-  @@unique([tcKimlik, tenantId])
   @@index([tenantId])
   @@index([subeId])
 }

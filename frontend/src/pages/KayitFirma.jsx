@@ -176,15 +176,21 @@ export default function KayitFirma() {
                             className="w-4 h-4 mt-0.5 accent-lime-400 flex-shrink-0"
                         />
                         <label htmlFor="kvkkOnay" className="text-zinc-400 text-sm leading-relaxed cursor-pointer">
-                            <a href="/gizlilik" target="_blank" rel="noreferrer" className="text-lime-400 hover:text-lime-300 underline">
+                            {/* DÜZELTME: Bu sayfalar "landing" klasöründeki ayrı Next.js
+                                projesinde (gastrobrain.com.tr) yaşıyor — app.gastrobrain.com.tr
+                                (bu React Router SPA'sı) içinde değil. Göreceli path (/gizlilik)
+                                kullanıldığında app.gastrobrain.com.tr/gizlilik'e gitmeye
+                                çalışıyordu, öyle bir route hiç olmadığı için boş sayfa açılıyordu.
+                                Artık mutlak URL ile doğru domaine yönlendiriliyor. */}
+                            <a href="https://gastrobrain.com.tr/gizlilik" target="_blank" rel="noreferrer" className="text-lime-400 hover:text-lime-300 underline">
                                 Gizlilik Politikası
                             </a>
                             {', '}
-                            <a href="/kullanim-kosullari" target="_blank" rel="noreferrer" className="text-lime-400 hover:text-lime-300 underline">
+                            <a href="https://gastrobrain.com.tr/kullanim-kosullari" target="_blank" rel="noreferrer" className="text-lime-400 hover:text-lime-300 underline">
                                 Kullanım Koşulları
                             </a>
                             {' ve '}
-                            <a href="/mesafeli-satis" target="_blank" rel="noreferrer" className="text-lime-400 hover:text-lime-300 underline">
+                            <a href="https://gastrobrain.com.tr/mesafeli-satis" target="_blank" rel="noreferrer" className="text-lime-400 hover:text-lime-300 underline">
                                 Mesafeli Satış Sözleşmesi
                             </a>
                             'ni okudum, kabul ediyorum. <span className="text-red-400">*</span>

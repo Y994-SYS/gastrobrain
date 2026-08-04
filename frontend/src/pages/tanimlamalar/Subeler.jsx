@@ -63,7 +63,7 @@ export default function Subeler() {
     };
 
     const duzenleAc = (e, sube) => {
-        e.stopPropagation(); // karta tıklamayı tetiklemesin
+        e.stopPropagation();
         setForm({ ad: sube.ad, adres: sube.adres || '', telefon: sube.telefon || '', aktif: sube.aktif });
         setDuzenleId(sube.id);
         setModalAcik(true);
@@ -83,13 +83,23 @@ export default function Subeler() {
                 await api.put(`/api/subeler/${duzenleId}`, form);
                 toast.success('Şube güncellendi');
             } else {
-                await api.post('/api/subeler', form);
+                // DÜZELTME: Oluşturma şeması (subeOlusturSchema) muhtemelen
+                // .strict() ve "aktif" alanını kabul etmiyor — yeni şube
+                // eklerken bu alan gönderilmemeli, sadece düzenlemede anlamlı.
+                const { aktif, ...olusturData } = form;
+                await api.post('/api/subeler', olusturData);
                 toast.success('Şube eklendi');
             }
             modalKapat();
             listele();
         } catch (e) {
-            toast.error(e.response?.data?.hata || 'Kayıt başarısız');
+            // DÜZELTME: Backend'de iki farklı hata formatı var — sube.controller.js'in
+            // kendi elle yazdığı hatalar { hata: "..." } döner, ama ortak Zod
+            // validate middleware'i { basarili: false, mesaj: "..." } döner.
+            // İkisini de kontrol ediyoruz, yoksa doğrulama hataları sessizce
+            // "Kayıt başarısız" gibi anlamsız bir mesaja düşüyordu.
+            const mesaj = e.response?.data?.hata || e.response?.data?.mesaj || 'Kayıt başarısız';
+            toast.error(mesaj);
         } finally {
             setKaydediyor(false);
         }
@@ -97,7 +107,6 @@ export default function Subeler() {
 
     return (
         <div className="space-y-6">
-            {/* Başlık */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
                     <h1 className="text-xl font-bold text-white">Şube Yönetimi</h1>
@@ -113,7 +122,6 @@ export default function Subeler() {
                 </button>
             </div>
 
-            {/* Kart Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                 {yukleniyor ? (
                     <><SkeletonKart /><SkeletonKart /><SkeletonKart /></>
@@ -128,7 +136,6 @@ export default function Subeler() {
                         onClick={() => navigate(`/tanimlamalar/subeler/${sube.id}`)}
                         className="bg-zinc-900 rounded-2xl p-5 border border-zinc-800 space-y-3 cursor-pointer hover:border-zinc-600 transition-colors"
                     >
-                        {/* Başlık */}
                         <div className="flex justify-between items-start gap-2">
                             <div>
                                 <h3 className="text-white font-semibold text-base leading-tight">{sube.ad}</h3>
@@ -145,7 +152,6 @@ export default function Subeler() {
                             </button>
                         </div>
 
-                        {/* İletişim */}
                         {(sube.telefon || sube.adres) && (
                             <div className="space-y-1">
                                 {sube.telefon && (
@@ -162,13 +168,11 @@ export default function Subeler() {
                             </div>
                         )}
 
-                        {/* Sayımlar */}
                         <div className="flex gap-4 pt-2 border-t border-zinc-800 text-xs text-zinc-500">
                             <span>👤 {sube._count?.kullanicilar ?? 0} kullanıcı</span>
                             <span>👥 {sube._count?.personeller ?? 0} personel</span>
                         </div>
 
-                        {/* Günlük özet */}
                         <div className="flex items-center justify-between pt-2 border-t border-zinc-800">
                             <div className="flex items-center gap-1.5">
                                 <span className="text-zinc-500 text-xs">Bugün</span>
@@ -190,7 +194,6 @@ export default function Subeler() {
                 ))}
             </div>
 
-            {/* Modal */}
             {modalAcik && (
                 <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
                     <div className="bg-zinc-900 rounded-2xl p-6 w-full max-w-md border border-zinc-700 space-y-4">

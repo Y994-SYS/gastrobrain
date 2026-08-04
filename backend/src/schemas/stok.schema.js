@@ -7,8 +7,10 @@ const birimFiyat = z.coerce.number().min(0, 'Birim fiyat negatif olamaz');
 const aciklama = z.string().trim().max(500).optional().nullable();
 const tarih = z.string().datetime({ message: 'Geçersiz tarih formatı' }).optional()
     .or(z.string().date('Geçersiz tarih formatı')).optional();
-const cariKartId = z.coerce.number().int('Geçersiz cari kart').positive('Geçersiz cari kart').optional();
-
+const cariKartId = z.preprocess(
+    (val) => (val === '' || val === null ? undefined : val),
+    z.coerce.number().int('Geçersiz cari kart').positive('Geçersiz cari kart').optional()
+);
 // Giriş / iade faturası — birimFiyat zorunlu (tutar hesaplamada kullanılıyor)
 const faturaSchema = z.object({
     stokKartId,

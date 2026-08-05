@@ -39,6 +39,22 @@ const satisService = {
         return satislar.reduce((t, s) => t + s.toplam, 0);
     },
 
+    async aylikToplam(subeId, tenantId) {
+        const now = new Date();
+        const ayBasi = new Date(now.getFullYear(), now.getMonth(), 1);
+        ayBasi.setHours(0, 0, 0, 0);
+        const ayBitisi = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+        ayBitisi.setHours(0, 0, 0, 0);
+
+        const where = subeId
+            ? { subeId: Number(subeId), sube: { tenantId }, tarih: { gte: ayBasi, lt: ayBitisi } }
+            : { sube: { tenantId }, tarih: { gte: ayBasi, lt: ayBitisi } };
+
+        const satislar = await prisma.satis.findMany({ where });
+        const toplam = satislar.reduce((t, s) => t + s.toplam, 0);
+        return { toplam, islemSayisi: satislar.length };
+    },
+
     /**
      * @param {object} data - receteId, subeId, adet, birimFiyat, aciklama, tarih
      * @param {number} tenantId

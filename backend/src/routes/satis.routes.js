@@ -11,6 +11,7 @@ const satisRol = rolKontrol('TENANT_ADMIN', 'MUDUR', 'KASA');
 
 router.get('/', satisRol, satisController.hepsiniGetir);
 router.get('/gunluk-toplam', satisRol, satisController.gunlukToplam);
+router.get('/aylik-toplam', satisRol, satisController.aylikToplam);
 router.post('/', satisRol, validate(satisSchema), satisController.ekle);
 router.delete('/:id', satisRol, validateParams(idParamSchema), satisController.sil);
 

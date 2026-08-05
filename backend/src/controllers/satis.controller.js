@@ -49,6 +49,16 @@ const satisController = {
         }
     },
 
+    async aylikToplam(req, res) {
+        try {
+            const subeId = subeIdBelirle(req);
+            const data = await satisService.aylikToplam(subeId, req.kullanici.tenantId);
+            res.json({ basarili: true, data });
+        } catch (error) {
+            res.status(500).json({ basarili: false, mesaj: error.message });
+        }
+    },
+
     async ekle(req, res) {
         try {
             // Şube: kısıtlı roller için her zaman kendi şubesi zorlanır;

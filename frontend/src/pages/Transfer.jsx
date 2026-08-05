@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import toast from 'react-hot-toast';
 
@@ -14,9 +15,13 @@ const tarihFormat = (iso) =>
 
 // ─── Ana bileşen ─────────────────────────────────────────────────────────────
 export default function Transfer() {
+    const navigate = useNavigate();
     const [subeler, setSubeler] = useState([]);
     const [stoklar, setStoklar] = useState([]);
     const [gecmis, setGecmis] = useState([]);
+    const [paket, setPaket] = useState(null);
+    const [paketYukleniyor, setPaketYukleniyor] = useState(true);
+    const [yetkisiz, setYetkisiz] = useState(false);
 
     const [form, setForm] = useState({
         kaynakSubeId: '',
@@ -33,12 +38,41 @@ export default function Transfer() {
     // Seçilen stok kartı
     const secilenStok = stoklar.find(s => s.id === parseInt(form.stokKartId));
 
+    // ── Paket Kontrolü ────────────────────────────────────────────────────────
+    useEffect(() => {
+        const paketKontrol = async () => {
+            try {
+                const res = await api.get('/api/auth/beni-getir');
+                const tenantPaket = res.data.tenant?.plan;
+                setPaket(tenantPaket);
+
+                // BASLANGIC paketiyse, yönlendir
+                if (tenantPaket === 'BASLANGIC') {
+                    setYetkisiz(true);
+                    // 2 saniye sonra Abonelik sayfasına yönlendir
+                    setTimeout(() => {
+                        navigate('/abonelik?reason=subeTransferi');
+                    }, 2000);
+                }
+
+                setPaketYukleniyor(false);
+            } catch (err) {
+                console.error('Paket kontrolü hatası:', err);
+                setPaketYukleniyor(false);
+            }
+        };
+
+        paketKontrol();
+    }, [navigate]);
+
     // ── Şubeleri yükle ───────────────────────────────────────────────────────
     useEffect(() => {
+        if (yetkisiz) return; // Yetkisizse şubeleri yükleme
+
         api.get('/api/subeler')
             .then(r => setSubeler(r.data.filter(s => s.aktif)))
             .catch(() => toast.error('Şubeler yüklenemedi'));
-    }, []);
+    }, [yetkisiz]);
 
     // ── Geçmişi yükle ────────────────────────────────────────────────────────
     const gecmisYukle = async () => {
@@ -53,7 +87,11 @@ export default function Transfer() {
         }
     };
 
-    useEffect(() => { gecmisYukle(); }, []);
+    useEffect(() => {
+        if (!yetkisiz) {
+            gecmisYukle();
+        }
+    }, [yetkisiz]);
 
     // ── Kaynak şube değişince stokları getir ─────────────────────────────────
     useEffect(() => {
@@ -107,6 +145,36 @@ export default function Transfer() {
     };
 
     const hedefSubeler = subeler.filter(s => s.id !== parseInt(form.kaynakSubeId));
+
+    // BASLANGIC paketiyse başka bir şey gösterme
+    if (yetkisiz) {
+        return (
+            <div className="flex items-center justify-center h-screen bg-zinc-900">
+                <div className="text-center p-8 border-2 border-amber-400 rounded-lg bg-zinc-800 shadow-lg max-w-md">
+                    <h2 className="text-2xl font-bold text-amber-400 mb-4">
+                        ⚠️ Şube Transferi PROFESYONEL Paketinde
+                    </h2>
+                    <p className="text-gray-300 mb-6">
+                        Bu özelliği kullanmak için paketinizi yükseltmeniz gerekiyor.
+                    </p>
+                    <button
+                        onClick={() => navigate('/abonelik')}
+                        className="bg-lime-400 hover:bg-lime-500 text-zinc-900 font-bold py-2 px-6 rounded-lg transition-colors"
+                    >
+                        Paket Yükseltin →
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
+    if (paketYukleniyor) {
+        return (
+            <div className="flex items-center justify-center h-screen">
+                <p className="text-zinc-400">Yükleniyor...</p>
+            </div>
+        );
+    }
 
     // ─── Render ──────────────────────────────────────────────────────────────
     return (

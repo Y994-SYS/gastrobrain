@@ -1,5 +1,3 @@
-
-
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
@@ -200,6 +198,8 @@ function YonetimDashboard() {
     const [cariler, setCariler] = useState([]);
     const [gunlukToplam, setGunlukToplam] = useState(0);
     const [gunlukIslemSayisi, setGunlukIslemSayisi] = useState(0);
+    const [aylikToplam, setAylikToplam] = useState(0);
+    const [aylikIslemSayisi, setAylikIslemSayisi] = useState(0);
     const [yukleniyor, setYukleniyor] = useState(true);
     const [hata, setHata] = useState(null);
 
@@ -213,11 +213,12 @@ function YonetimDashboard() {
         setHata(null);
         const subeQuery = subeId ? `?subeId=${subeId}` : '';
 
-        const [stokRes, satisRes, cariRes, gunlukRes] = await Promise.allSettled([
+        const [stokRes, satisRes, cariRes, gunlukRes, aylikRes] = await Promise.allSettled([
             api.get(`/api/stok/durum${subeQuery}`),
             api.get(`/api/satislar${subeQuery}`),
             api.get('/api/cari-hareketler/bakiyeler'),
             api.get(`/api/satislar/gunluk-toplam${subeQuery}`),
+            api.get(`/api/satislar/aylik-toplam${subeQuery}`),
         ]);
 
         if (stokRes.status === 'fulfilled') setStoklar(stokRes.value.data?.data || []);
@@ -228,8 +229,13 @@ function YonetimDashboard() {
             setGunlukToplam(d?.toplam || 0);
             setGunlukIslemSayisi(d?.islemSayisi ?? d?.count ?? 0);
         }
+        if (aylikRes.status === 'fulfilled') {
+            const d = aylikRes.value.data?.data;
+            setAylikToplam(d?.toplam || 0);
+            setAylikIslemSayisi(d?.islemSayisi ?? d?.count ?? 0);
+        }
 
-        const herhangiHata = [stokRes, satisRes, cariRes, gunlukRes].some(r => r.status === 'rejected');
+        const herhangiHata = [stokRes, satisRes, cariRes, gunlukRes, aylikRes].some(r => r.status === 'rejected');
         if (herhangiHata) setHata('Bazı veriler yüklenemedi. Sayfayı yenileyin.');
         setYukleniyor(false);
     }, [subeId]);
@@ -268,11 +274,14 @@ function YonetimDashboard() {
             {rol === 'TENANT_ADMIN' && <SubeOzetiPanel />}
 
             {/* Özet Kartlar */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
                 {yukleniyor ? (
-                    <><SkeletonKart /><SkeletonKart /><SkeletonKart /><SkeletonKart /></>
+                    <><SkeletonKart /><SkeletonKart /><SkeletonKart /><SkeletonKart /><SkeletonKart /></>
                 ) : (
                     <>
+                        <OzetKart baslik="Aylık Kazanç" deger={`₺${fmt(aylikToplam)}`}
+                            alt={aylikIslemSayisi > 0 ? `${aylikIslemSayisi} işlem` : 'Bu ay henüz satış yok'}
+                            renk="text-lime-400" tikla={() => navigate('/satislar')} />
                         <OzetKart baslik="Günlük Satış" deger={`₺${fmt(gunlukToplam)}`}
                             alt={gunlukIslemSayisi > 0 ? `${gunlukIslemSayisi} işlem` : 'Bugün henüz satış yok'}
                             renk="text-lime-400" tikla={() => navigate('/satislar')} />

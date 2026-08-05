@@ -361,5 +361,120 @@ const excelExport = async (req, res) => {
         res.status(500).json({ hata: err.message });
     }
 };
+// ─── ŞUBELER KARŞILAŞTIRMASI RAPORU ─────────────────────
+const subeKarsilastirmasi = async (req, res) => {
+    try {
+        const tenantId = req.kullanici.tenantId;
 
-module.exports = { satisRaporu, stokRaporu, cariRaporu, maliyetRaporu, excelExport };
+        // Tüm şubeleri getir
+        const subeler = await prisma.sube.findMany({
+            where: { tenantId, aktif: true },
+            include: {
+                satislar: {
+                    include: {
+                        recete: {
+                            include: {
+                                kalemler: {
+                                    include: {
+                                        stokKart: {
+                                            include: {
+                                                stokHareketleri: {
+                                                    where: { tip: 'GIRIS_FATURA' },
+                                                    orderBy: { tarih: 'desc' },
+                                                    take: 1
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                stokHareketleri: true,
+                personeller: { where: { aktif: true } }
+            }
+        });
+
+        // Her şube için analiz
+        const subeAnaliz = subeler.map(sube => {
+            // Satış metrikleri
+            const toplamSatis = sube.satislar.reduce((t, s) => t + s.toplam, 0);
+            const toplamAdet = sube.satislar.reduce((t, s) => t + s.adet, 0);
+
+            // Maliyet hesabı
+            let toplamMaliyet = 0;
+            for (const satis of sube.satislar) {
+                for (const kalem of satis.recete.kalemler) {
+                    const birimFiyat = kalem.stokKart.stokHareketleri[0]?.birimFiyat || 0;
+                    toplamMaliyet += birimFiyat * kalem.miktar * satis.adet;
+                }
+            }
+
+            const kar = toplamSatis - toplamMaliyet;
+            const karMarji = toplamSatis > 0 ? (kar / toplamSatis) * 100 : 0;
+
+            // Zayi hesabı
+            const zayiMiktar = sube.stokHareketleri
+                .filter(h => h.tip === 'ZAYI')
+                .reduce((t, h) => t + h.miktar, 0);
+
+            // Stok değeri
+            const stokKartlari = new Set(sube.stokHareketleri.map(h => h.stokKartId));
+            let toplamStokDegeri = 0;
+            for (const hareketId of stokKartlari) {
+                const hareketler = sube.stokHareketleri.filter(h => h.stokKartId === hareketId);
+                let bakiye = 0;
+                for (const h of hareketler) {
+                    if (['GIRIS_FATURA', 'IADE_FATURA', 'SUBE_TRANSFER_IN'].includes(h.tip)) bakiye += h.miktar;
+                    else bakiye -= h.miktar;
+                }
+                // Son fiyat (simplify — real: DB'den çekmek gerekir)
+                const sonFiyat = hareketler.find(h => h.tip === 'GIRIS_FATURA')?.birimFiyat || 0;
+                toplamStokDegeri += sonFiyat * Math.max(bakiye, 0);
+            }
+
+            return {
+                id: sube.id,
+                ad: sube.ad,
+                toplamSatis: Math.round(toplamSatis * 100) / 100,
+                toplamAdet,
+                toplamMaliyet: Math.round(toplamMaliyet * 100) / 100,
+                kar: Math.round(kar * 100) / 100,
+                karMarji: Math.round(karMarji * 100) / 100,
+                zayiMiktar: Math.round(zayiMiktar * 1000) / 1000,
+                zayiOrani: toplamSatis > 0 ? Math.round((zayiMiktar / toplamAdet) * 100 * 100) / 100 : 0, // Satışa göre zayi %
+                personelSayisi: sube.personeller.length,
+                toplamStokDegeri: Math.round(toplamStokDegeri * 100) / 100,
+            };
+        });
+
+        // En iyi şubeyi bul
+        const enYuksekSatis = Math.max(...subeAnaliz.map(s => s.toplamSatis), 0);
+        const enYuksekKar = Math.max(...subeAnaliz.map(s => s.karMarji), 0);
+        const enDusukZayi = Math.min(...subeAnaliz.map(s => s.zayiOrani), Infinity);
+
+        res.json({
+            subeler: subeAnaliz.sort((a, b) => b.toplamSatis - a.toplamSatis),
+            ozet: {
+                toplamSubeSayisi: subeAnaliz.length,
+                toplamCiro: Math.round(subeAnaliz.reduce((t, s) => t + s.toplamSatis, 0) * 100) / 100,
+                toplamMaliyet: Math.round(subeAnaliz.reduce((t, s) => t + s.toplamMaliyet, 0) * 100) / 100,
+                toplamKar: Math.round(subeAnaliz.reduce((t, s) => t + s.kar, 0) * 100) / 100,
+                ortalamaKarMarji: subeAnaliz.length
+                    ? Math.round(subeAnaliz.reduce((t, s) => t + s.karMarji, 0) / subeAnaliz.length * 100) / 100
+                    : 0,
+                toplamPersonel: subeAnaliz.reduce((t, s) => t + s.personelSayisi, 0),
+            },
+            enIyi: {
+                enYuksekSatisSube: subeAnaliz.find(s => s.toplamSatis === enYuksekSatis)?.ad,
+                enYuksekKarSube: subeAnaliz.find(s => s.karMarji === enYuksekKar)?.ad,
+                enDusukZayiSube: subeAnaliz.find(s => s.zayiOrani === enDusukZayi)?.ad,
+            },
+        });
+    } catch (err) {
+        res.status(500).json({ hata: err.message });
+    }
+};
+
+module.exports = { satisRaporu, stokRaporu, cariRaporu, maliyetRaporu, excelExport, subeKarsilastirmasi };

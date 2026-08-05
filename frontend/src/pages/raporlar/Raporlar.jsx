@@ -9,6 +9,7 @@ const TABS = [
     { key: 'stok', label: 'Stok Raporu' },
     { key: 'cari', label: 'Cari Raporu' },
     { key: 'maliyet', label: 'Maliyet Raporu' },
+    { key: 'sube-karsilastirmasi', label: '📊 Şube Karşılaştırması' },
 ];
 
 const fmt = (n) => Number(n || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -296,6 +297,106 @@ export default function Raporlar() {
                                     ))}
                                 </tbody>
                             </table>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {aktifTab === 'sube-karsilastirmasi' && veri && (
+                <div className="space-y-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                        <OzetKart baslik="Şube Sayısı" deger={veri.ozet?.toplamSubeSayisi} renk="blue" />
+                        <OzetKart baslik="Toplam Ciro" deger={`₺${fmt(veri.ozet?.toplamCiro)}`} renk="lime" />
+                        <OzetKart baslik="Toplam Kâr" deger={`₺${fmt(veri.ozet?.toplamKar)}`} renk="green" />
+                        <OzetKart baslik="Ort. Kâr %" deger={`%${veri.ozet?.ortalamaKarMarji}`} renk="purple" />
+                    </div>
+
+                    {/* En İyi Şubeler Özet */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="bg-zinc-900 rounded-xl p-4 border border-lime-400/30">
+                            <p className="text-zinc-400 text-xs mb-2">🏆 En Yüksek Satış</p>
+                            <p className="text-white font-bold text-lg">{veri.enIyi?.enYuksekSatisSube}</p>
+                        </div>
+                        <div className="bg-zinc-900 rounded-xl p-4 border border-green-400/30">
+                            <p className="text-zinc-400 text-xs mb-2">💰 En Yüksek Kâr %</p>
+                            <p className="text-white font-bold text-lg">{veri.enIyi?.enYuksekKarSube}</p>
+                        </div>
+                        <div className="bg-zinc-900 rounded-xl p-4 border border-blue-400/30">
+                            <p className="text-zinc-400 text-xs mb-2">✅ En Düşük Zayi %</p>
+                            <p className="text-white font-bold text-lg">{veri.enIyi?.enDusukZayiSube}</p>
+                        </div>
+                    </div>
+
+                    {/* Şubeler Karşılaştırma Tablosu */}
+                    <div className="bg-zinc-900 rounded-xl p-4">
+                        <h3 className="text-white font-semibold mb-3">Şube Detaylı Karşılaştırması</h3>
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-sm">
+                                <thead>
+                                    <tr className="text-zinc-400 border-b border-zinc-800">
+                                        <th className="text-left py-2">Şube</th>
+                                        <th className="text-right py-2">Satış</th>
+                                        <th className="text-right py-2">Adet</th>
+                                        <th className="text-right py-2">Maliyet</th>
+                                        <th className="text-right py-2">Kâr</th>
+                                        <th className="text-right py-2">Kâr %</th>
+                                        <th className="text-right py-2">Zayi %</th>
+                                        <th className="text-right py-2">Personel</th>
+                                        <th className="text-right py-2">Stok Değeri</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {(veri.subeler || []).map((s, i) => (
+                                        <tr key={s.id} className={`border-b border-zinc-800/50 text-zinc-300 ${i === 0 ? 'bg-zinc-800/50' : ''}`}>
+                                            <td className="py-2 font-medium">{s.ad}</td>
+                                            <td className="text-right text-lime-400 font-semibold">₺{fmt(s.toplamSatis)}</td>
+                                            <td className="text-right">{s.toplamAdet}</td>
+                                            <td className="text-right text-red-400">₺{fmt(s.toplamMaliyet)}</td>
+                                            <td className="text-right text-green-400 font-semibold">₺{fmt(s.kar)}</td>
+                                            <td className="text-right">
+                                                <span className={`px-2 py-0.5 rounded text-xs font-medium ${s.karMarji >= 70 ? 'bg-green-900/50 text-green-400'
+                                                        : s.karMarji >= 50 ? 'bg-yellow-900/50 text-yellow-400'
+                                                            : 'bg-red-900/50 text-red-400'
+                                                    }`}>
+                                                    %{s.karMarji}
+                                                </span>
+                                            </td>
+                                            <td className="text-right">
+                                                <span className={`px-2 py-0.5 rounded text-xs font-medium ${s.zayiOrani <= 2 ? 'bg-green-900/50 text-green-400'
+                                                        : s.zayiOrani <= 4 ? 'bg-yellow-900/50 text-yellow-400'
+                                                            : 'bg-red-900/50 text-red-400'
+                                                    }`}>
+                                                    %{s.zayiOrani}
+                                                </span>
+                                            </td>
+                                            <td className="text-right">{s.personelSayisi}</td>
+                                            <td className="text-right text-zinc-400">₺{fmt(s.toplamStokDegeri)}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    {/* Performans İçgörüsü */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="bg-zinc-900 rounded-xl p-4 border border-zinc-700">
+                            <h4 className="text-white font-semibold mb-3">💡 Öneriler</h4>
+                            <ul className="space-y-2 text-sm text-zinc-300">
+                                <li>• En iyi performans gösteren şubeyi diğerleriyle karşılaştırın</li>
+                                <li>• Zayi oranı yüksek şubeleri optimize edin</li>
+                                <li>• Kâr marjı düşük şubelerin stok politikasını gözden geçirin</li>
+                                <li>• Personel verimliliğini şube bazında analiz edin</li>
+                            </ul>
+                        </div>
+                        <div className="bg-zinc-900 rounded-xl p-4 border border-zinc-700">
+                            <h4 className="text-white font-semibold mb-3">📈 Trend Analizi</h4>
+                            <ul className="space-y-2 text-sm text-zinc-300">
+                                <li>✓ Ciro: {veri.subeler.length > 0 && veri.subeler[0].toplamSatis > veri.ozet.toplamCiro / veri.subeler.length ? '📈 En yüksek şube lider' : '📊 Dengeli dağılım'}</li>
+                                <li>✓ Kâr Marjı: Ortalama {veri.ozet?.ortalamaKarMarji}%</li>
+                                <li>✓ Toplam Personel: {veri.ozet?.toplamPersonel} kişi</li>
+                                <li>✓ Toplam Stok Değeri: ₺{fmt(veri.subeler.reduce((t, s) => t + s.toplamStokDegeri, 0))}</li>
+                            </ul>
                         </div>
                     </div>
                 </div>

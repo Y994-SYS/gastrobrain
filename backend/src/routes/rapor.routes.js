@@ -22,4 +22,10 @@ router.get('/cari', yonetimRol, validateQuery(cariRaporuQuery), raporController.
 router.get('/maliyet', yonetimRol, validateQuery(maliyetRaporuQuery), raporController.maliyetRaporu);
 router.get('/excel', yonetimRol, validateQuery(excelExportQuery), raporController.excelExport);
 router.get('/sube-karsilastirmasi', yonetimRol, paketKontrol('subeKarsilastirmasi'), validateQuery(satisRaporuQuery), raporController.subeKarsilastirmasi);
+router.get('/merkezmuhasebesi',
+    yonetimRol,
+    paketKontrol('subeKarsilastirmasi'),  // Aynı paket kontrolü
+    raporController.merkezMuhasebesi
+);
+
 module.exports = router;

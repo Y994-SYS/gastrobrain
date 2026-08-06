@@ -34,6 +34,7 @@ const transferRoutes = require('./routes/transfer.route');
 const dashboardRoutes = require('./routes/dashboard.routes');
 const odemeRoutes = require('./routes/odeme.routes');
 const exportRoutes = require('./routes/export.routes'); // ← EKLENDİ
+const merkezDepoRoutes = require('./routes/merkezDepo.route');
 
 const { PrismaClient } = require('@prisma/client');
 
@@ -167,6 +168,7 @@ app.use('/api/transfer', transferRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/odeme', odemeRoutes);
 app.use('/api/export', exportRoutes); // ← EKLENDİ
+app.use('/api/merkezdepo', merkezDepoRoutes);
 
 // ── 404 ───────────────────────────────────────────────────────────────────────
 app.use((req, res) => {
@@ -200,4 +202,21 @@ new CronJob('0 9 * * *', async () => {
 
 app.listen(PORT, () => {
     logger.info(`Server http://localhost:${PORT} adresinde çalışıyor`);
+});
+
+// ── MERKEZ DEPO OTOMATİK DAĞITIM (Pazartesi & Cuma saat 06:00) ──
+const merkezDepoService = require('./services/merkezDepo.service');
+const otomatiDagitimJob = cron.schedule('0 6 * * 1,5', async () => {
+    console.log('[CRON] Merkez depo otomatik dağıtım başladı...');
+    try {
+        const tenantlar = await prisma.tenant.findMany({ where: { aktif: true } });
+        for (const tenant of tenantlar) {
+            const sonuclar = await merkezDepoService.otomatiDagitimYap(tenant.id);
+            if (sonuclar.length > 0) {
+                console.log(`[MERKEZ DEPO] ${tenant.ad}: ${sonuclar.length} dağıtım yapıldı`);
+            }
+        }
+    } catch (err) {
+        console.error('[MERKEZ DEPO HATA]', err);
+    }
 });

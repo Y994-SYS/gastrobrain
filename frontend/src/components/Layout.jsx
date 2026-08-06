@@ -69,7 +69,6 @@ const menuGruplari = [
             { path: '/tanimlamalar/stok-kartlari', label: 'Stok Kartları', icon: '🗂️', roller: R.STOK },
             { path: '/tanimlamalar/cari-kartlar', label: 'Cari Kartlar', icon: '🏢', roller: R.YONETIM },
             { path: '/tanimlamalar/subeler', label: 'Şubeler', icon: '🏪', roller: R.ADMIN },
-
         ]
     },
     {
@@ -78,6 +77,7 @@ const menuGruplari = [
         items: [
             { path: '/islem-gecmisi', label: 'İşlem Geçmişi', icon: '📜', roller: R.ADMIN },
             { path: '/abonelik', label: 'Abonelik', icon: '💳', roller: R.HERKES },
+            { path: '/merkezdepo', label: 'Merkez Depo', icon: '🏭', roller: ['TENANT_ADMIN', 'MUDUR'] }, // ← EKLENDİ
             { path: '/yardim', label: 'Yardım', icon: '❓', roller: R.HERKES },
             { path: '/profil', label: 'Profil', icon: '🙍', roller: R.HERKES },
         ]
@@ -325,7 +325,7 @@ export default function Layout({ children }) {
                 {/* Sayfa İçeriği */}
                 <div className="flex-1 p-4 md:p-6">
                     <LisansBanner />
-                    <DenemeBanner />  {/* ← YENİ */}
+                    <DenemeBanner />
                     {children}
                 </div>
             </main>

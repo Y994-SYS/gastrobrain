@@ -35,6 +35,7 @@ import AuditLog from './pages/AuditLog';
 import Transfer from './pages/Transfer';
 import SubeDetay from './pages/tanimlamalar/SubeDetay';
 import PlanKilidi, { planErisimiVar } from './components/PlanKilidi';
+import MerkezDepo from './pages/MerkezDepo';
 
 // ─── Rol Grupları ─────────────────────────────────────────────────────────────
 const R = {
@@ -137,6 +138,7 @@ export default function App() {
         {/* ── Personel — Profesyonel+ ──────────────────────────────────── */}
         <Route path="/personel" element={<PrivateRoute roller={R.PERSONEL} planOzellik="personel"><Personel /></PrivateRoute>} />
         <Route path="/personel/kullanicilar" element={<PrivateRoute roller={R.ADMIN}><Kullanicilar /></PrivateRoute>} />
+        <Route path="/merkezdepo" element={<PrivateRoute roller={['TENANT_ADMIN', 'MUDUR']}><MerkezDepo /></PrivateRoute>} />
 
         {/* ── Tanımlamalar ────────────────────────────────────────────── */}
         <Route path="/tanimlamalar/kategoriler" element={<PrivateRoute roller={R.STOK}><Kategoriler /></PrivateRoute>} />
@@ -147,6 +149,7 @@ export default function App() {
         <Route path="/tanimlamalar/subeler/:id" element={<PrivateRoute roller={R.ADMIN}><SubeDetay /></PrivateRoute>} />
 
         {/* ── Diğer ───────────────────────────────────────────────────── */}
+
         <Route path="/yardim" element={<PrivateRoute roller={R.HERKES}><Yardim /></PrivateRoute>} />
         <Route path="/abonelik" element={<PrivateRoute roller={R.HERKES}><Abonelik /></PrivateRoute>} />
         <Route path="/profil" element={<PrivateRoute roller={R.HERKES}><Profil /></PrivateRoute>} />

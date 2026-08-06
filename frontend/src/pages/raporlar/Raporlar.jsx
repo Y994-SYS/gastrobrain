@@ -10,6 +10,8 @@ const TABS = [
     { key: 'cari', label: 'Cari Raporu' },
     { key: 'maliyet', label: 'Maliyet Raporu' },
     { key: 'sube-karsilastirmasi', label: '📊 Şube Karşılaştırması' },
+    { key: 'merkezmuhasebesi', label: '💰 Merkez Muhasebesi' },
+
 ];
 
 const fmt = (n) => Number(n || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -32,7 +34,11 @@ export default function Raporlar() {
             if (baslangic) params.append('baslangic', baslangic);
             if (bitis) params.append('bitis', bitis);
             if (seciliSubeId) params.append('subeId', seciliSubeId);
-            const res = await api.get(`/api/raporlar/${aktifTab}?${params}`);
+
+            // merkezmuhasebesi için subeId parametresi gerekmez (merkez görüşü)
+            const url = `/api/raporlar/${aktifTab}${aktifTab !== 'merkezmuhasebesi' ? `?${params}` : ''}`;
+
+            const res = await api.get(url);
             setVeri(res.data);
         } catch (e) {
             setHata(e.response?.data?.hata || 'Rapor alınamadı');
@@ -355,16 +361,16 @@ export default function Raporlar() {
                                             <td className="text-right text-green-400 font-semibold">₺{fmt(s.kar)}</td>
                                             <td className="text-right">
                                                 <span className={`px-2 py-0.5 rounded text-xs font-medium ${s.karMarji >= 70 ? 'bg-green-900/50 text-green-400'
-                                                        : s.karMarji >= 50 ? 'bg-yellow-900/50 text-yellow-400'
-                                                            : 'bg-red-900/50 text-red-400'
+                                                    : s.karMarji >= 50 ? 'bg-yellow-900/50 text-yellow-400'
+                                                        : 'bg-red-900/50 text-red-400'
                                                     }`}>
                                                     %{s.karMarji}
                                                 </span>
                                             </td>
                                             <td className="text-right">
                                                 <span className={`px-2 py-0.5 rounded text-xs font-medium ${s.zayiOrani <= 2 ? 'bg-green-900/50 text-green-400'
-                                                        : s.zayiOrani <= 4 ? 'bg-yellow-900/50 text-yellow-400'
-                                                            : 'bg-red-900/50 text-red-400'
+                                                    : s.zayiOrani <= 4 ? 'bg-yellow-900/50 text-yellow-400'
+                                                        : 'bg-red-900/50 text-red-400'
                                                     }`}>
                                                     %{s.zayiOrani}
                                                 </span>
@@ -396,6 +402,117 @@ export default function Raporlar() {
                                 <li>✓ Kâr Marjı: Ortalama {veri.ozet?.ortalamaKarMarji}%</li>
                                 <li>✓ Toplam Personel: {veri.ozet?.toplamPersonel} kişi</li>
                                 <li>✓ Toplam Stok Değeri: ₺{fmt(veri.subeler.reduce((t, s) => t + s.toplamStokDegeri, 0))}</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {aktifTab === 'merkezmuhasebesi' && veri && (
+                <div className="space-y-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                        <OzetKart baslik="Toplam Tedarikçi" deger={veri.ozet?.toplamTedarikci} renk="blue" />
+                        <OzetKart baslik="Toplam Borç" deger={`₺${fmt(veri.ozet?.toplamBorc)}`} renk="red" />
+                        <OzetKart baslik="Toplam Alacak" deger={`₺${fmt(veri.ozet?.toplamAlacak)}`} renk="green" />
+                        <OzetKart baslik="Net Bakiye" deger={`₺${fmt(veri.ozet?.netToplam)}`} renk="lime" />
+                    </div>
+
+                    {/* Uyarı Kutuları */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {veri.ozet?.borcletedarikci > 0 && (
+                            <div className="bg-red-900/20 border border-red-700 rounded-lg p-4">
+                                <p className="text-red-300 text-sm">
+                                    <strong>⚠️ {veri.ozet.borcletedarikci} tedarikçiye toplam ₺{fmt(veri.ozet.toplamBorc)} borç</strong>
+                                </p>
+                            </div>
+                        )}
+                        {veri.ozet?.alacakliTedarikci > 0 && (
+                            <div className="bg-green-900/20 border border-green-700 rounded-lg p-4">
+                                <p className="text-green-300 text-sm">
+                                    <strong>✓ {veri.ozet.alacakliTedarikci} tedarikçiden toplam ₺{fmt(veri.ozet.toplamAlacak)} alacak</strong>
+                                </p>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Tedarikçi Tablosu */}
+                    <div className="bg-zinc-900 rounded-xl p-4">
+                        <h3 className="text-white font-semibold mb-3">Tedarikçi Merkezî Muhasebesi</h3>
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-sm">
+                                <thead>
+                                    <tr className="text-zinc-400 border-b border-zinc-800">
+                                        <th className="text-left py-2">Kod</th>
+                                        <th className="text-left py-2">Tedarikçi Adı</th>
+                                        <th className="text-left py-2">Telefon</th>
+                                        <th className="text-right py-2">Borç</th>
+                                        <th className="text-right py-2">Alacak</th>
+                                        <th className="text-right py-2">Net Bakiye</th>
+                                        <th className="text-center py-2">Durum</th>
+                                        <th className="text-right py-2">İşlem</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {(veri.tedarikciler || []).map(t => (
+                                        <tr key={t.id} className="border-b border-zinc-800/50 text-zinc-300 hover:bg-zinc-800/30">
+                                            <td className="py-2 text-zinc-500 font-mono">{t.kod}</td>
+                                            <td className="py-2 font-medium">{t.ad}</td>
+                                            <td className="py-2 text-zinc-400">{t.telefon || '-'}</td>
+                                            <td className="text-right py-2 text-red-400">₺{fmt(t.toplamBorc)}</td>
+                                            <td className="text-right py-2 text-green-400">₺{fmt(t.toplamAlacak)}</td>
+                                            <td className={`text-right py-2 font-bold ${t.netBakiye < 0 ? 'text-red-400'
+                                                    : t.netBakiye > 0 ? 'text-green-400'
+                                                        : 'text-zinc-400'
+                                                }`}>
+                                                ₺{fmt(t.netBakiye)}
+                                            </td>
+                                            <td className="text-center py-2">
+                                                <span className={`px-2 py-0.5 rounded text-xs font-bold ${t.durum === 'BORÇLU' ? 'bg-red-900/50 text-red-300'
+                                                        : t.durum === 'ALACAKLI' ? 'bg-green-900/50 text-green-300'
+                                                            : 'bg-zinc-700 text-zinc-300'
+                                                    }`}>
+                                                    {t.durum}
+                                                </span>
+                                            </td>
+                                            <td className="text-right py-2">
+                                                <a href={`mailto:${t.email}`} className="text-lime-400 hover:text-lime-300 text-xs">
+                                                    ✉️
+                                                </a>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                    {!veri.tedarikciler?.length && (
+                                        <tr>
+                                            <td colSpan={8} className="text-center text-zinc-500 py-6">
+                                                Kayıt bulunamadı
+                                            </td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    {/* İstatistikler */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="bg-zinc-900 rounded-xl p-4 border border-zinc-700">
+                            <h4 className="text-white font-semibold mb-3">📊 Muhasebe Özeti</h4>
+                            <ul className="space-y-2 text-sm text-zinc-300">
+                                <li>• Toplam Tedarikçi: <strong>{veri.ozet?.toplamTedarikci}</strong></li>
+                                <li>• Ödeme Bekleyen: <strong className="text-red-400">{veri.ozet?.borcletedarikci}</strong></li>
+                                <li>• Para Alınacak: <strong className="text-green-400">{veri.ozet?.alacakliTedarikci}</strong></li>
+                                <li>• Net Durumu: <strong className={veri.ozet?.netToplam < 0 ? 'text-red-400' : 'text-green-400'}>
+                                    {veri.ozet?.netToplam < 0 ? '₺' + fmt(Math.abs(veri.ozet.netToplam)) + ' BORÇLU' : '₺' + fmt(veri.ozet?.netToplam) + ' ALACAKLI'}
+                                </strong></li>
+                            </ul>
+                        </div>
+
+                        <div className="bg-zinc-900 rounded-xl p-4 border border-zinc-700">
+                            <h4 className="text-white font-semibold mb-3">💡 Öneriler</h4>
+                            <ul className="space-y-2 text-sm text-zinc-300">
+                                <li>• En yüksek borçlu tedarikçileri kontrol edin</li>
+                                <li>• Ödeme vadesi geçmiş faturaları listeleyin</li>
+                                <li>• Tedarikçi hazine yönetimi için plan yapın</li>
+                                <li>• Haftalık/aylık reconciliation yapın</li>
                             </ul>
                         </div>
                     </div>

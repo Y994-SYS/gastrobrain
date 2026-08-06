@@ -476,5 +476,87 @@ const subeKarsilastirmasi = async (req, res) => {
         res.status(500).json({ hata: err.message });
     }
 };
+// ─── MERKEZ MUHASEBESİ RAPORU ──────────────────────────
+const merkezMuhasebesi = async (req, res) => {
+    try {
+        const tenantId = req.kullanici.tenantId;
 
-module.exports = { satisRaporu, stokRaporu, cariRaporu, maliyetRaporu, excelExport, subeKarsilastirmasi };
+        // Tüm cari kartları ve hareketlerini getir
+        const cariKartlar = await prisma.cariKart.findMany({
+            where: { tenantId },
+            include: {
+                hareketler: {
+                    include: {
+                        kalemler: {
+                            include: {
+                                stokKart: true
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        // Her tedarikçi için şube bazlı borç/alacak hesapla
+        const tedarikciAnaliz = cariKartlar.map(cari => {
+            // Her hareketin tutarını şubeye göre grupla (kalemlerdeki stokKart'tan şubeyi bulamayız)
+            // Alternatif: cariHareket'te subeId olup olmadığını kontrol et
+            // Şimdilik: cariHareket üzerinden hareket tiplerine göre hesapla
+
+            let toplamBorc = 0;
+            let toplamAlacak = 0;
+            const subeGrup = {};
+
+            for (const hareket of cari.hareketler) {
+                if (hareket.tip === 'BORC') {
+                    toplamBorc += hareket.tutar;
+                } else if (['ALACAK', 'TAHSILAT'].includes(hareket.tip)) {
+                    toplamAlacak += hareket.tutar;
+                }
+
+                // Kalemler üzerinden şube bilgisi çekmek gerekir (cariHareket'te subeId yok)
+                // Şimdilik kalemlerden stokKart getirip işleyeceğiz, ama subeId olmadığından merkez sayabiliriz
+                // Gerçek implementasyon: cariHareket schema'sına subeId eklemek gerekir
+            }
+
+            const netBakiye = toplamAlacak - toplamBorc;
+
+            return {
+                id: cari.id,
+                kod: cari.kod,
+                ad: cari.ad,
+                telefon: cari.telefon,
+                email: cari.email,
+                adres: cari.adres,
+                toplamBorc: Math.round(toplamBorc * 100) / 100,
+                toplamAlacak: Math.round(toplamAlacak * 100) / 100,
+                netBakiye: Math.round(netBakiye * 100) / 100,
+                durum: netBakiye < 0 ? 'BORÇLU' : netBakiye > 0 ? 'ALACAKLI' : 'SIFIR',
+                hareketSayisi: cari.hareketler.length
+            };
+        });
+
+        // Toplam özet
+        const toplamBorc = tedarikciAnaliz.reduce((t, c) => t + c.toplamBorc, 0);
+        const toplamAlacak = tedarikciAnaliz.reduce((t, c) => t + c.toplamAlacak, 0);
+        const netToplam = toplamAlacak - toplamBorc;
+
+        res.json({
+            tedarikciler: tedarikciAnaliz
+                .filter(t => t.toplamBorc > 0 || t.toplamAlacak > 0) // Sıfırı filtreleyebiliriz
+                .sort((a, b) => Math.abs(b.netBakiye) - Math.abs(a.netBakiye)),
+            ozet: {
+                toplamTedarikci: cariKartlar.length,
+                borcletedarikci: tedarikciAnaliz.filter(t => t.durum === 'BORÇLU').length,
+                alacakliTedarikci: tedarikciAnaliz.filter(t => t.durum === 'ALACAKLI').length,
+                toplamBorc: Math.round(toplamBorc * 100) / 100,
+                toplamAlacak: Math.round(toplamAlacak * 100) / 100,
+                netToplam: Math.round(netToplam * 100) / 100,
+            }
+        });
+    } catch (err) {
+        res.status(500).json({ hata: err.message });
+    }
+};
+
+module.exports = { satisRaporu, stokRaporu, cariRaporu, maliyetRaporu, excelExport, subeKarsilastirmasi, merkezMuhasebesi };

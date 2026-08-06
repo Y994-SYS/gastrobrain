@@ -35,6 +35,7 @@ model Tenant {
   personeller   Personel[]
   auditLoglar   AuditLog[]
   odemeBildirimleri OdemeBildirimi[]
+ merkezDepolar MerkezDepo[]
 }
 
 enum Plan {
@@ -111,6 +112,7 @@ model Sube {
   stokHareketleri StokHareket[]
   satislar        Satis[]
   personeller     Personel[]
+  merkezDagitimlar MerkezDagitim[] @relation("merkezDagitim")
 
   @@index([tenantId])
 }
@@ -168,6 +170,7 @@ model StokKart {
   stokHareketleri      StokHareket[]
   receteKalemleri      ReceteKalem[]
   cariHareketKalemleri CariHareketKalem[]
+  merkezDepolar MerkezDepo[]
 
   @@unique([kod, tenantId])
   @@index([tenantId])
@@ -479,4 +482,42 @@ model PersonelIzin {
 
   @@unique([personelId, yil])
   @@index([personelId])
+}
+// ─────────────────────────────────────────────────────
+// MERKEZ DEPO
+// ─────────────────────────────────────────────────────
+
+model MerkezDepo {
+  id                Int       @id @default(autoincrement())
+  stokKartId        Int
+  minStokSeviyesi   Float     @default(0)  // Her şubede min. bu kadar olmalı
+  otomatiDagit      Boolean   @default(true)  // Otomatik dağıtım açık mı?
+  aciklama          String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  tenant            Tenant    @relation(fields: [tenantId], references: [id])
+  tenantId          Int
+  stokKart          StokKart  @relation(fields: [stokKartId], references: [id])
+
+  dagitimlar        MerkezDagitim[]
+
+  @@unique([stokKartId, tenantId])
+  @@index([tenantId])
+}
+
+model MerkezDagitim {
+  id                Int       @id @default(autoincrement())
+  merkezDepoId      Int
+  hedefSubeId       Int
+  miktar            Float
+  tarih             DateTime  @default(now())
+  aciklama          String?   // "Otomatik dağıtım (Min stok aşağında)" gibi
+  createdAt         DateTime  @default(now())
+
+  merkezDepo        MerkezDepo @relation(fields: [merkezDepoId], references: [id])
+  hedefSube         Sube      @relation(fields: [hedefSubeId], references: [id], name: "merkezDagitim")
+
+  @@index([merkezDepoId])
+  @@index([hedefSubeId])
 }

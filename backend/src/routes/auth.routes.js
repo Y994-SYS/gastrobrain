@@ -32,6 +32,6 @@ router.post('/kayit-firma', validate(kayitFirmaSchema), authController.kayitFirm
 router.post('/tenant-listesi', validate(tenantListesiSchema), authController.tenantListesiGetir);
 router.post('/sifre-sifirlama-talep', validate(sifreSifirlamaTalepSchema), authController.sifreSifirlamaTalep);
 router.post('/sifre-sifirla', validate(sifreSifirlaSchema), authController.sifreSifirla);
-
+router.get('/beni-getir', authMiddleware, authController.beniGetir);
 router.get('/lisans-durum', authMiddleware, authController.lisansDurum);
 module.exports = router;

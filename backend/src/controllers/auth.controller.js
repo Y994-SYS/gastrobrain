@@ -84,6 +84,33 @@ const authController = {
             res.status(500).json({ basarili: false, mesaj: e.message });
         }
     },
+    async beniGetir(req, res) {
+        try {
+            const kullanici = req.kullanici; // authMiddleware'den gelir
+
+            let tenant = null;
+            if (kullanici.tenantId) {
+                tenant = await prisma.tenant.findUnique({
+                    where: { id: kullanici.tenantId },
+                    select: {
+                        id: true,
+                        ad: true,
+                        plan: true,
+                        lisansBitis: true,
+                        aktif: true
+                    }
+                });
+            }
+
+            res.json({
+                basarili: true,
+                kullanici,
+                tenant
+            });
+        } catch (err) {
+            res.status(500).json({ basarili: false, mesaj: err.message });
+        }
+    },
 };
 
 module.exports = authController;

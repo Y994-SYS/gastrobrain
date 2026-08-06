@@ -84,9 +84,10 @@ const authController = {
             res.status(500).json({ basarili: false, mesaj: e.message });
         }
     },
+
     async beniGetir(req, res) {
         try {
-            const kullanici = req.kullanici; // authMiddleware'den gelir
+            const kullanici = req.kullanici;
 
             let tenant = null;
             if (kullanici.tenantId) {
@@ -110,7 +111,7 @@ const authController = {
         } catch (err) {
             res.status(500).json({ basarili: false, mesaj: err.message });
         }
-    },
+    }
 };
 
 module.exports = authController;

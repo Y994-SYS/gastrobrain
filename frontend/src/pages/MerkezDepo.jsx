@@ -74,13 +74,17 @@ export default function MerkezDepo() {
                 api.get('/api/stok-kartlari')
             ]);
 
+            console.log('Merkez Depo Tanımları:', tanimRes.data);  // ← DEBUG
+            console.log('Merkez Depo Durum:', durunRes.data);      // ← DEBUG
+
             setTanimlar(tanimRes.data || []);
             setDurum(durunRes.data || []);
             setGecmis(gecmisRes.data || []);
             setSubeler(subeRes.data?.filter(s => s.aktif) || []);
             setStokKartlari(stokRes.data || []);
         } catch (err) {
-            toast.error('Veriler yüklenemedi');
+            toast.error('Veriler yüklenemedi: ' + err.message);
+            console.error(err);
         } finally {
             setYukleniyor(false);
         }
@@ -230,8 +234,8 @@ export default function MerkezDepo() {
                 <button
                     onClick={() => setAktifTab('tanimlar')}
                     className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${aktifTab === 'tanimlar'
-                            ? 'bg-lime-400 text-zinc-900'
-                            : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'
+                        ? 'bg-lime-400 text-zinc-900'
+                        : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'
                         }`}
                 >
                     Tanımlar
@@ -239,8 +243,8 @@ export default function MerkezDepo() {
                 <button
                     onClick={() => setAktifTab('dagit')}
                     className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${aktifTab === 'dagit'
-                            ? 'bg-lime-400 text-zinc-900'
-                            : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'
+                        ? 'bg-lime-400 text-zinc-900'
+                        : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'
                         }`}
                 >
                     Manual Dağıtım
@@ -248,8 +252,8 @@ export default function MerkezDepo() {
                 <button
                     onClick={() => setAktifTab('gecmis')}
                     className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${aktifTab === 'gecmis'
-                            ? 'bg-lime-400 text-zinc-900'
-                            : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'
+                        ? 'bg-lime-400 text-zinc-900'
+                        : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'
                         }`}
                 >
                     Dağıtım Geçmişi

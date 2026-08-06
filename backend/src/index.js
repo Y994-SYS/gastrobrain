@@ -194,6 +194,7 @@ app.use((err, req, res, next) => {
 
 // ── Lisans uyarı cron job ─────────────────────────────────────────────────────
 const lisansUyariService = require('./services/lisansUyari.service');
+const cron = require('node-cron');
 const { CronJob } = require('cron');
 new CronJob('0 9 * * *', async () => {
     logger.info('Lisans uyarı kontrolü başladı');

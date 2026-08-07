@@ -66,7 +66,7 @@ export default function MerkezDepo() {
         if (yetkisiz) return;
         setYukleniyor(true);
         try {
-            const [tanimRes, durunRes, gecmisRes, subeRes, stokRes] = await Promise.all([
+            const [tanimRes, durumRes, gecmisRes, subeRes, stokRes] = await Promise.all([
                 api.get('/api/merkezdepo/tanimlar'),
                 api.get('/api/merkezdepo/durum'),
                 api.get('/api/merkezdepo/gecmis'),
@@ -74,16 +74,17 @@ export default function MerkezDepo() {
                 api.get('/api/stok-kartlari')
             ]);
 
-            console.log('Merkez Depo Tanımları:', tanimRes.data);  // ← DEBUG
-            console.log('Merkez Depo Durum:', durunRes.data);      // ← DEBUG
+            // Her response için güvenli array kontrolü
+            const toArray = (data) => Array.isArray(data) ? data : data?.data || [];
 
-            setTanimlar(tanimRes.data || []);
-            setDurum(durunRes.data || []);
-            setGecmis(gecmisRes.data || []);
-            setSubeler(subeRes.data?.filter(s => s.aktif) || []);
-            setStokKartlari(stokRes.data || []);
+            setTanimlar(toArray(tanimRes.data));
+            setDurum(toArray(durumRes.data));
+            setGecmis(toArray(gecmisRes.data));
+            setSubeler(toArray(subeRes.data).filter(s => s.aktif));
+            setStokKartlari(toArray(stokRes.data));
+
         } catch (err) {
-            toast.error('Veriler yüklenemedi: ' + err.message);
+            toast.error('Veriler yüklenemedi');
             console.error(err);
         } finally {
             setYukleniyor(false);
@@ -218,9 +219,9 @@ export default function MerkezDepo() {
                                     <p className="text-white font-bold">{d.toplamSube} şube</p>
                                     <p className="text-zinc-400 text-xs mt-1">Min: {d.minStokSeviyesi}</p>
                                 </div>
-                                {d.altındaSayisi > 0 && (
+                                {d.altindaSayisi > 0 && (
                                     <span className="bg-red-900/50 text-red-300 px-2 py-1 rounded text-xs font-bold">
-                                        {d.altındaSayisi} aşağıda
+                                        {d.altindaSayisi} aşağıda
                                     </span>
                                 )}
                             </div>

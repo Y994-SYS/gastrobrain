@@ -274,7 +274,9 @@ export default function MerkezDepo() {
                                 onChange={e => setTanımForm(f => ({ ...f, stokKartId: e.target.value }))}
                                 className="w-full bg-zinc-800 text-white px-3 py-2 rounded-lg text-sm border border-zinc-700 focus:outline-none focus:border-lime-400"
                             >
-                                <option value="">Seçin...</option>
+                                <option value="">
+                                    {stokKartlari.length === 0 ? 'Stok kartı yok' : 'Seçin...'}
+                                </option>
                                 {stokKartlari.map(k => (
                                     <option key={k.id} value={k.id}>{k.ad}</option>
                                 ))}
@@ -319,7 +321,8 @@ export default function MerkezDepo() {
 
                         <button
                             onClick={taninmEkle}
-                            className="w-full bg-lime-400 text-zinc-900 py-2 rounded-lg text-sm font-semibold hover:bg-lime-300 transition-colors"
+                            disabled={!tanımForm.stokKartId || !tanımForm.minStokSeviyesi}
+                            className="w-full bg-lime-400 text-zinc-900 py-2 rounded-lg text-sm font-semibold hover:bg-lime-300 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                         >
                             Tanım Ekle
                         </button>
@@ -330,7 +333,12 @@ export default function MerkezDepo() {
                         <h2 className="text-white font-semibold">Aktif Tanımlar</h2>
 
                         {tanimlar.length === 0 ? (
-                            <p className="text-zinc-500 text-sm py-4">Tanım yok</p>
+                            <div className="text-zinc-400 text-sm py-8 text-center">
+                                <p className="mb-3">📦 Henüz merkez depo tanımı yok</p>
+                                <p className="text-xs text-zinc-500">
+                                    Sol taraftaki formdan yeni tanım ekleyerek başlayın
+                                </p>
+                            </div>
                         ) : (
                             <div className="space-y-2">
                                 {tanimlar.map(t => (
@@ -361,65 +369,79 @@ export default function MerkezDepo() {
                 <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 space-y-4 max-w-2xl">
                     <h2 className="text-white font-semibold">Manual Dağıtım Yap</h2>
 
-                    <div className="grid grid-cols-2 gap-3">
-                        <div>
-                            <label className="text-zinc-400 text-xs block mb-1">Merkez Depo *</label>
-                            <select
-                                value={dagitForm.merkezDepoId}
-                                onChange={e => setDagitForm(f => ({ ...f, merkezDepoId: e.target.value }))}
-                                className="w-full bg-zinc-800 text-white px-3 py-2 rounded-lg text-sm border border-zinc-700 focus:outline-none focus:border-lime-400"
+                    {tanimlar.length === 0 ? (
+                        <div className="text-zinc-400 text-sm py-8 text-center bg-zinc-800 rounded-lg">
+                            <p className="mb-3">⚠️ Dağıtım yapabilmek için önce merkez depo tanımı ekleyin</p>
+                            <button
+                                onClick={() => setAktifTab('tanimlar')}
+                                className="mt-3 bg-lime-400 text-zinc-900 px-4 py-2 rounded text-sm font-semibold hover:bg-lime-300"
                             >
-                                <option value="">Seçin...</option>
-                                {tanimlar.map(t => (
-                                    <option key={t.id} value={t.id}>{t.stokKart.ad}</option>
-                                ))}
-                            </select>
+                                Tanım Ekle →
+                            </button>
                         </div>
+                    ) : (
+                        <>
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label className="text-zinc-400 text-xs block mb-1">Merkez Depo *</label>
+                                    <select
+                                        value={dagitForm.merkezDepoId}
+                                        onChange={e => setDagitForm(f => ({ ...f, merkezDepoId: e.target.value }))}
+                                        className="w-full bg-zinc-800 text-white px-3 py-2 rounded-lg text-sm border border-zinc-700 focus:outline-none focus:border-lime-400"
+                                    >
+                                        <option value="">Seçin...</option>
+                                        {tanimlar.map(t => (
+                                            <option key={t.id} value={t.id}>{t.stokKart.ad}</option>
+                                        ))}
+                                    </select>
+                                </div>
 
-                        <div>
-                            <label className="text-zinc-400 text-xs block mb-1">Hedef Şube *</label>
-                            <select
-                                value={dagitForm.hedefSubeId}
-                                onChange={e => setDagitForm(f => ({ ...f, hedefSubeId: e.target.value }))}
-                                className="w-full bg-zinc-800 text-white px-3 py-2 rounded-lg text-sm border border-zinc-700 focus:outline-none focus:border-lime-400"
+                                <div>
+                                    <label className="text-zinc-400 text-xs block mb-1">Hedef Şube *</label>
+                                    <select
+                                        value={dagitForm.hedefSubeId}
+                                        onChange={e => setDagitForm(f => ({ ...f, hedefSubeId: e.target.value }))}
+                                        className="w-full bg-zinc-800 text-white px-3 py-2 rounded-lg text-sm border border-zinc-700 focus:outline-none focus:border-lime-400"
+                                    >
+                                        <option value="">Seçin...</option>
+                                        {subeler.map(s => (
+                                            <option key={s.id} value={s.id}>{s.ad}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="text-zinc-400 text-xs block mb-1">Miktar *</label>
+                                <input
+                                    type="number"
+                                    step="0.01"
+                                    value={dagitForm.miktar}
+                                    onChange={e => setDagitForm(f => ({ ...f, miktar: e.target.value }))}
+                                    className="w-full bg-zinc-800 text-white px-3 py-2 rounded-lg text-sm border border-zinc-700 focus:outline-none focus:border-lime-400"
+                                    placeholder="0"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="text-zinc-400 text-xs block mb-1">Açıklama</label>
+                                <input
+                                    type="text"
+                                    value={dagitForm.aciklama}
+                                    onChange={e => setDagitForm(f => ({ ...f, aciklama: e.target.value }))}
+                                    className="w-full bg-zinc-800 text-white px-3 py-2 rounded-lg text-sm border border-zinc-700 focus:outline-none focus:border-lime-400"
+                                    placeholder="İsteğe bağlı..."
+                                />
+                            </div>
+
+                            <button
+                                onClick={manuelDagit}
+                                className="w-full bg-lime-400 text-zinc-900 py-2 rounded-lg text-sm font-semibold hover:bg-lime-300 transition-colors"
                             >
-                                <option value="">Seçin...</option>
-                                {subeler.map(s => (
-                                    <option key={s.id} value={s.id}>{s.ad}</option>
-                                ))}
-                            </select>
-                        </div>
-                    </div>
-
-                    <div>
-                        <label className="text-zinc-400 text-xs block mb-1">Miktar *</label>
-                        <input
-                            type="number"
-                            step="0.01"
-                            value={dagitForm.miktar}
-                            onChange={e => setDagitForm(f => ({ ...f, miktar: e.target.value }))}
-                            className="w-full bg-zinc-800 text-white px-3 py-2 rounded-lg text-sm border border-zinc-700 focus:outline-none focus:border-lime-400"
-                            placeholder="0"
-                        />
-                    </div>
-
-                    <div>
-                        <label className="text-zinc-400 text-xs block mb-1">Açıklama</label>
-                        <input
-                            type="text"
-                            value={dagitForm.aciklama}
-                            onChange={e => setDagitForm(f => ({ ...f, aciklama: e.target.value }))}
-                            className="w-full bg-zinc-800 text-white px-3 py-2 rounded-lg text-sm border border-zinc-700 focus:outline-none focus:border-lime-400"
-                            placeholder="İsteğe bağlı..."
-                        />
-                    </div>
-
-                    <button
-                        onClick={manuelDagit}
-                        className="w-full bg-lime-400 text-zinc-900 py-2 rounded-lg text-sm font-semibold hover:bg-lime-300 transition-colors"
-                    >
-                        Dağıtımı Gerçekleştir
-                    </button>
+                                Dağıtımı Gerçekleştir
+                            </button>
+                        </>
+                    )}
                 </div>
             )}
 
@@ -429,7 +451,7 @@ export default function MerkezDepo() {
                     <h2 className="text-white font-semibold mb-4">Dağıtım Geçmişi</h2>
 
                     {gecmis.length === 0 ? (
-                        <p className="text-zinc-500 text-sm text-center py-8">Dağıtım kaydı yok</p>
+                        <p className="text-zinc-500 text-sm text-center py-8">📋 Dağıtım kaydı yok</p>
                     ) : (
                         <div className="overflow-x-auto">
                             <table className="w-full text-sm">

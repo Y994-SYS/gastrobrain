@@ -42,7 +42,8 @@ const menuGruplari = [
             { path: '/stok/tuketim', label: 'Tüketim Gideri', icon: '🍽️', roller: R.STOK },
             { path: '/stok/ay-sonu-sayim', label: 'Ay Sonu Sayım', icon: '📋', roller: R.STOK },
             { path: '/stok/transfer', label: 'Şube Transferi', icon: '🔀', roller: R.YONETIM },
-            { icon: '⏰', label: 'Planlı Transfer', yol: '/stok/planli-transfer', roller: ['TENANT_ADMIN', 'MUDUR'] },
+            { path: '/stok/planli-transfer', label: 'Planlı Transfer', icon: '⏰', roller: R.YONETIM },
+
         ]
     },
     {

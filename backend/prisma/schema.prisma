@@ -35,7 +35,9 @@ model Tenant {
   personeller   Personel[]
   auditLoglar   AuditLog[]
   odemeBildirimleri OdemeBildirimi[]
- merkezDepolar MerkezDepo[]
+  merkezDepolar MerkezDepo[]
+  planliTransferler PlanliTransfer[] 
+
 }
 
 enum Plan {
@@ -113,6 +115,8 @@ model Sube {
   satislar        Satis[]
   personeller     Personel[]
   merkezDagitimlar MerkezDagitim[] @relation("merkezDagitim")
+  planliTransferKaynak PlanliTransfer[] @relation("planliKaynak")  // ← EKLE
+  planliTransferHedef  PlanliTransfer[] @relation("planliHedef") 
 
   @@index([tenantId])
 }
@@ -171,6 +175,7 @@ model StokKart {
   receteKalemleri      ReceteKalem[]
   cariHareketKalemleri CariHareketKalem[]
   merkezDepolar MerkezDepo[]
+  planliTransferler PlanliTransfer[]
 
   @@unique([kod, tenantId])
   @@index([tenantId])
@@ -520,4 +525,33 @@ model MerkezDagitim {
 
   @@index([merkezDepoId])
   @@index([hedefSubeId])
+}
+// ─────────────────────────────────────────────────────
+// PLANLI TRANSFER
+// ─────────────────────────────────────────────────────
+
+model PlanliTransfer {
+  id            Int      @id @default(autoincrement())
+  ad            String   // "Pazartesi unu dağıt" gibi açıklayıcı isim
+  stokKartId    Int
+  kaynakSubeId  Int
+  hedefSubeId   Int
+  miktar        Float
+  gunler        String   // "1,5" → Pazartesi(1) ve Cuma(5) — virgülle ayrılmış
+  saat          Int      @default(6)   // 0-23 arası saat
+  dakika        Int      @default(0)   // 0-59 arası dakika
+  aktif         Boolean  @default(true)
+  aciklama      String?
+  sonCalisma    DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  tenant        Tenant   @relation(fields: [tenantId], references: [id])
+  tenantId      Int
+  stokKart      StokKart @relation(fields: [stokKartId], references: [id])
+  kaynakSube    Sube     @relation(fields: [kaynakSubeId], references: [id], name: "planliKaynak")
+  hedefSube     Sube     @relation(fields: [hedefSubeId], references: [id], name: "planliHedef")
+
+  @@index([tenantId])
+  @@index([aktif])
 }

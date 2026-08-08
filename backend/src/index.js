@@ -35,6 +35,7 @@ const dashboardRoutes = require('./routes/dashboard.routes');
 const odemeRoutes = require('./routes/odeme.routes');
 const exportRoutes = require('./routes/export.routes'); // ← EKLENDİ
 const merkezDepoRoutes = require('./routes/merkezDepo.route');
+const planliTransferRoutes = require('./routes/planliTransfer.route');
 
 const { PrismaClient } = require('@prisma/client');
 
@@ -169,6 +170,7 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/odeme', odemeRoutes);
 app.use('/api/export', exportRoutes); // ← EKLENDİ
 app.use('/api/merkezdepo', merkezDepoRoutes);
+app.use('/api/planli-transfer', planliTransferRoutes); // ← EKLENDİ
 
 // ── 404 ───────────────────────────────────────────────────────────────────────
 app.use((req, res) => {
@@ -221,3 +223,15 @@ const otomatiDagitimJob = cron.schedule('0 6 * * 1,5', async () => {
         console.error('[MERKEZ DEPO HATA]', err);
     }
 });
+// ── PLANLI TRANSFER CRON (Her dakika kontrol) ──
+const planliTransferService = require('./services/planliTransfer.service');
+new CronJob('* * * * *', async () => {
+    try {
+        const sonuclar = await planliTransferService.zamanlanmisCalistir();
+        if (sonuclar.length > 0) {
+            logger.info(`[PLANLI TRANSFER] ${sonuclar.length} transfer çalıştı`);
+        }
+    } catch (err) {
+        logger.error('[PLANLI TRANSFER HATA]', err);
+    }
+}, null, true, 'Europe/Istanbul');

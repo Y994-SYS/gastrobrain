@@ -190,6 +190,13 @@ export default function MerkezDepo() {
         );
     }
 
+    if (yukleniyor) {
+        return (
+            <div className="flex items-center justify-center h-64">
+                <p className="text-zinc-400">Yükleniyor...</p>
+            </div>
+        );
+    }
     if (paketYukleniyor) {
         return <div className="flex items-center justify-center h-screen"><p className="text-zinc-400">Yükleniyor...</p></div>;
     }

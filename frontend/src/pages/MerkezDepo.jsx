@@ -20,7 +20,6 @@ export default function MerkezDepo() {
     const [yukleniyor, setYukleniyor] = useState(false);
     const [aktifTab, setAktifTab] = useState('tanimlar');
 
-    // Tanım formu
     const [tanımForm, setTanımForm] = useState({
         stokKartId: '',
         minStokSeviyesi: '',
@@ -28,7 +27,6 @@ export default function MerkezDepo() {
         aciklama: ''
     });
 
-    // Dağıtım formu
     const [dagitForm, setDagitForm] = useState({
         merkezDepoId: '',
         hedefSubeId: '',
@@ -74,7 +72,6 @@ export default function MerkezDepo() {
                 api.get('/api/stok-kartlari')
             ]);
 
-            // Her response için güvenli array kontrolü
             const toArray = (data) => Array.isArray(data) ? data : data?.data || [];
 
             setTanimlar(toArray(tanimRes.data));
@@ -99,14 +96,8 @@ export default function MerkezDepo() {
 
     // ── Tanım Ekle ────────────────────────────────────────────
     const taninmEkle = async () => {
-        if (!tanımForm.stokKartId) {
-            toast.error('Stok kartı seçin');
-            return;
-        }
-        if (!tanımForm.minStokSeviyesi) {
-            toast.error('Min stok seviyesi girin');
-            return;
-        }
+        if (!tanımForm.stokKartId) { toast.error('Stok kartı seçin'); return; }
+        if (!tanımForm.minStokSeviyesi) { toast.error('Min stok seviyesi girin'); return; }
 
         try {
             await api.post('/api/merkezdepo/tanim', {
@@ -139,18 +130,9 @@ export default function MerkezDepo() {
 
     // ── Manual Dağıtım ────────────────────────────────────────
     const manuelDagit = async () => {
-        if (!dagitForm.merkezDepoId) {
-            toast.error('Merkez depo seçin');
-            return;
-        }
-        if (!dagitForm.hedefSubeId) {
-            toast.error('Hedef şube seçin');
-            return;
-        }
-        if (!dagitForm.miktar) {
-            toast.error('Miktar girin');
-            return;
-        }
+        if (!dagitForm.merkezDepoId) { toast.error('Merkez depo seçin'); return; }
+        if (!dagitForm.hedefSubeId) { toast.error('Hedef şube seçin'); return; }
+        if (!dagitForm.miktar) { toast.error('Miktar girin'); return; }
 
         try {
             await api.post('/api/merkezdepo/dagit', {
@@ -168,7 +150,17 @@ export default function MerkezDepo() {
         }
     };
 
-    // ── Yetkisiz Erişim ────────────────────────────────────────
+    // ─── Render Guard'ları (DOĞRU SIRA) ──────────────────────
+    // 1. Paket bilgisi henüz yüklenmedi
+    if (paketYukleniyor) {
+        return (
+            <div className="flex items-center justify-center h-screen">
+                <p className="text-zinc-400">Yükleniyor...</p>
+            </div>
+        );
+    }
+
+    // 2. BASLANGIC paketi → yetkisiz
     if (yetkisiz) {
         return (
             <div className="flex items-center justify-center h-screen bg-zinc-900">
@@ -190,18 +182,16 @@ export default function MerkezDepo() {
         );
     }
 
+    // 3. Veriler yükleniyor
     if (yukleniyor) {
         return (
             <div className="flex items-center justify-center h-64">
-                <p className="text-zinc-400">Yükleniyor...</p>
+                <p className="text-zinc-400">Veriler yükleniyor...</p>
             </div>
         );
     }
-    if (paketYukleniyor) {
-        return <div className="flex items-center justify-center h-screen"><p className="text-zinc-400">Yükleniyor...</p></div>;
-    }
 
-    // ─── Render ──────────────────────────────────────────────
+    // ─── Ana Render ──────────────────────────────────────────
     return (
         <div className="p-6 space-y-6">
             <div>
@@ -239,33 +229,18 @@ export default function MerkezDepo() {
 
             {/* Tablar */}
             <div className="flex gap-2 flex-wrap">
-                <button
-                    onClick={() => setAktifTab('tanimlar')}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${aktifTab === 'tanimlar'
-                        ? 'bg-lime-400 text-zinc-900'
-                        : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'
-                        }`}
-                >
-                    Tanımlar
-                </button>
-                <button
-                    onClick={() => setAktifTab('dagit')}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${aktifTab === 'dagit'
-                        ? 'bg-lime-400 text-zinc-900'
-                        : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'
-                        }`}
-                >
-                    Manual Dağıtım
-                </button>
-                <button
-                    onClick={() => setAktifTab('gecmis')}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${aktifTab === 'gecmis'
-                        ? 'bg-lime-400 text-zinc-900'
-                        : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'
-                        }`}
-                >
-                    Dağıtım Geçmişi
-                </button>
+                {['tanimlar', 'dagit', 'gecmis'].map((tab) => (
+                    <button
+                        key={tab}
+                        onClick={() => setAktifTab(tab)}
+                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${aktifTab === tab
+                                ? 'bg-lime-400 text-zinc-900'
+                                : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'
+                            }`}
+                    >
+                        {tab === 'tanimlar' ? 'Tanımlar' : tab === 'dagit' ? 'Manual Dağıtım' : 'Dağıtım Geçmişi'}
+                    </button>
+                ))}
             </div>
 
             {/* TAB: Tanımlar */}
@@ -283,7 +258,7 @@ export default function MerkezDepo() {
                                 className="w-full bg-zinc-800 text-white px-3 py-2 rounded-lg text-sm border border-zinc-700 focus:outline-none focus:border-lime-400"
                             >
                                 <option value="">
-                                    {stokKartlari.length === 0 ? 'Stok kartı yok' : 'Seçin...'}
+                                    {stokKartlari.length === 0 ? 'Stok kartı yok — önce stok kartı ekleyin' : 'Seçin...'}
                                 </option>
                                 {stokKartlari.map(k => (
                                     <option key={k.id} value={k.id}>{k.ad}</option>
@@ -352,15 +327,15 @@ export default function MerkezDepo() {
                                 {tanimlar.map(t => (
                                     <div key={t.id} className="bg-zinc-800 rounded-lg p-3 flex justify-between items-start">
                                         <div className="flex-1">
-                                            <p className="text-white font-medium text-sm">{t.stokKart.ad}</p>
+                                            <p className="text-white font-medium text-sm">{t.stokKart?.ad}</p>
                                             <p className="text-zinc-400 text-xs mt-1">
-                                                Min: {t.minStokSeviyesi} {t.stokKart.birim.kisaltma}
+                                                Min: {t.minStokSeviyesi} {t.stokKart?.birim?.kisaltma}
                                                 {t.otomatiDagit && ' • 🔄 Otomatik'}
                                             </p>
                                         </div>
                                         <button
                                             onClick={() => taninmSil(t.id)}
-                                            className="text-red-400 hover:text-red-300 text-xs font-bold"
+                                            className="text-red-400 hover:text-red-300 text-xs font-bold ml-2"
                                         >
                                             Sil
                                         </button>
@@ -378,7 +353,7 @@ export default function MerkezDepo() {
                     <h2 className="text-white font-semibold">Manual Dağıtım Yap</h2>
 
                     {tanimlar.length === 0 ? (
-                        <div className="text-zinc-400 text-sm py-8 text-center bg-zinc-800 rounded-lg">
+                        <div className="text-zinc-400 text-sm py-8 text-center bg-zinc-800 rounded-lg p-6">
                             <p className="mb-3">⚠️ Dağıtım yapabilmek için önce merkez depo tanımı ekleyin</p>
                             <button
                                 onClick={() => setAktifTab('tanimlar')}
@@ -399,7 +374,7 @@ export default function MerkezDepo() {
                                     >
                                         <option value="">Seçin...</option>
                                         {tanimlar.map(t => (
-                                            <option key={t.id} value={t.id}>{t.stokKart.ad}</option>
+                                            <option key={t.id} value={t.id}>{t.stokKart?.ad}</option>
                                         ))}
                                     </select>
                                 </div>
@@ -459,7 +434,7 @@ export default function MerkezDepo() {
                     <h2 className="text-white font-semibold mb-4">Dağıtım Geçmişi</h2>
 
                     {gecmis.length === 0 ? (
-                        <p className="text-zinc-500 text-sm text-center py-8">📋 Dağıtım kaydı yok</p>
+                        <p className="text-zinc-500 text-sm text-center py-8">📋 Henüz dağıtım kaydı yok</p>
                     ) : (
                         <div className="overflow-x-auto">
                             <table className="w-full text-sm">

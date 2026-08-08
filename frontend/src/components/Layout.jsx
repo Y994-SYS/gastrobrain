@@ -42,6 +42,7 @@ const menuGruplari = [
             { path: '/stok/tuketim', label: 'Tüketim Gideri', icon: '🍽️', roller: R.STOK },
             { path: '/stok/ay-sonu-sayim', label: 'Ay Sonu Sayım', icon: '📋', roller: R.STOK },
             { path: '/stok/transfer', label: 'Şube Transferi', icon: '🔀', roller: R.YONETIM },
+            { icon: '⏰', label: 'Planlı Transfer', yol: '/stok/planli-transfer', roller: ['TENANT_ADMIN', 'MUDUR'] },
         ]
     },
     {
@@ -69,6 +70,7 @@ const menuGruplari = [
             { path: '/tanimlamalar/stok-kartlari', label: 'Stok Kartları', icon: '🗂️', roller: R.STOK },
             { path: '/tanimlamalar/cari-kartlar', label: 'Cari Kartlar', icon: '🏢', roller: R.YONETIM },
             { path: '/tanimlamalar/subeler', label: 'Şubeler', icon: '🏪', roller: R.ADMIN },
+            { path: '/merkezdepo', label: 'Merkez Depo', icon: '🏭', roller: ['TENANT_ADMIN', 'MUDUR'] }, // ← EKLENDİ       
         ]
     },
     {
@@ -77,7 +79,7 @@ const menuGruplari = [
         items: [
             { path: '/islem-gecmisi', label: 'İşlem Geçmişi', icon: '📜', roller: R.ADMIN },
             { path: '/abonelik', label: 'Abonelik', icon: '💳', roller: R.HERKES },
-            { path: '/merkezdepo', label: 'Merkez Depo', icon: '🏭', roller: ['TENANT_ADMIN', 'MUDUR'] }, // ← EKLENDİ
+
             { path: '/yardim', label: 'Yardım', icon: '❓', roller: R.HERKES },
             { path: '/profil', label: 'Profil', icon: '🙍', roller: R.HERKES },
         ]

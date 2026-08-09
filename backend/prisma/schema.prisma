@@ -37,6 +37,7 @@ model Tenant {
   odemeBildirimleri OdemeBildirimi[]
   merkezDepolar MerkezDepo[]
   planliTransferler PlanliTransfer[] 
+  
 
 }
 
@@ -117,6 +118,8 @@ model Sube {
   merkezDagitimlar MerkezDagitim[] @relation("merkezDagitim")
   planliTransferKaynak PlanliTransfer[] @relation("planliKaynak")  // ← EKLE
   planliTransferHedef  PlanliTransfer[] @relation("planliHedef") 
+  kalemKaynaklar PlanliTransferKalem[] @relation("kalemKaynak")
+  kalemHedefler  PlanliTransferKalem[] @relation("kalemHedef")
 
   @@index([tenantId])
 }
@@ -176,6 +179,7 @@ model StokKart {
   cariHareketKalemleri CariHareketKalem[]
   merkezDepolar MerkezDepo[]
   planliTransferler PlanliTransfer[]
+  planliTransferKalemleri PlanliTransferKalem[]
 
   @@unique([kod, tenantId])
   @@index([tenantId])
@@ -531,27 +535,42 @@ model MerkezDagitim {
 // ─────────────────────────────────────────────────────
 
 model PlanliTransfer {
-  id            Int      @id @default(autoincrement())
-  ad            String   // "Pazartesi unu dağıt" gibi açıklayıcı isim
-  stokKartId    Int
-  kaynakSubeId  Int
-  hedefSubeId   Int
-  miktar        Float
-  gunler        String   // "1,5" → Pazartesi(1) ve Cuma(5) — virgülle ayrılmış
-  saat          Int      @default(6)   // 0-23 arası saat
-  dakika        Int      @default(0)   // 0-59 arası dakika
-  aktif         Boolean  @default(true)
-  aciklama      String?
-  sonCalisma    DateTime?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id         Int      @id @default(autoincrement())
+  ad         String
+  gunler     String
+  saat       Int      @default(6)
+  dakika     Int      @default(0)
+  aktif      Boolean  @default(true)
+  aciklama   String?
+  sonCalisma DateTime?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
-  tenant        Tenant   @relation(fields: [tenantId], references: [id])
-  tenantId      Int
-  stokKart      StokKart @relation(fields: [stokKartId], references: [id])
-  kaynakSube    Sube     @relation(fields: [kaynakSubeId], references: [id], name: "planliKaynak")
-  hedefSube     Sube     @relation(fields: [hedefSubeId], references: [id], name: "planliHedef")
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+  tenantId Int
+
+  kalemler PlanliTransferKalem[]
 
   @@index([tenantId])
   @@index([aktif])
+}
+
+model PlanliTransferKalem {
+  id           Int   @id @default(autoincrement())
+  miktar       Float
+  aciklama     String?
+
+  planliTransfer   PlanliTransfer @relation(fields: [planliTransferId], references: [id], onDelete: Cascade)
+  planliTransferId Int
+
+  stokKart     StokKart @relation(fields: [stokKartId], references: [id])
+  stokKartId   Int
+
+  kaynakSube   Sube @relation(fields: [kaynakSubeId], references: [id], name: "kalemKaynak")
+  kaynakSubeId Int
+
+  hedefSube    Sube @relation(fields: [hedefSubeId], references: [id], name: "kalemHedef")
+  hedefSubeId  Int
+
+  @@index([planliTransferId])
 }

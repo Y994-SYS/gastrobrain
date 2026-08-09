@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import toast from 'react-hot-toast';
 
-// ─── Yardımcı ────────────────────────────────────────────────────────────────
 const miktarFormat = (n) =>
     Number(n).toLocaleString('tr-TR', { maximumFractionDigits: 3 });
 
@@ -13,68 +12,54 @@ const tarihFormat = (iso) =>
         hour: '2-digit', minute: '2-digit',
     });
 
-// ─── Ana bileşen ─────────────────────────────────────────────────────────────
+const bosKalem = () => ({ stokKartId: '', miktar: '' });
+
 export default function Transfer() {
     const navigate = useNavigate();
-    const [subeler, setSubeler] = useState([]);
-    const [stoklar, setStoklar] = useState([]);
-    const [gecmis, setGecmis] = useState([]);
     const [paket, setPaket] = useState(null);
     const [paketYukleniyor, setPaketYukleniyor] = useState(true);
     const [yetkisiz, setYetkisiz] = useState(false);
 
-    const [form, setForm] = useState({
-        kaynakSubeId: '',
-        hedefSubeId: '',
-        stokKartId: '',
-        miktar: '',
-        aciklama: '',
-    });
-
-    const [stokYukleniyor, setStokYukleniyor] = useState(false);
-    const [gonderiyor, setGonderiyor] = useState(false);
+    const [subeler, setSubeler] = useState([]);
+    const [stoklar, setStoklar] = useState([]);
+    const [gecmis, setGecmis] = useState([]);
     const [gecmisYukleniyor, setGecmisYukleniyor] = useState(true);
+    const [gonderiyor, setGonderiyor] = useState(false);
 
-    // Seçilen stok kartı
-    const secilenStok = stoklar.find(s => s.id === parseInt(form.stokKartId));
+    const [kaynakSubeId, setKaynakSubeId] = useState('');
+    const [hedefSubeId, setHedefSubeId] = useState('');
+    const [aciklama, setAciklama] = useState('');
+    const [kalemler, setKalemler] = useState([bosKalem()]);
 
-    // ── Paket Kontrolü ────────────────────────────────────────────────────────
+    // ── Paket Kontrolü ────────────────────────────────────────
     useEffect(() => {
         const paketKontrol = async () => {
             try {
                 const res = await api.get('/api/auth/beni-getir');
                 const tenantPaket = res.data.tenant?.plan;
                 setPaket(tenantPaket);
-
-                // BASLANGIC paketiyse, yönlendir
                 if (tenantPaket === 'BASLANGIC') {
                     setYetkisiz(true);
-                    // 2 saniye sonra Abonelik sayfasına yönlendir
-                    setTimeout(() => {
-                        navigate('/abonelik?reason=subeTransferi');
-                    }, 2000);
+                    setTimeout(() => navigate('/abonelik?reason=subeTransferi'), 2000);
                 }
-
                 setPaketYukleniyor(false);
             } catch (err) {
-                console.error('Paket kontrolü hatası:', err);
+                console.error(err);
                 setPaketYukleniyor(false);
             }
         };
-
         paketKontrol();
     }, [navigate]);
 
-    // ── Şubeleri yükle ───────────────────────────────────────────────────────
+    // ── Şubeleri Yükle ────────────────────────────────────────
     useEffect(() => {
-        if (yetkisiz) return; // Yetkisizse şubeleri yükleme
-
+        if (yetkisiz) return;
         api.get('/api/subeler')
             .then(r => setSubeler(r.data.filter(s => s.aktif)))
             .catch(() => toast.error('Şubeler yüklenemedi'));
     }, [yetkisiz]);
 
-    // ── Geçmişi yükle ────────────────────────────────────────────────────────
+    // ── Geçmişi Yükle ────────────────────────────────────────
     const gecmisYukle = async () => {
         setGecmisYukleniyor(true);
         try {
@@ -88,52 +73,68 @@ export default function Transfer() {
     };
 
     useEffect(() => {
-        if (!yetkisiz) {
-            gecmisYukle();
-        }
+        if (!yetkisiz) gecmisYukle();
     }, [yetkisiz]);
 
-    // ── Kaynak şube değişince stokları getir ─────────────────────────────────
+    // ── Kaynak Şube Değişince Stokları Getir ─────────────────
     useEffect(() => {
-        if (!form.kaynakSubeId) {
+        if (!kaynakSubeId) {
             setStoklar([]);
-            setForm(f => ({ ...f, stokKartId: '', miktar: '' }));
+            setKalemler([bosKalem()]);
             return;
         }
-        setStokYukleniyor(true);
-        setForm(f => ({ ...f, stokKartId: '', miktar: '' }));
-        api.get(`/api/transfer/stoklar?subeId=${form.kaynakSubeId}`)
+        api.get(`/api/transfer/stoklar?subeId=${kaynakSubeId}`)
             .then(r => setStoklar(r.data))
-            .catch(() => toast.error('Stoklar yüklenemedi'))
-            .finally(() => setStokYukleniyor(false));
-    }, [form.kaynakSubeId]);
+            .catch(() => toast.error('Stoklar yüklenemedi'));
+        setKalemler([bosKalem()]);
+    }, [kaynakSubeId]);
 
-    // ── Transfer gönder ──────────────────────────────────────────────────────
+    // ── Kalem İşlemleri ───────────────────────────────────────
+    const kalemEkle = () => setKalemler(k => [...k, bosKalem()]);
+
+    const kalemSil = (i) => setKalemler(k => k.filter((_, idx) => idx !== i));
+
+    const kalemGuncelle = (i, alan, deger) =>
+        setKalemler(k => k.map((kalem, idx) => idx === i ? { ...kalem, [alan]: deger } : kalem));
+
+    // Seçilen stok kartının bakiyesini bul
+    const stokBakiye = (stokKartId) =>
+        stoklar.find(s => s.id === parseInt(stokKartId));
+
+    // ── Transfer Gönder ───────────────────────────────────────
     const gonder = async () => {
-        const { kaynakSubeId, hedefSubeId, stokKartId, miktar } = form;
-
         if (!kaynakSubeId) { toast.error('Kaynak şube seçin'); return; }
         if (!hedefSubeId) { toast.error('Hedef şube seçin'); return; }
         if (kaynakSubeId === hedefSubeId) { toast.error('Kaynak ve hedef şube aynı olamaz'); return; }
-        if (!stokKartId) { toast.error('Ürün seçin'); return; }
-        if (!miktar || parseFloat(miktar) <= 0) { toast.error('Geçerli bir miktar girin'); return; }
-        if (secilenStok && parseFloat(miktar) > secilenStok.mevcutBakiye) {
-            toast.error(`Yetersiz stok. Mevcut: ${miktarFormat(secilenStok.mevcutBakiye)} ${secilenStok.birim.kisaltma}`);
-            return;
+
+        for (const [i, k] of kalemler.entries()) {
+            if (!k.stokKartId) { toast.error(`${i + 1}. kalemde ürün seçin`); return; }
+            if (!k.miktar || parseFloat(k.miktar) <= 0) { toast.error(`${i + 1}. kalemde miktar girin`); return; }
+            const stok = stokBakiye(k.stokKartId);
+            if (stok && parseFloat(k.miktar) > stok.mevcutBakiye) {
+                toast.error(`${stok.ad}: Yetersiz stok (Mevcut: ${miktarFormat(stok.mevcutBakiye)} ${stok.birim.kisaltma})`);
+                return;
+            }
         }
 
         setGonderiyor(true);
         try {
-            await api.post('/api/transfer', {
-                kaynakSubeId: parseInt(kaynakSubeId),
-                hedefSubeId: parseInt(hedefSubeId),
-                stokKartId: parseInt(stokKartId),
-                miktar: parseFloat(miktar),
-                aciklama: form.aciklama,
-            });
-            toast.success('Transfer tamamlandı');
-            setForm(f => ({ ...f, stokKartId: '', miktar: '', aciklama: '' }));
-            // Kaynak şubenin stoklarını güncelle
+            // Her kalem için ayrı transfer yap
+            for (const k of kalemler) {
+                await api.post('/api/transfer', {
+                    kaynakSubeId: parseInt(kaynakSubeId),
+                    hedefSubeId: parseInt(hedefSubeId),
+                    stokKartId: parseInt(k.stokKartId),
+                    miktar: parseFloat(k.miktar),
+                    aciklama: aciklama || undefined,
+                });
+            }
+
+            toast.success(`${kalemler.length} ürün transferi tamamlandı`);
+            setKalemler([bosKalem()]);
+            setAciklama('');
+
+            // Stokları güncelle
             const r = await api.get(`/api/transfer/stoklar?subeId=${kaynakSubeId}`);
             setStoklar(r.data);
             gecmisYukle();
@@ -144,9 +145,13 @@ export default function Transfer() {
         }
     };
 
-    const hedefSubeler = subeler.filter(s => s.id !== parseInt(form.kaynakSubeId));
+    const hedefSubeler = subeler.filter(s => s.id !== parseInt(kaynakSubeId));
 
-    // BASLANGIC paketiyse başka bir şey gösterme
+    // ─── Render Guard'ları ────────────────────────────────────
+    if (paketYukleniyor) {
+        return <div className="flex items-center justify-center h-screen"><p className="text-zinc-400">Yükleniyor...</p></div>;
+    }
+
     if (yetkisiz) {
         return (
             <div className="flex items-center justify-center h-screen bg-zinc-900">
@@ -168,156 +173,142 @@ export default function Transfer() {
         );
     }
 
-    if (paketYukleniyor) {
-        return (
-            <div className="flex items-center justify-center h-screen">
-                <p className="text-zinc-400">Yükleniyor...</p>
-            </div>
-        );
-    }
-
-    // ─── Render ──────────────────────────────────────────────────────────────
     return (
         <div className="p-6 space-y-6">
-            {/* Başlık */}
             <div>
                 <h1 className="text-2xl font-bold text-white">Şubeler Arası Stok Transferi</h1>
-                <p className="text-zinc-500 text-sm mt-1">
-                    Kaynak şubedeki stoğu hedef şubeye aktar
-                </p>
+                <p className="text-zinc-500 text-sm mt-1">Birden fazla ürünü tek seferde transfer edin</p>
             </div>
 
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-                {/* ── Sol: Transfer formu ──────────────────────────────────── */}
+                {/* ── Sol: Transfer Formu ──────────────────────────────── */}
                 <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 space-y-5">
                     <h2 className="text-white font-semibold text-base">Yeni Transfer</h2>
 
-                    {/* Kaynak & Hedef şube */}
+                    {/* Kaynak & Hedef Şube */}
                     <div className="grid grid-cols-2 gap-3">
                         <div>
                             <label className="text-zinc-400 text-xs block mb-1">Kaynak Şube *</label>
                             <select
-                                value={form.kaynakSubeId}
-                                onChange={e => setForm(f => ({ ...f, kaynakSubeId: e.target.value, hedefSubeId: '' }))}
+                                value={kaynakSubeId}
+                                onChange={e => { setKaynakSubeId(e.target.value); setHedefSubeId(''); }}
                                 className="w-full bg-zinc-800 text-white px-3 py-2 rounded-lg text-sm border border-zinc-700 focus:outline-none focus:border-lime-400"
                             >
                                 <option value="">Seçin...</option>
-                                {subeler.map(s => (
-                                    <option key={s.id} value={s.id}>{s.ad}</option>
-                                ))}
+                                {subeler.map(s => <option key={s.id} value={s.id}>{s.ad}</option>)}
                             </select>
                         </div>
                         <div>
                             <label className="text-zinc-400 text-xs block mb-1">Hedef Şube *</label>
                             <select
-                                value={form.hedefSubeId}
-                                onChange={e => setForm(f => ({ ...f, hedefSubeId: e.target.value }))}
-                                disabled={!form.kaynakSubeId}
+                                value={hedefSubeId}
+                                onChange={e => setHedefSubeId(e.target.value)}
+                                disabled={!kaynakSubeId}
                                 className="w-full bg-zinc-800 text-white px-3 py-2 rounded-lg text-sm border border-zinc-700 focus:outline-none focus:border-lime-400 disabled:opacity-40"
                             >
                                 <option value="">Seçin...</option>
-                                {hedefSubeler.map(s => (
-                                    <option key={s.id} value={s.id}>{s.ad}</option>
-                                ))}
+                                {hedefSubeler.map(s => <option key={s.id} value={s.id}>{s.ad}</option>)}
                             </select>
                         </div>
                     </div>
 
-                    {/* Ok işareti */}
-                    {form.kaynakSubeId && form.hedefSubeId && (
+                    {/* Ok İşareti */}
+                    {kaynakSubeId && hedefSubeId && (
                         <div className="flex items-center justify-center gap-3 text-sm">
                             <span className="text-white font-medium">
-                                {subeler.find(s => s.id === parseInt(form.kaynakSubeId))?.ad}
+                                {subeler.find(s => s.id === parseInt(kaynakSubeId))?.ad}
                             </span>
                             <span className="text-lime-400 text-lg">→</span>
                             <span className="text-white font-medium">
-                                {subeler.find(s => s.id === parseInt(form.hedefSubeId))?.ad}
+                                {subeler.find(s => s.id === parseInt(hedefSubeId))?.ad}
                             </span>
                         </div>
                     )}
 
-                    {/* Ürün seçimi */}
+                    {/* Kalemler */}
                     <div>
-                        <label className="text-zinc-400 text-xs block mb-1">Ürün *</label>
-                        {stokYukleniyor ? (
-                            <div className="text-zinc-500 text-sm py-2">Stoklar yükleniyor...</div>
-                        ) : !form.kaynakSubeId ? (
-                            <div className="text-zinc-600 text-sm py-2">Önce kaynak şube seçin</div>
-                        ) : stoklar.length === 0 ? (
-                            <div className="text-zinc-500 text-sm py-2">Bu şubede transfer edilebilir stok yok</div>
-                        ) : (
-                            <select
-                                value={form.stokKartId}
-                                onChange={e => setForm(f => ({ ...f, stokKartId: e.target.value, miktar: '' }))}
-                                className="w-full bg-zinc-800 text-white px-3 py-2 rounded-lg text-sm border border-zinc-700 focus:outline-none focus:border-lime-400"
-                            >
-                                <option value="">Ürün seçin...</option>
-                                {stoklar.map(s => (
-                                    <option key={s.id} value={s.id}>
-                                        {s.ad} — {miktarFormat(s.mevcutBakiye)} {s.birim.kisaltma}
-                                    </option>
-                                ))}
-                            </select>
-                        )}
-                    </div>
-
-                    {/* Mevcut bakiye göstergesi */}
-                    {secilenStok && (
-                        <div className="bg-zinc-800 rounded-lg px-4 py-3 flex items-center justify-between">
-                            <div>
-                                <p className="text-zinc-400 text-xs">Kaynak şubede mevcut</p>
-                                <p className="text-white font-semibold text-lg">
-                                    {miktarFormat(secilenStok.mevcutBakiye)}
-                                    <span className="text-zinc-400 text-sm font-normal ml-1">
-                                        {secilenStok.birim.kisaltma}
-                                    </span>
-                                </p>
-                            </div>
-                            <div className="text-right">
-                                <p className="text-zinc-400 text-xs">Kategori</p>
-                                <p className="text-zinc-300 text-sm">{secilenStok.kategori.ad}</p>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Miktar */}
-                    <div>
-                        <label className="text-zinc-400 text-xs block mb-1">Miktar *</label>
-                        <div className="relative">
-                            <input
-                                type="number"
-                                min="0"
-                                step="0.001"
-                                value={form.miktar}
-                                onChange={e => setForm(f => ({ ...f, miktar: e.target.value }))}
-                                disabled={!form.stokKartId}
-                                className="w-full bg-zinc-800 text-white px-3 py-2 rounded-lg text-sm border border-zinc-700 focus:outline-none focus:border-lime-400 disabled:opacity-40 pr-16"
-                                placeholder="0"
-                            />
-                            {secilenStok && (
-                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 text-xs">
-                                    {secilenStok.birim.kisaltma}
-                                </span>
+                        <div className="flex items-center justify-between mb-2">
+                            <label className="text-zinc-400 text-xs">Ürünler *</label>
+                            {kaynakSubeId && stoklar.length > 0 && (
+                                <button
+                                    onClick={kalemEkle}
+                                    className="text-lime-400 hover:text-lime-300 text-xs font-semibold"
+                                >
+                                    + Ürün Ekle
+                                </button>
                             )}
                         </div>
 
-                        {/* Miktar yüzde kısayolları */}
-                        {secilenStok && (
-                            <div className="flex gap-2 mt-2">
-                                {[25, 50, 75, 100].map(pct => (
-                                    <button
-                                        key={pct}
-                                        onClick={() => setForm(f => ({
-                                            ...f,
-                                            miktar: String(
-                                                Math.round(secilenStok.mevcutBakiye * pct / 100 * 1000) / 1000
-                                            ),
-                                        }))}
-                                        className="flex-1 text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white py-1 rounded"
-                                    >
-                                        %{pct}
-                                    </button>
-                                ))}
+                        {!kaynakSubeId ? (
+                            <p className="text-zinc-600 text-sm py-2">Önce kaynak şube seçin</p>
+                        ) : stoklar.length === 0 ? (
+                            <p className="text-zinc-500 text-sm py-2">Bu şubede transfer edilebilir stok yok</p>
+                        ) : (
+                            <div className="space-y-3">
+                                {kalemler.map((kalem, i) => {
+                                    const secilen = stokBakiye(kalem.stokKartId);
+                                    return (
+                                        <div key={i} className="bg-zinc-800 rounded-lg p-3 space-y-2">
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-zinc-500 text-xs">Ürün {i + 1}</span>
+                                                {kalemler.length > 1 && (
+                                                    <button
+                                                        onClick={() => kalemSil(i)}
+                                                        className="text-red-400 hover:text-red-300 text-xs"
+                                                    >
+                                                        Sil
+                                                    </button>
+                                                )}
+                                            </div>
+
+                                            <select
+                                                value={kalem.stokKartId}
+                                                onChange={e => kalemGuncelle(i, 'stokKartId', e.target.value)}
+                                                className="w-full bg-zinc-700 text-white px-3 py-2 rounded text-sm border border-zinc-600 focus:outline-none focus:border-lime-400"
+                                            >
+                                                <option value="">Ürün seçin...</option>
+                                                {stoklar.map(s => (
+                                                    <option key={s.id} value={s.id}>
+                                                        {s.ad} — {miktarFormat(s.mevcutBakiye)} {s.birim.kisaltma}
+                                                    </option>
+                                                ))}
+                                            </select>
+
+                                            {secilen && (
+                                                <div className="flex gap-2 items-center">
+                                                    <div className="relative flex-1">
+                                                        <input
+                                                            type="number"
+                                                            min="0"
+                                                            step="0.001"
+                                                            value={kalem.miktar}
+                                                            onChange={e => kalemGuncelle(i, 'miktar', e.target.value)}
+                                                            className="w-full bg-zinc-700 text-white px-3 py-2 rounded text-sm border border-zinc-600 focus:outline-none focus:border-lime-400 pr-12"
+                                                            placeholder="0"
+                                                        />
+                                                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 text-xs">
+                                                            {secilen.birim.kisaltma}
+                                                        </span>
+                                                    </div>
+                                                    {/* Yüzde Kısayolları */}
+                                                    <div className="flex gap-1">
+                                                        {[25, 50, 100].map(pct => (
+                                                            <button
+                                                                key={pct}
+                                                                onClick={() => kalemGuncelle(i, 'miktar', String(
+                                                                    Math.round(secilen.mevcutBakiye * pct / 100 * 1000) / 1000
+                                                                ))}
+                                                                className="text-xs bg-zinc-700 hover:bg-zinc-600 text-zinc-400 hover:text-white px-1.5 py-1 rounded"
+                                                            >
+                                                                %{pct}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
                             </div>
                         )}
                     </div>
@@ -326,8 +317,8 @@ export default function Transfer() {
                     <div>
                         <label className="text-zinc-400 text-xs block mb-1">Açıklama</label>
                         <input
-                            value={form.aciklama}
-                            onChange={e => setForm(f => ({ ...f, aciklama: e.target.value }))}
+                            value={aciklama}
+                            onChange={e => setAciklama(e.target.value)}
                             className="w-full bg-zinc-800 text-white px-3 py-2 rounded-lg text-sm border border-zinc-700 focus:outline-none focus:border-lime-400"
                             placeholder="İsteğe bağlı not..."
                         />
@@ -336,61 +327,49 @@ export default function Transfer() {
                     {/* Gönder */}
                     <button
                         onClick={gonder}
-                        disabled={gonderiyor || !form.kaynakSubeId || !form.hedefSubeId || !form.stokKartId || !form.miktar}
+                        disabled={gonderiyor || !kaynakSubeId || !hedefSubeId || kalemler.every(k => !k.stokKartId || !k.miktar)}
                         className="w-full bg-lime-400 text-zinc-900 py-2.5 rounded-lg text-sm font-semibold hover:bg-lime-300 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                     >
-                        {gonderiyor ? 'Transfer yapılıyor...' : 'Transferi Gerçekleştir'}
+                        {gonderiyor ? 'Transfer yapılıyor...' : `${kalemler.filter(k => k.stokKartId && k.miktar).length} Ürün Transferini Gerçekleştir`}
                     </button>
                 </div>
 
-                {/* ── Sağ: Transfer geçmişi ────────────────────────────────── */}
+                {/* ── Sağ: Transfer Geçmişi ────────────────────────────── */}
                 <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 space-y-4">
                     <h2 className="text-white font-semibold text-base">Son Transferler</h2>
 
                     {gecmisYukleniyor ? (
                         <div className="text-zinc-500 text-sm text-center py-8">Yükleniyor...</div>
                     ) : gecmis.length === 0 ? (
-                        <div className="text-zinc-600 text-sm text-center py-8">
-                            Henüz transfer yapılmamış
-                        </div>
+                        <div className="text-zinc-600 text-sm text-center py-8">Henüz transfer yapılmamış</div>
                     ) : (
-                        <div className="space-y-2 max-h-400 overflow-y-auto pr-1">
+                        <div className="space-y-2 max-h-[500px] overflow-y-auto pr-1">
                             {gecmis.map(h => (
                                 <div
                                     key={h.id}
                                     className="bg-zinc-800 rounded-lg px-4 py-3 flex items-start justify-between gap-3"
                                 >
                                     <div className="flex items-start gap-3 min-w-0">
-                                        {/* IN / OUT badge */}
                                         <span className={`shrink-0 text-xs px-2 py-0.5 rounded-full font-medium mt-0.5 ${h.tip === 'SUBE_TRANSFER_IN'
-                                            ? 'bg-emerald-900/50 text-emerald-400'
-                                            : 'bg-red-900/50 text-red-400'
+                                                ? 'bg-emerald-900/50 text-emerald-400'
+                                                : 'bg-red-900/50 text-red-400'
                                             }`}>
                                             {h.tip === 'SUBE_TRANSFER_IN' ? 'GİRİŞ' : 'ÇIKIŞ'}
                                         </span>
                                         <div className="min-w-0">
-                                            <p className="text-white text-sm font-medium truncate">
-                                                {h.stokKart.ad}
-                                            </p>
-                                            <p className="text-zinc-400 text-xs truncate">
-                                                {h.sube.ad}
-                                            </p>
+                                            <p className="text-white text-sm font-medium truncate">{h.stokKart.ad}</p>
+                                            <p className="text-zinc-400 text-xs truncate">{h.sube.ad}</p>
                                             {h.aciklama && (
-                                                <p className="text-zinc-500 text-xs truncate mt-0.5">
-                                                    {h.aciklama}
-                                                </p>
+                                                <p className="text-zinc-500 text-xs truncate mt-0.5">{h.aciklama}</p>
                                             )}
                                         </div>
                                     </div>
                                     <div className="text-right shrink-0">
                                         <p className={`text-sm font-semibold ${h.tip === 'SUBE_TRANSFER_IN' ? 'text-emerald-400' : 'text-red-400'
                                             }`}>
-                                            {h.tip === 'SUBE_TRANSFER_IN' ? '+' : '-'}
-                                            {miktarFormat(h.miktar)}
+                                            {h.tip === 'SUBE_TRANSFER_IN' ? '+' : '-'}{miktarFormat(h.miktar)}
                                         </p>
-                                        <p className="text-zinc-500 text-xs mt-0.5">
-                                            {tarihFormat(h.tarih)}
-                                        </p>
+                                        <p className="text-zinc-500 text-xs mt-0.5">{tarihFormat(h.tarih)}</p>
                                     </div>
                                 </div>
                             ))}

@@ -116,8 +116,6 @@ model Sube {
   satislar        Satis[]
   personeller     Personel[]
   merkezDagitimlar MerkezDagitim[] @relation("merkezDagitim")
-  planliTransferKaynak PlanliTransfer[] @relation("planliKaynak")  // ← EKLE
-  planliTransferHedef  PlanliTransfer[] @relation("planliHedef") 
   kalemKaynaklar PlanliTransferKalem[] @relation("kalemKaynak")
   kalemHedefler  PlanliTransferKalem[] @relation("kalemHedef")
 
@@ -178,7 +176,6 @@ model StokKart {
   receteKalemleri      ReceteKalem[]
   cariHareketKalemleri CariHareketKalem[]
   merkezDepolar MerkezDepo[]
-  planliTransferler PlanliTransfer[]
   planliTransferKalemleri PlanliTransferKalem[]
 
   @@unique([kod, tenantId])

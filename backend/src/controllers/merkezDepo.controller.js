@@ -1,10 +1,8 @@
-// backend/src/controllers/merkezDepo.controller.js
-
 const merkezDepoService = require('../services/merkezDepo.service');
-const { auditLogKaydet } = require('../services/auditLog.service');
+const auditLog = require('../services/auditLog.service');
 
 const merkezDepoController = {
-    // POST /api/merkezdepo/tanim — Tanım ekle/güncelle
+
     async taninmEkle(req, res) {
         try {
             const tenantId = req.kullanici.tenantId;
@@ -18,10 +16,12 @@ const merkezDepoController = {
                 aciklama
             });
 
-            await auditLogKaydet(req.kullanici.id, tenantId, 'MERKEZ_DEPO_TANIM_EKLE', {
-                stokKartId,
-                minStokSeviyesi,
-                otomatiDagit
+            await auditLog.kaydet({
+                eylem: 'MERKEZ_DEPO_TANIM_EKLE',
+                detay: { stokKartId, minStokSeviyesi, otomatiDagit },
+                kullaniciId: req.kullanici.id,
+                tenantId,
+                ip: req.ip
             });
 
             res.status(201).json(sonuc);
@@ -30,7 +30,6 @@ const merkezDepoController = {
         }
     },
 
-    // GET /api/merkezdepo/tanimlar — Tüm tanımları getir
     async tanimlarGetir(req, res) {
         try {
             const tenantId = req.kullanici.tenantId;
@@ -41,7 +40,6 @@ const merkezDepoController = {
         }
     },
 
-    // DELETE /api/merkezdepo/tanim/:id — Tanım sil
     async taninmSil(req, res) {
         try {
             const tenantId = req.kullanici.tenantId;
@@ -49,8 +47,12 @@ const merkezDepoController = {
 
             const sonuc = await merkezDepoService.sil(Number(id), tenantId);
 
-            await auditLogKaydet(req.kullanici.id, tenantId, 'MERKEZ_DEPO_TANIM_SIL', {
-                merkezDepoId: id
+            await auditLog.kaydet({
+                eylem: 'MERKEZ_DEPO_TANIM_SIL',
+                detay: { merkezDepoId: id },
+                kullaniciId: req.kullanici.id,
+                tenantId,
+                ip: req.ip
             });
 
             res.json({ mesaj: 'Tanım silindi', sonuc });
@@ -59,7 +61,6 @@ const merkezDepoController = {
         }
     },
 
-    // POST /api/merkezdepo/dagit — Manual dağıtım yap
     async manuelDagit(req, res) {
         try {
             const tenantId = req.kullanici.tenantId;
@@ -73,22 +74,20 @@ const merkezDepoController = {
                 aciklama
             });
 
-            await auditLogKaydet(req.kullanici.id, tenantId, 'MERKEZ_DEPO_MANUEL_DAGIT', {
-                merkezDepoId,
-                hedefSubeId,
-                miktar
+            await auditLog.kaydet({
+                eylem: 'MERKEZ_DEPO_MANUEL_DAGIT',
+                detay: { merkezDepoId, hedefSubeId, miktar },
+                kullaniciId: req.kullanici.id,
+                tenantId,
+                ip: req.ip
             });
 
-            res.status(201).json({
-                mesaj: 'Dağıtım yapıldı',
-                dagitim: sonuc
-            });
+            res.status(201).json({ mesaj: 'Dağıtım yapıldı', dagitim: sonuc });
         } catch (err) {
             res.status(400).json({ hata: err.message });
         }
     },
 
-    // GET /api/merkezdepo/gecmis — Dağıtım geçmişi
     async dagitimGecmisiGetir(req, res) {
         try {
             const tenantId = req.kullanici.tenantId;
@@ -106,7 +105,6 @@ const merkezDepoController = {
         }
     },
 
-    // GET /api/merkezdepo/durum — Merkez depo durumu
     async durumuGetir(req, res) {
         try {
             const tenantId = req.kullanici.tenantId;

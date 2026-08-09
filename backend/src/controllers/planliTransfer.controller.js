@@ -1,5 +1,5 @@
 const planliTransferService = require('../services/planliTransfer.service');
-const { auditLogKaydet } = require('../services/auditLog.service');
+const auditLog = require('../services/auditLog.service');
 
 const planliTransferController = {
 
@@ -8,8 +8,12 @@ const planliTransferController = {
             const tenantId = req.kullanici.tenantId;
             const sonuc = await planliTransferService.olustur({ tenantId, ...req.body });
 
-            await auditLogKaydet(req.kullanici.id, tenantId, 'PLANLI_TRANSFER_OLUSTUR', {
-                ad: req.body.ad, miktar: req.body.miktar
+            await auditLog.kaydet({
+                eylem: 'PLANLI_TRANSFER_OLUSTUR',
+                detay: { ad: req.body.ad, miktar: req.body.miktar },
+                kullaniciId: req.kullanici.id,
+                tenantId,
+                ip: req.ip
             });
 
             res.status(201).json(sonuc);
@@ -69,8 +73,12 @@ const planliTransferController = {
                 req.kullanici.tenantId
             );
 
-            await auditLogKaydet(req.kullanici.id, req.kullanici.tenantId, 'PLANLI_TRANSFER_MANUEL', {
-                planId: req.params.id
+            await auditLog.kaydet({
+                eylem: 'PLANLI_TRANSFER_MANUEL',
+                detay: { planId: req.params.id },
+                kullaniciId: req.kullanici.id,
+                tenantId: req.kullanici.tenantId,
+                ip: req.ip
             });
 
             res.json(sonuc);

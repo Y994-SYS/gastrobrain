@@ -18,6 +18,8 @@ const gunEtiket = (gunler) => {
     return gunler.split(',').map(g => GUNLER.find(d => d.value === Number(g))?.label).filter(Boolean).join(', ');
 };
 
+const bos_kalem = () => ({ stokKartId: '', kaynakSubeId: '', hedefSubeId: '', miktar: '', aciklama: '' });
+
 export default function PlanliTransfer() {
     const navigate = useNavigate();
     const [paketYukleniyor, setPaketYukleniyor] = useState(true);
@@ -31,15 +33,12 @@ export default function PlanliTransfer() {
 
     const [form, setForm] = useState({
         ad: '',
-        stokKartId: '',
-        kaynakSubeId: '',
-        hedefSubeId: '',
-        miktar: '',
         gunler: [],
         saat: '6',
         dakika: '0',
         aktif: true,
-        aciklama: ''
+        aciklama: '',
+        kalemler: [bos_kalem()]
     });
 
     // ── Paket Kontrolü ────────────────────────────────────────
@@ -48,7 +47,6 @@ export default function PlanliTransfer() {
             try {
                 const res = await api.get('/api/auth/beni-getir');
                 const tenantPaket = res.data.tenant?.plan;
-
                 if (tenantPaket === 'BASLANGIC') {
                     setYetkisiz(true);
                     setTimeout(() => navigate('/abonelik?reason=planliTransfer'), 2000);
@@ -75,7 +73,7 @@ export default function PlanliTransfer() {
             setPlanlar(toArray(planRes.data));
             setSubeler(toArray(subeRes.data).filter(s => s.aktif));
             setStokKartlari(toArray(stokRes.data));
-        } catch (err) {
+        } catch {
             toast.error('Veriler yüklenemedi');
         } finally {
             setYukleniyor(false);
@@ -86,29 +84,54 @@ export default function PlanliTransfer() {
         if (!yetkisiz && !paketYukleniyor) verileriYukle();
     }, [yetkisiz, paketYukleniyor]);
 
+    // ── Kalem İşlemleri ───────────────────────────────────────
+    const kalemEkle = () => {
+        setForm(f => ({ ...f, kalemler: [...f.kalemler, bos_kalem()] }));
+    };
+
+    const kalemSil = (index) => {
+        setForm(f => ({ ...f, kalemler: f.kalemler.filter((_, i) => i !== index) }));
+    };
+
+    const kalemGuncelle = (index, alan, deger) => {
+        setForm(f => ({
+            ...f,
+            kalemler: f.kalemler.map((k, i) => i === index ? { ...k, [alan]: deger } : k)
+        }));
+    };
+
     // ── Plan Oluştur ──────────────────────────────────────────
     const planOlustur = async () => {
         if (!form.ad) { toast.error('Plan adı girin'); return; }
-        if (!form.stokKartId) { toast.error('Stok kartı seçin'); return; }
-        if (!form.kaynakSubeId) { toast.error('Kaynak şube seçin'); return; }
-        if (!form.hedefSubeId) { toast.error('Hedef şube seçin'); return; }
-        if (!form.miktar) { toast.error('Miktar girin'); return; }
         if (form.gunler.length === 0) { toast.error('En az bir gün seçin'); return; }
-        if (form.kaynakSubeId === form.hedefSubeId) { toast.error('Kaynak ve hedef şube aynı olamaz'); return; }
+        if (form.kalemler.length === 0) { toast.error('En az bir kalem ekleyin'); return; }
+
+        for (const [i, k] of form.kalemler.entries()) {
+            if (!k.stokKartId) { toast.error(`${i + 1}. kalemde stok kartı seçin`); return; }
+            if (!k.kaynakSubeId) { toast.error(`${i + 1}. kalemde kaynak şube seçin`); return; }
+            if (!k.hedefSubeId) { toast.error(`${i + 1}. kalemde hedef şube seçin`); return; }
+            if (!k.miktar || parseFloat(k.miktar) <= 0) { toast.error(`${i + 1}. kalemde miktar girin`); return; }
+            if (k.kaynakSubeId === k.hedefSubeId) { toast.error(`${i + 1}. kalemde kaynak ve hedef şube aynı olamaz`); return; }
+        }
 
         try {
             await api.post('/api/planli-transfer', {
-                ...form,
-                stokKartId: parseInt(form.stokKartId),
-                kaynakSubeId: parseInt(form.kaynakSubeId),
-                hedefSubeId: parseInt(form.hedefSubeId),
-                miktar: parseFloat(form.miktar),
+                ad: form.ad,
+                gunler: form.gunler.join(','),
                 saat: parseInt(form.saat),
                 dakika: parseInt(form.dakika),
-                gunler: form.gunler.join(','),
+                aktif: form.aktif,
+                aciklama: form.aciklama,
+                kalemler: form.kalemler.map(k => ({
+                    stokKartId: parseInt(k.stokKartId),
+                    kaynakSubeId: parseInt(k.kaynakSubeId),
+                    hedefSubeId: parseInt(k.hedefSubeId),
+                    miktar: parseFloat(k.miktar),
+                    aciklama: k.aciklama || undefined,
+                }))
             });
             toast.success('Plan oluşturuldu');
-            setForm({ ad: '', stokKartId: '', kaynakSubeId: '', hedefSubeId: '', miktar: '', gunler: [], saat: '6', dakika: '0', aktif: true, aciklama: '' });
+            setForm({ ad: '', gunler: [], saat: '6', dakika: '0', aktif: true, aciklama: '', kalemler: [bos_kalem()] });
             setFormAcik(false);
             verileriYukle();
         } catch (err) {
@@ -116,7 +139,6 @@ export default function PlanliTransfer() {
         }
     };
 
-    // ── Plan Sil ──────────────────────────────────────────────
     const planSil = async (id) => {
         if (!confirm('Bu planı silmek istediğinize emin misiniz?')) return;
         try {
@@ -128,7 +150,6 @@ export default function PlanliTransfer() {
         }
     };
 
-    // ── Aktif/Pasif ───────────────────────────────────────────
     const aktifPasifYap = async (id, aktif) => {
         try {
             await api.patch(`/api/planli-transfer/${id}/aktif`, { aktif });
@@ -139,18 +160,16 @@ export default function PlanliTransfer() {
         }
     };
 
-    // ── Hemen Çalıştır ────────────────────────────────────────
     const hemenCalistir = async (id) => {
         try {
             const res = await api.post(`/api/planli-transfer/${id}/calistir`);
-            toast.success(`Transfer yapıldı: ${res.data.miktar} ${res.data.kaynakSube} → ${res.data.hedefSube}`);
+            toast.success(`${res.data.kalemSayisi} transfer tamamlandı: ${res.data.plan}`);
             verileriYukle();
         } catch (err) {
             toast.error(err.response?.data?.hata || 'Hata oluştu');
         }
     };
 
-    // ── Gün Seçimi ────────────────────────────────────────────
     const gunToggle = (gun) => {
         setForm(f => ({
             ...f,
@@ -161,9 +180,7 @@ export default function PlanliTransfer() {
     };
 
     // ─── Render Guard'ları ────────────────────────────────────
-    if (paketYukleniyor) {
-        return <div className="flex items-center justify-center h-screen"><p className="text-zinc-400">Yükleniyor...</p></div>;
-    }
+    if (paketYukleniyor) return <div className="flex items-center justify-center h-screen"><p className="text-zinc-400">Yükleniyor...</p></div>;
 
     if (yetkisiz) {
         return (
@@ -177,17 +194,14 @@ export default function PlanliTransfer() {
         );
     }
 
-    if (yukleniyor) {
-        return <div className="flex items-center justify-center h-64"><p className="text-zinc-400">Veriler yükleniyor...</p></div>;
-    }
+    if (yukleniyor) return <div className="flex items-center justify-center h-64"><p className="text-zinc-400">Veriler yükleniyor...</p></div>;
 
-    // ─── Ana Render ───────────────────────────────────────────
     return (
         <div className="p-6 space-y-6">
             <div className="flex items-center justify-between">
                 <div>
                     <h1 className="text-2xl font-bold text-white">Planlı Transferler</h1>
-                    <p className="text-zinc-500 text-sm mt-1">Otomatik stok transferlerini planlayın</p>
+                    <p className="text-zinc-500 text-sm mt-1">Birden fazla ürünü tek planda otomatik transfer edin</p>
                 </div>
                 <button
                     onClick={() => setFormAcik(!formAcik)}
@@ -199,9 +213,10 @@ export default function PlanliTransfer() {
 
             {/* Yeni Plan Formu */}
             {formAcik && (
-                <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 space-y-4">
+                <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 space-y-6">
                     <h2 className="text-white font-semibold">Yeni Planlı Transfer</h2>
 
+                    {/* Plan Bilgileri */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label className="text-zinc-400 text-xs block mb-1">Plan Adı *</label>
@@ -210,61 +225,13 @@ export default function PlanliTransfer() {
                                 value={form.ad}
                                 onChange={e => setForm(f => ({ ...f, ad: e.target.value }))}
                                 className="w-full bg-zinc-800 text-white px-3 py-2 rounded-lg text-sm border border-zinc-700 focus:outline-none focus:border-lime-400"
-                                placeholder="Örn: Pazartesi Un Dağıtımı"
-                            />
-                        </div>
-
-                        <div>
-                            <label className="text-zinc-400 text-xs block mb-1">Stok Kartı *</label>
-                            <select
-                                value={form.stokKartId}
-                                onChange={e => setForm(f => ({ ...f, stokKartId: e.target.value }))}
-                                className="w-full bg-zinc-800 text-white px-3 py-2 rounded-lg text-sm border border-zinc-700 focus:outline-none focus:border-lime-400"
-                            >
-                                <option value="">Seçin...</option>
-                                {stokKartlari.map(k => <option key={k.id} value={k.id}>{k.ad}</option>)}
-                            </select>
-                        </div>
-
-                        <div>
-                            <label className="text-zinc-400 text-xs block mb-1">Kaynak Şube *</label>
-                            <select
-                                value={form.kaynakSubeId}
-                                onChange={e => setForm(f => ({ ...f, kaynakSubeId: e.target.value }))}
-                                className="w-full bg-zinc-800 text-white px-3 py-2 rounded-lg text-sm border border-zinc-700 focus:outline-none focus:border-lime-400"
-                            >
-                                <option value="">Seçin...</option>
-                                {subeler.map(s => <option key={s.id} value={s.id}>{s.ad}</option>)}
-                            </select>
-                        </div>
-
-                        <div>
-                            <label className="text-zinc-400 text-xs block mb-1">Hedef Şube *</label>
-                            <select
-                                value={form.hedefSubeId}
-                                onChange={e => setForm(f => ({ ...f, hedefSubeId: e.target.value }))}
-                                className="w-full bg-zinc-800 text-white px-3 py-2 rounded-lg text-sm border border-zinc-700 focus:outline-none focus:border-lime-400"
-                            >
-                                <option value="">Seçin...</option>
-                                {subeler.filter(s => s.id !== parseInt(form.kaynakSubeId)).map(s => <option key={s.id} value={s.id}>{s.ad}</option>)}
-                            </select>
-                        </div>
-
-                        <div>
-                            <label className="text-zinc-400 text-xs block mb-1">Miktar *</label>
-                            <input
-                                type="number"
-                                step="0.01"
-                                value={form.miktar}
-                                onChange={e => setForm(f => ({ ...f, miktar: e.target.value }))}
-                                className="w-full bg-zinc-800 text-white px-3 py-2 rounded-lg text-sm border border-zinc-700 focus:outline-none focus:border-lime-400"
-                                placeholder="0"
+                                placeholder="Örn: Pazartesi Merkez Dağıtımı"
                             />
                         </div>
 
                         <div>
                             <label className="text-zinc-400 text-xs block mb-1">Saat *</label>
-                            <div className="flex gap-2">
+                            <div className="flex gap-2 items-center">
                                 <select
                                     value={form.saat}
                                     onChange={e => setForm(f => ({ ...f, saat: e.target.value }))}
@@ -274,7 +241,7 @@ export default function PlanliTransfer() {
                                         <option key={i} value={i}>{String(i).padStart(2, '0')}</option>
                                     ))}
                                 </select>
-                                <span className="text-zinc-400 flex items-center">:</span>
+                                <span className="text-zinc-400">:</span>
                                 <select
                                     value={form.dakika}
                                     onChange={e => setForm(f => ({ ...f, dakika: e.target.value }))}
@@ -288,7 +255,7 @@ export default function PlanliTransfer() {
                         </div>
                     </div>
 
-                    {/* Gün Seçimi */}
+                    {/* Günler */}
                     <div>
                         <label className="text-zinc-400 text-xs block mb-2">Günler *</label>
                         <div className="flex gap-2 flex-wrap">
@@ -303,6 +270,89 @@ export default function PlanliTransfer() {
                                 >
                                     {g.label}
                                 </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Kalemler */}
+                    <div>
+                        <div className="flex items-center justify-between mb-3">
+                            <label className="text-white font-medium text-sm">Transfer Kalemleri *</label>
+                            <button
+                                onClick={kalemEkle}
+                                className="text-lime-400 hover:text-lime-300 text-xs font-semibold"
+                            >
+                                + Kalem Ekle
+                            </button>
+                        </div>
+
+                        <div className="space-y-3">
+                            {form.kalemler.map((kalem, index) => (
+                                <div key={index} className="bg-zinc-800 rounded-lg p-4 space-y-3">
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-zinc-400 text-xs font-medium">Kalem {index + 1}</span>
+                                        {form.kalemler.length > 1 && (
+                                            <button
+                                                onClick={() => kalemSil(index)}
+                                                className="text-red-400 hover:text-red-300 text-xs"
+                                            >
+                                                Sil
+                                            </button>
+                                        )}
+                                    </div>
+
+                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                        <div>
+                                            <label className="text-zinc-500 text-xs block mb-1">Ürün *</label>
+                                            <select
+                                                value={kalem.stokKartId}
+                                                onChange={e => kalemGuncelle(index, 'stokKartId', e.target.value)}
+                                                className="w-full bg-zinc-700 text-white px-2 py-1.5 rounded text-xs border border-zinc-600 focus:outline-none focus:border-lime-400"
+                                            >
+                                                <option value="">Seçin...</option>
+                                                {stokKartlari.map(k => <option key={k.id} value={k.id}>{k.ad}</option>)}
+                                            </select>
+                                        </div>
+
+                                        <div>
+                                            <label className="text-zinc-500 text-xs block mb-1">Kaynak *</label>
+                                            <select
+                                                value={kalem.kaynakSubeId}
+                                                onChange={e => kalemGuncelle(index, 'kaynakSubeId', e.target.value)}
+                                                className="w-full bg-zinc-700 text-white px-2 py-1.5 rounded text-xs border border-zinc-600 focus:outline-none focus:border-lime-400"
+                                            >
+                                                <option value="">Seçin...</option>
+                                                {subeler.map(s => <option key={s.id} value={s.id}>{s.ad}</option>)}
+                                            </select>
+                                        </div>
+
+                                        <div>
+                                            <label className="text-zinc-500 text-xs block mb-1">Hedef *</label>
+                                            <select
+                                                value={kalem.hedefSubeId}
+                                                onChange={e => kalemGuncelle(index, 'hedefSubeId', e.target.value)}
+                                                className="w-full bg-zinc-700 text-white px-2 py-1.5 rounded text-xs border border-zinc-600 focus:outline-none focus:border-lime-400"
+                                            >
+                                                <option value="">Seçin...</option>
+                                                {subeler.filter(s => s.id !== parseInt(kalem.kaynakSubeId)).map(s => (
+                                                    <option key={s.id} value={s.id}>{s.ad}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+
+                                        <div>
+                                            <label className="text-zinc-500 text-xs block mb-1">Miktar *</label>
+                                            <input
+                                                type="number"
+                                                step="0.01"
+                                                value={kalem.miktar}
+                                                onChange={e => kalemGuncelle(index, 'miktar', e.target.value)}
+                                                className="w-full bg-zinc-700 text-white px-2 py-1.5 rounded text-xs border border-zinc-600 focus:outline-none focus:border-lime-400"
+                                                placeholder="0"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
                             ))}
                         </div>
                     </div>
@@ -331,61 +381,49 @@ export default function PlanliTransfer() {
             {planlar.length === 0 ? (
                 <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-12 text-center">
                     <p className="text-zinc-400 mb-2">⏰ Henüz planlı transfer yok</p>
-                    <p className="text-zinc-500 text-sm">Yukarıdaki "+ Yeni Plan" butonu ile oluşturabilirsiniz</p>
+                    <p className="text-zinc-500 text-sm">"+ Yeni Plan" ile oluşturun</p>
                 </div>
             ) : (
                 <div className="space-y-3">
                     {planlar.map(plan => (
                         <div
                             key={plan.id}
-                            className={`bg-zinc-900 border rounded-xl p-4 ${plan.aktif ? 'border-zinc-800' : 'border-zinc-700 opacity-60'
-                                }`}
+                            className={`bg-zinc-900 border rounded-xl p-4 ${plan.aktif ? 'border-zinc-800' : 'border-zinc-700 opacity-60'}`}
                         >
                             <div className="flex items-start justify-between gap-4">
                                 <div className="flex-1">
-                                    <div className="flex items-center gap-2">
+                                    <div className="flex items-center gap-2 flex-wrap">
                                         <p className="text-white font-semibold">{plan.ad}</p>
-                                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${plan.aktif
-                                                ? 'bg-green-900/50 text-green-400'
-                                                : 'bg-zinc-700 text-zinc-400'
-                                            }`}>
+                                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${plan.aktif ? 'bg-green-900/50 text-green-400' : 'bg-zinc-700 text-zinc-400'}`}>
                                             {plan.aktif ? 'Aktif' : 'Pasif'}
+                                        </span>
+                                        <span className="text-xs text-zinc-500">
+                                            {gunEtiket(plan.gunler)} — {String(plan.saat).padStart(2, '0')}:{String(plan.dakika).padStart(2, '0')}
                                         </span>
                                     </div>
 
-                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3">
-                                        <div>
-                                            <p className="text-zinc-500 text-xs">Ürün</p>
-                                            <p className="text-zinc-300 text-sm">{plan.stokKart?.ad}</p>
-                                        </div>
-                                        <div>
-                                            <p className="text-zinc-500 text-xs">Miktar</p>
-                                            <p className="text-zinc-300 text-sm font-semibold text-lime-400">
-                                                {plan.miktar} {plan.stokKart?.birim?.kisaltma}
-                                            </p>
-                                        </div>
-                                        <div>
-                                            <p className="text-zinc-500 text-xs">Kaynak → Hedef</p>
-                                            <p className="text-zinc-300 text-sm">
-                                                {plan.kaynakSube?.ad} → {plan.hedefSube?.ad}
-                                            </p>
-                                        </div>
-                                        <div>
-                                            <p className="text-zinc-500 text-xs">Zamanlama</p>
-                                            <p className="text-zinc-300 text-sm">
-                                                {gunEtiket(plan.gunler)} {String(plan.saat).padStart(2, '0')}:{String(plan.dakika).padStart(2, '0')}
-                                            </p>
-                                        </div>
+                                    {/* Kalemler */}
+                                    <div className="mt-3 space-y-1">
+                                        {plan.kalemler?.map((k, i) => (
+                                            <div key={i} className="flex items-center gap-2 text-xs text-zinc-400">
+                                                <span className="text-zinc-600">•</span>
+                                                <span className="text-zinc-300 font-medium">{k.stokKart?.ad}</span>
+                                                <span className="text-lime-400">{k.miktar} {k.stokKart?.birim?.kisaltma}</span>
+                                                <span className="text-zinc-600">→</span>
+                                                <span>{k.kaynakSube?.ad}</span>
+                                                <span className="text-zinc-600">→</span>
+                                                <span>{k.hedefSube?.ad}</span>
+                                            </div>
+                                        ))}
                                     </div>
 
                                     {plan.sonCalisma && (
-                                        <p className="text-zinc-500 text-xs mt-2">
+                                        <p className="text-zinc-600 text-xs mt-2">
                                             Son çalışma: {new Date(plan.sonCalisma).toLocaleString('tr-TR')}
                                         </p>
                                     )}
                                 </div>
 
-                                {/* Aksiyon Butonları */}
                                 <div className="flex flex-col gap-2 shrink-0">
                                     <button
                                         onClick={() => hemenCalistir(plan.id)}

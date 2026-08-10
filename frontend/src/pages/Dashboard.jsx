@@ -141,6 +141,132 @@ function SubeOzetiPanel() {
     );
 }
 
+// ─── Merkez Depo Uyarı Paneli ─────────────────────────────────────────────────
+function MerkezDepoUyariPanel() {
+    const [uyarilar, setUyarilar] = useState([]);
+    const [yukleniyor, setYukleniyor] = useState(true);
+    const navigate = useNavigate();
+
+    useEffect(() => {
+        api.get('/api/merkezdepo/durum')
+            .then(r => {
+                const toArray = (d) => Array.isArray(d) ? d : [];
+                const kritikler = toArray(r.data).filter(u => u.durum === 'UYARI');
+                setUyarilar(kritikler);
+            })
+            .catch(() => { })
+            .finally(() => setYukleniyor(false));
+    }, []);
+
+    if (!yukleniyor && uyarilar.length === 0) return null;
+
+    return (
+        <div className="bg-zinc-900 border border-red-500/20 rounded-2xl overflow-hidden mb-4">
+            <div className="p-4 border-b border-zinc-800 flex justify-between items-center">
+                <h2 className="text-sm font-bold text-white">🏭 Merkez Depo Uyarıları</h2>
+                <button
+                    onClick={() => navigate('/merkezdepo')}
+                    className="text-xs text-zinc-500 hover:text-lime-400 transition-colors"
+                >
+                    Yönet →
+                </button>
+            </div>
+            {yukleniyor ? <SkeletonListe satir={2} /> : (
+                <div className="divide-y divide-zinc-800">
+                    {uyarilar.map((u, i) => (
+                        <div key={i} className="px-4 py-3 flex justify-between items-center">
+                            <div>
+                                <p className="text-sm text-white">{u.tanim}</p>
+                                <p className="text-xs text-zinc-500">
+                                    {u.altindaSayisi} şube min. stok altında
+                                </p>
+                            </div>
+                            <span className="text-xs bg-red-900/50 text-red-400 px-2 py-1 rounded-lg font-bold">
+                                ⚠️ Kritik
+                            </span>
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+}
+
+// ─── Planlı Transfer Özet Paneli ──────────────────────────────────────────────
+function PlanliTransferPanel() {
+    const [planlar, setPlanlar] = useState([]);
+    const [yukleniyor, setYukleniyor] = useState(true);
+    const navigate = useNavigate();
+
+    const GUNLER = ['Pazar', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi'];
+    const bugunGun = new Date().getDay();
+
+    useEffect(() => {
+        api.get('/api/planli-transfer')
+            .then(r => {
+                const toArray = (d) => Array.isArray(d) ? d : d?.data || [];
+                // Bugün çalışacak aktif planlar
+                const bugunPlanlar = toArray(r.data).filter(p => {
+                    if (!p.aktif) return false;
+                    const gunler = p.gunler.split(',').map(Number);
+                    return gunler.includes(bugunGun);
+                });
+                setPlanlar(bugunPlanlar);
+            })
+            .catch(() => { })
+            .finally(() => setYukleniyor(false));
+    }, []);
+
+    if (!yukleniyor && planlar.length === 0) return null;
+
+    return (
+        <div className="bg-zinc-900 border border-blue-500/20 rounded-2xl overflow-hidden mb-4">
+            <div className="p-4 border-b border-zinc-800 flex justify-between items-center">
+                <h2 className="text-sm font-bold text-white">
+                    ⏰ Bugün Çalışacak Transferler
+                    {planlar.length > 0 && (
+                        <span className="ml-2 text-xs bg-blue-400/20 text-blue-400 px-2 py-0.5 rounded-full">
+                            {planlar.length}
+                        </span>
+                    )}
+                </h2>
+                <button
+                    onClick={() => navigate('/stok/planli-transfer')}
+                    className="text-xs text-zinc-500 hover:text-lime-400 transition-colors"
+                >
+                    Tümü →
+                </button>
+            </div>
+            {yukleniyor ? <SkeletonListe satir={2} /> : (
+                <div className="divide-y divide-zinc-800">
+                    {planlar.map(plan => (
+                        <div key={plan.id} className="px-4 py-3 flex justify-between items-center">
+                            <div>
+                                <p className="text-sm text-white">{plan.ad}</p>
+                                <p className="text-xs text-zinc-500">
+                                    {plan.kalemler?.length || 0} ürün —
+                                    saat {String(plan.saat).padStart(2, '0')}:{String(plan.dakika).padStart(2, '0')}
+                                </p>
+                            </div>
+                            <div className="text-right">
+                                {plan.sonCalisma ? (
+                                    <span className="text-xs bg-green-900/50 text-green-400 px-2 py-1 rounded-lg">
+                                        ✓ Çalıştı
+                                    </span>
+                                ) : (
+                                    <span className="text-xs bg-blue-900/50 text-blue-400 px-2 py-1 rounded-lg">
+                                        Bekliyor
+                                    </span>
+                                )}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+}
+
 // ─── Personel Dashboard ───────────────────────────────────────────────────────
 function PersonelDashboard() {
     const { kullanici } = useAuthStore();
@@ -272,6 +398,12 @@ function YonetimDashboard() {
 
             {/* Şube Özeti — sadece TENANT_ADMIN + birden fazla şube */}
             {rol === 'TENANT_ADMIN' && <SubeOzetiPanel />}
+
+            {/* Merkez Depo Uyarıları — TENANT_ADMIN + MUDUR */}
+            {(rol === 'TENANT_ADMIN' || rol === 'MUDUR') && <MerkezDepoUyariPanel />}
+
+            {/* Planlı Transfer Özeti — TENANT_ADMIN + MUDUR */}
+            {(rol === 'TENANT_ADMIN' || rol === 'MUDUR') && <PlanliTransferPanel />}
 
             {/* Özet Kartlar */}
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">

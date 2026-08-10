@@ -226,6 +226,177 @@ Devam Ekle: Günlük çalışma durumunu kaydedin (Çalıştı, İzin, Rapor, De
             },
         ]
     },
+    {
+        id: 'subeler',
+        icon: '🏪',
+        baslik: 'Çok Şubeli Yönetim',
+        konular: [
+            {
+                baslik: 'Şube nasıl eklenir?',
+                icerik: `Tanımlamalar → Şubeler sayfasına gidin → "Yeni Şube" butonuna tıklayın.
+
+Şube adı, adres ve telefon bilgilerini girin. Şube oluşturulduktan sonra kullanıcıları bu şubeye atayabilirsiniz.
+
+Not: Şube eklemek PROFESYONEL veya KURUMSAL plan gerektirir.`
+            },
+            {
+                baslik: 'Şubeler arası stok transferi nasıl yapılır?',
+                icerik: `Stok → Şube Transferi sayfasına gidin.
+
+1. Kaynak şubeyi seçin (stok alınacak şube)
+2. Hedef şubeyi seçin (stok gönderilecek şube)
+3. "+ Ürün Ekle" ile birden fazla ürün ekleyebilirsiniz
+4. Her ürün için miktar girin
+5. "Transferi Gerçekleştir" butonuna tıklayın
+
+Transfer tamamlandığında kaynak şubeden stok düşer, hedef şubeye eklenir. Tüm işlem tek seferde gerçekleşir.`
+            },
+            {
+                baslik: 'Şube bazlı raporlar nasıl görüntülenir?',
+                icerik: `Raporlar sayfasının üstünde şube seçici bulunur (birden fazla şubeniz varsa görünür).
+
+"Tüm Şubeler" seçilirse tüm şubelerin verisi birleşik gösterilir.
+Belirli bir şube seçilirse sadece o şubenin verisi gösterilir.
+
+Şube Karşılaştırması raporu ile tüm şubelerin performansını yan yana görebilirsiniz: satış, kar marjı, zayi oranı ve personel sayısı karşılaştırılır.`
+            },
+            {
+                baslik: 'Şube detay sayfası ne gösterir?',
+                icerik: `Tanımlamalar → Şubeler sayfasında bir şubenin kartına tıklayarak şube detay sayfasına ulaşabilirsiniz.
+
+Şube detay sayfasında 4 sekme bulunur:
+- Stok Durumu: Şubedeki mevcut stok miktarları
+- Son Satışlar: Şubeye ait son satış kayıtları  
+- Personel: Şubede çalışan personel listesi
+- Transferler: Şubeye gelen ve giden stok transferleri`
+            },
+        ]
+    },
+    {
+        id: 'merkezdepo',
+        icon: '🏭',
+        baslik: 'Merkez Depo',
+        konular: [
+            {
+                baslik: 'Merkez Depo nedir?',
+                icerik: `Merkez Depo, ana deponuzdaki stokları şubelerinize otomatik olarak dağıtmanızı sağlar.
+
+Örneğin: Merkez deponuzda 500 kg un var ve her şubenin en az 100 kg unu olmasını istiyorsunuz. Merkez Depo tanımı yaparak bu kuralı sisteme girebilirsiniz. Stok minimum seviyenin altına düştüğünde sistem sizi uyarır.
+
+Not: Bu özellik PROFESYONEL ve KURUMSAL planlarda kullanılabilir.`
+            },
+            {
+                baslik: 'Merkez Depo tanımı nasıl yapılır?',
+                icerik: `Stok → Merkez Depo sayfasına gidin.
+
+Tanımlar sekmesinde "Yeni Tanım" formunu doldurun:
+1. Stok kartını seçin (hangi ürün için kural oluşturuyorsunuz)
+2. Minimum stok seviyesini girin (her şubede en az kaç birim olmalı)
+3. Otomatik Dağıtım seçeneğini açın/kapatın
+4. "Tanım Ekle" butonuna tıklayın
+
+Tanım eklendikten sonra sistem her şubenin bu ürün için stok seviyesini takip eder.`
+            },
+            {
+                baslik: 'Manuel dağıtım nasıl yapılır?',
+                icerik: `Merkez Depo → Manual Dağıtım sekmesine gidin.
+
+1. Hangi ürünü dağıtacağınızı seçin (Merkez Depo tanımınızdan)
+2. Hangi şubeye göndereceğinizi seçin
+3. Miktarı girin
+4. "Dağıtımı Gerçekleştir" butonuna tıklayın
+
+Bu işlem kaynak şubeden stok düşer, hedef şubeye ekler. Dağıtım Geçmişi sekmesinden tüm dağıtım kayıtlarını görebilirsiniz.`
+            },
+        ]
+    },
+    {
+        id: 'planli_transfer',
+        icon: '⏰',
+        baslik: 'Planlı Transferler',
+        konular: [
+            {
+                baslik: 'Planlı Transfer nedir?',
+                icerik: `Planlı Transfer, belirli günlerde ve saatlerde otomatik stok transferi yapmanızı sağlar.
+
+Örneğin: Her Pazartesi sabah 06:00'da merkez depodan Şube1'e 100 kg un, 50 kg tavuk ve 20 kg peynir gönderilsin. Bunu bir kez ayarlarsınız, sistem her Pazartesi otomatik olarak çalıştırır.
+
+Not: Bu özellik PROFESYONEL ve KURUMSAL planlarda kullanılabilir.`
+            },
+            {
+                baslik: 'Yeni planlı transfer nasıl oluşturulur?',
+                icerik: `Stok → Planlı Transfer sayfasına gidin → "+ Yeni Plan" butonuna tıklayın.
+
+1. Plan adı girin (örn: "Pazartesi Merkez Dağıtımı")
+2. Hangi günler çalışacağını seçin (Pazartesi, Cuma gibi)
+3. Saat ve dakika seçin
+4. Transfer Kalemleri bölümünde ürünleri ekleyin:
+   - Her kalem için ürün, kaynak şube, hedef şube ve miktar seçin
+   - "+ Kalem Ekle" ile birden fazla ürün ekleyebilirsiniz
+5. "Planı Kaydet" butonuna tıklayın
+
+Plan kaydedildikten sonra belirlediğiniz gün ve saatte otomatik olarak çalışır.`
+            },
+            {
+                baslik: 'Planı manuel olarak çalıştırabilir miyim?',
+                icerik: `Evet! Planlı Transfer listesinde her planın yanında "▶ Çalıştır" butonu bulunur.
+
+Bu butona tıkladığınızda plan hemen çalışır — belirlenen gün ve saati beklemek zorunda değilsiniz. Test etmek veya acil dağıtım yapmak için kullanabilirsiniz.
+
+Transfer sırasında kaynak şubede yeterli stok yoksa sistem hata verir ve transfer gerçekleşmez.`
+            },
+            {
+                baslik: 'Planı durdurmak/aktif etmek için ne yapmalıyım?',
+                icerik: `Planlı Transfer listesinde her planın yanında "⏸ Durdur" ve "▶ Aktif Et" butonları bulunur.
+
+Durdur: Plan geçici olarak devre dışı kalır, belirlenen zamanda çalışmaz.
+Aktif Et: Plan tekrar devreye girer.
+
+Planı tamamen silmek için 🗑 Sil butonunu kullanın.`
+            },
+        ]
+    },
+    {
+        id: 'abonelik',
+        icon: '💳',
+        baslik: 'Abonelik & Planlar',
+        konular: [
+            {
+                baslik: 'Planlar arasındaki fark nedir?',
+                icerik: `GastroBrain'de 3 plan bulunur:
+
+BAŞLANGIÇ (₺799/ay)
+Tek şube, temel stok yönetimi, satış takibi, reçete & maliyet, temel raporlar.
+
+PROFESYONEL (₺1.499/ay)
+Sınırsız şube, şube transferi, merkez depo, planlı transfer, şube karşılaştırma raporu, cari hesap, personel & maaş, gelişmiş raporlar.
+
+KURUMSAL
+Özel entegrasyonlar, yerinde eğitim, SLA garantisi, özel hesap yöneticisi. Fiyat teklif alınarak belirlenir.
+
+Yıllık ödeme yaparsanız %17 indirim uygulanır.`
+            },
+            {
+                baslik: 'Ödeme nasıl yapılır?',
+                icerik: `GastroBrain şu an havale/EFT ile ödeme kabul etmektedir.
+
+1. Abonelik sayfasına gidin
+2. İstediğiniz planı seçin (Aylık veya Yıllık)
+3. IBAN ve açıklama bilgilerini kopyalayın
+4. Bankanız üzerinden havale/EFT yapın (açıklamayı mutlaka yazın)
+5. "Ödeme Yaptım, Bildir" butonuna tıklayın
+6. En geç 24 saat içinde hesabınız güncellenir`
+            },
+            {
+                baslik: '30 günlük ücretsiz deneme nasıl çalışır?',
+                icerik: `Sisteme kayıt olduğunuzda 30 gün boyunca tüm özellikler ücretsiz açık gelir — PROFESYONEL plan dahil tüm özellikler kullanılabilir.
+
+Deneme süresi bitmeden önce e-posta ile uyarı gönderilir (7 gün ve 3 gün kala).
+
+Deneme bitiminde BAŞLANGIÇ planına geçilir. Yükseltmek için ödeme yapabilirsiniz.`
+            },
+        ]
+    }
 ];
 
 export default function Yardim() {

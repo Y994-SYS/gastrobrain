@@ -94,6 +94,58 @@ const SECTIONS = [
             { title: 'Roller ve yetkiler', content: 'Sistemde 3 temel rol vardır: TENANT_ADMIN tüm ayarlara ve raporlara erişir. MUDUR stok, satış ve personel işlemlerini yapabilir. Standart kullanıcı sadece atandığı şubenin veri girişini yapabilir. Rolleri Kullanıcılar sayfasından düzenleyebilirsiniz.' },
             { title: 'Şifre sıfırlama', content: 'Kullanıcı şifresini unutursa TENANT_ADMIN olarak Kullanıcılar sayfasına gidin, ilgili kullanıcının "Düzenle" butonuna tıklayın ve yeni şifre belirleyin. Kullanıcıya yeni şifreyi bildirin.' },
         ]
+    },
+    // ✅ YENİ BÖLÜMLER
+    {
+        id: 'transfer',
+        icon: '🔀',
+        title: 'Şube Transferi',
+        desc: 'Şubeler arası stok transferi ve planlı otomatik transferler',
+        steps: [
+            {
+                title: 'Şubeler arası stok transferi',
+                content: 'Stok → Şube Transferi sayfasına gidin. Kaynak şubeyi (stok alınacak) ve hedef şubeyi (stok gönderilecek) seçin. "+ Ürün Ekle" ile birden fazla ürün ekleyebilirsiniz — her kalem için ürün ve miktar seçin. "Transferi Gerçekleştir" butonuna tıklayın. Tüm ürünler tek seferde transfer edilir.',
+                screenshot: 'sube-transferi'
+            },
+            {
+                title: 'Merkez depo tanımı oluşturma',
+                content: 'Stok → Merkez Depo sayfasına gidin. Tanımlar sekmesinde "Yeni Tanım" formunu doldurun: Stok kartını seçin, minimum stok seviyesini girin, Otomatik Dağıtım seçeneğini açın. Tanım eklendikten sonra sistem her şubenin bu ürün için stok seviyesini takip eder ve Dashboard\'da uyarı gösterir.',
+                screenshot: 'merkez-depo-tanim'
+            },
+            {
+                title: 'Planlı transfer oluşturma',
+                content: 'Stok → Planlı Transfer sayfasına gidin. "+ Yeni Plan" butonuna tıklayın. Plan adını girin, hangi günler çalışacağını seçin (örn: Pazartesi, Cuma), saat belirleyin. Transfer Kalemleri bölümünde ürünleri ekleyin: her kalem için ürün, kaynak şube, hedef şube ve miktar seçin. "+ Kalem Ekle" ile birden fazla ürün ekleyebilirsiniz. Planı kaydedin.',
+                screenshot: 'planli-transfer'
+            },
+            {
+                title: 'Planı manuel çalıştırma',
+                content: 'Planlı Transfer listesinde her planın yanında "▶ Çalıştır" butonu bulunur. Bu butona tıkladığınızda plan hemen çalışır, belirlenen gün ve saati beklemeniz gerekmez. Transfer sırasında kaynak şubede yeterli stok yoksa sistem hata verir ve transfer gerçekleşmez.',
+                screenshot: 'planli-transfer-calistir'
+            },
+        ]
+    },
+    {
+        id: 'sube_yonetimi',
+        icon: '🏪',
+        title: 'Çok Şubeli Yönetim',
+        desc: 'Şube karşılaştırma ve merkez yönetimi',
+        steps: [
+            {
+                title: 'Şube ekleme ve yönetme',
+                content: 'Tanımlamalar → Şubeler sayfasına gidin. "Yeni Şube" butonuna tıklayın. Şube adı ve adresini girin. Şube oluşturulduktan sonra kullanıcıları bu şubeye atayabilirsiniz. Şube kartına tıklayarak şube detay sayfasına ulaşırsınız — stok durumu, satışlar, personel ve transferler sekmeleri mevcuttur.',
+                screenshot: 'sube-ekleme'
+            },
+            {
+                title: 'Şube karşılaştırma raporu',
+                content: 'Raporlar sayfasına gidin → "📊 Şube Karşılaştırması" sekmesine tıklayın. "Raporu Getir" butonuna basın. Tüm şubelerinizin satış, kar marjı, zayi oranı ve personel sayısı yan yana karşılaştırılır. En iyi performans gösteren şube otomatik olarak vurgulanır.',
+                screenshot: 'sube-karsilastirma'
+            },
+            {
+                title: 'Şube bazlı rapor görüntüleme',
+                content: 'Raporlar sayfasının üstünde şube seçici bulunur (birden fazla şubeniz varsa görünür). "Tüm Şubeler" seçilirse tüm şubelerin verisi birleşik gösterilir. Belirli bir şube seçilirse sadece o şubenin verisi gösterilir. Bu filtreleme Satış, Stok, Cari ve Maliyet raporlarında çalışır.',
+                screenshot: 'sube-rapor-filtre'
+            },
+        ]
     }
 ]
 

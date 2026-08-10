@@ -5,6 +5,7 @@ import Image from 'next/image';
 
 const APP_URL = 'https://app.gastrobrain.com.tr/kayit';
 
+// A) Yeni özellikler eklendi
 const ozellikler = [
   {
     emoji: '📦',
@@ -42,8 +43,22 @@ const ozellikler = [
     aciklama: 'Satış, stok, cari ve maliyet raporlarını saniyeler içinde alın.',
     liste: ['Satış raporu', 'Stok durum raporu', 'Cari hesap raporu', 'Excel export'],
   },
+  // ✅ YENİ ÖZELLİKLER
+  {
+    emoji: '🏪',
+    baslik: 'Çok Şubeli Yönetim',
+    aciklama: 'Tüm şubelerinizi tek hesaptan yönetin. Şubeler arası stok transferi ve karşılaştırmalı raporlar.',
+    liste: ['Şubeler arası transfer', 'Şube karşılaştırma raporu', 'Merkez depo yönetimi', 'Planlı otomatik transferler'],
+  },
+  {
+    emoji: '🏭',
+    baslik: 'Merkez Depo & Planlı Transfer',
+    aciklama: 'Merkez deponuzu yönetin, şubelere otomatik dağıtım yapın. Haftalık planları bir kez ayarlayın.',
+    liste: ['Merkez depo tanımları', 'Minimum stok kuralları', 'Planlı otomatik transfer', 'Dağıtım geçmişi'],
+  },
 ];
 
+// B) PROFESYONEL plan güncellendi
 const planlar = [
   {
     ad: 'Başlangıç',
@@ -57,7 +72,20 @@ const planlar = [
     aylik: '₺1.499',
     yillik: '₺14.990',
     populer: true,
-    ozellikler: ['Sınırsız Şube', 'Sınırsız Kullanıcı', 'Tüm Başlangıç Özellikleri', 'Cari Hesap', 'Personel & Maaş', 'Gelişmiş Raporlar + Excel', 'Rol Yönetimi', 'Öncelikli Destek'],
+    ozellikler: [
+      'Sınırsız Şube',
+      'Sınırsız Kullanıcı',
+      'Tüm Başlangıç Özellikleri',
+      'Şubeler Arası Transfer',
+      'Merkez Depo Yönetimi',
+      'Planlı Otomatik Transfer',
+      'Şube Karşılaştırma Raporu',
+      'Cari Hesap',
+      'Personel & Maaş',
+      'Gelişmiş Raporlar + Excel',
+      'Rol Yönetimi',
+      'Öncelikli Destek',
+    ],
   },
   {
     ad: 'Kurumsal',
@@ -68,6 +96,7 @@ const planlar = [
   },
 ];
 
+// C) Yeni SSS eklendi
 const sorular = [
   { soru: 'Kurulum ne kadar sürer?', cevap: 'Temel kurulum ve veri girişi ortalama 1 iş günü sürer. Stok kartlarınız ve reçeteleriniz hazırsa sistemi aynı gün kullanmaya başlayabilirsiniz.' },
   { soru: 'Birden fazla şubemi yönetebilir miyim?', cevap: 'Evet. Her şube bağımsız yönetilir, kullanıcılar sadece yetkili oldukları şubeleri görür. Konsolide raporlama ile tüm şubelerinizi tek ekrandan takip edebilirsiniz.' },
@@ -75,9 +104,18 @@ const sorular = [
   { soru: '1 aylık deneme sonrası ne olur?', cevap: 'Deneme süresi bitince bir plan seçmeniz gerekir. Kredi kartı bilgisi girmeden deneyebilirsiniz, verileriniz silinmez.' },
   { soru: 'Destek nasıl alırım?', cevap: 'Email ve telefon desteği sunuyoruz. Profesyonel planda öncelikli destek sağlanmaktadır.' },
   { soru: 'İstediğim zaman iptal edebilir miyim?', cevap: 'Evet, istediğiniz zaman iptal edebilirsiniz. Uzun vadeli sözleşme veya ceza yoktur.' },
+  // ✅ YENİ SSS
+  {
+    soru: 'Merkez depo ve şube transferi nasıl çalışır?',
+    cevap: 'Merkez Depo modülü ile ana deponuzdaki ürünleri şubelerinize kurallar çerçevesinde dağıtabilirsiniz. Şubeler Arası Transfer ile ise manuel olarak istediğiniz ürünü istediğiniz şubeye anlık gönderebilirsiniz. Planlı Transfer özelliği ile "Her Pazartesi sabah şube1\'e 100kg un gönder" gibi otomatik kurallar tanımlayabilirsiniz.'
+  },
+  {
+    soru: 'Şube karşılaştırma raporu ne gösterir?',
+    cevap: 'Profesyonel planda bulunan Şube Karşılaştırması raporu, tüm şubelerinizin satış, kar marjı, zayi oranı ve personel sayısını yan yana gösterir. Hangi şubenin daha karlı olduğunu, nerede iyileştirme gerektiğini tek ekranda görebilirsiniz.'
+  },
 ];
 
-// ─── SSS Item — React state ile (useEffect + DOM manipülasyonu yerine) ────────
+// ─── SSS Item ────────────────────────────────────────────────────────────────
 function FaqItem({ soru, cevap }: { soru: string; cevap: string }) {
   const [acik, setAcik] = useState(false);
   return (
@@ -153,7 +191,6 @@ export default function Home() {
   const [mobilMenuAcik, setMobilMenuAcik] = useState(false);
   const [scrolled, setScrolled] = useState(false);
 
-  // Nav scroll efekti
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);
     window.addEventListener('scroll', onScroll);
@@ -353,7 +390,8 @@ export default function Home() {
           </div>
           <div className="hero-stats">
             {[
-              { sayi: '8', etiket: 'Temel modül' },
+              // D) Hero stats güncellendi: 8 → 10+
+              { sayi: '10+', etiket: 'Temel modül' },
               { sayi: '%30', etiket: 'Daha az fire' },
               { sayi: '5 dk', etiket: 'Kurulum süresi' },
               { sayi: '7/24', etiket: 'Destek' },

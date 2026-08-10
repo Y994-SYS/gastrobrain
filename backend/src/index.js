@@ -1,3 +1,4 @@
+// backend/src/index.js (GÜNCELLENMİŞ)
 require('dotenv').config();
 require('./instrument');
 
@@ -33,11 +34,14 @@ const auditLogRoutes = require('./routes/auditLog.routes');
 const transferRoutes = require('./routes/transfer.route');
 const dashboardRoutes = require('./routes/dashboard.routes');
 const odemeRoutes = require('./routes/odeme.routes');
-const exportRoutes = require('./routes/export.routes'); // ← EKLENDİ
+const exportRoutes = require('./routes/export.routes');
 const merkezDepoRoutes = require('./routes/merkezDepo.route');
 const planliTransferRoutes = require('./routes/planliTransfer.route');
 
 const { PrismaClient } = require('@prisma/client');
+
+// ── Stok uyarı servisi (cron job'lar için) ──
+const stokUyariService = require('./services/stokUyari.service');
 
 const prisma = new PrismaClient().$extends({
     query: {
@@ -168,9 +172,9 @@ app.use('/api/audit-log', auditLogRoutes);
 app.use('/api/transfer', transferRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/odeme', odemeRoutes);
-app.use('/api/export', exportRoutes); // ← EKLENDİ
+app.use('/api/export', exportRoutes);
 app.use('/api/merkezdepo', merkezDepoRoutes);
-app.use('/api/planli-transfer', planliTransferRoutes); // ← EKLENDİ
+app.use('/api/planli-transfer', planliTransferRoutes);
 
 // ── 404 ───────────────────────────────────────────────────────────────────────
 app.use((req, res) => {
@@ -194,22 +198,40 @@ app.use((err, req, res, next) => {
     res.status(500).json({ basarili: false, mesaj: 'Sunucu hatası' });
 });
 
-// ── Lisans uyarı cron job ─────────────────────────────────────────────────────
+// ── LİSANS UYARI CRON JOB ────────────────────────────────────────────────────
 const lisansUyariService = require('./services/lisansUyari.service');
-const cron = require('node-cron');
 const { CronJob } = require('cron');
 new CronJob('0 9 * * *', async () => {
     logger.info('Lisans uyarı kontrolü başladı');
     await lisansUyariService.kontrol();
 }, null, true, 'Europe/Istanbul');
 
-app.listen(PORT, () => {
-    logger.info(`Server http://localhost:${PORT} adresinde çalışıyor`);
-});
+// ── GÜNLÜK STOK RAPORU (Her gün 08:00) ──────────────────────────────────
+new CronJob('0 8 * * *', async () => {
+    logger.info('[CRON] Günlük stok raporu gönderiliyor...');
+    try {
+        const sonuc = await stokUyariService.gunlukRaporGonder();
+        logger.info(`[GÜNLÜK RAPOR] ${sonuc.toplamGonderilen} tenant'a rapor gönderildi`);
+    } catch (err) {
+        logger.error('[GÜNLÜK RAPOR HATA]', err);
+    }
+}, null, true, 'Europe/Istanbul');
+
+// ── KRİTİK STOK UYARISI (Her gün 10:00 ve 16:00) ───────────────────────
+new CronJob('0 10,16 * * *', async () => {
+    logger.info('[CRON] Kritik stok kontrolü...');
+    try {
+        const sonuc = await stokUyariService.kritikStokKontrol();
+        logger.info(`[KRİTİK STOK] ${sonuc.toplamGonderilen} tenant'a uyarı gönderildi`);
+    } catch (err) {
+        logger.error('[KRİTİK STOK HATA]', err);
+    }
+}, null, true, 'Europe/Istanbul');
 
 // ── MERKEZ DEPO OTOMATİK DAĞITIM (Pazartesi & Cuma saat 06:00) ──
 const merkezDepoService = require('./services/merkezDepo.service');
-const otomatiDagitimJob = cron.schedule('0 6 * * 1,5', async () => {
+const cron = require('node-cron');
+cron.schedule('0 6 * * 1,5', async () => {
     console.log('[CRON] Merkez depo otomatik dağıtım başladı...');
     try {
         const tenantlar = await prisma.tenant.findMany({ where: { aktif: true } });
@@ -223,6 +245,7 @@ const otomatiDagitimJob = cron.schedule('0 6 * * 1,5', async () => {
         console.error('[MERKEZ DEPO HATA]', err);
     }
 });
+
 // ── PLANLI TRANSFER CRON (Her dakika kontrol) ──
 const planliTransferService = require('./services/planliTransfer.service');
 new CronJob('* * * * *', async () => {
@@ -235,3 +258,7 @@ new CronJob('* * * * *', async () => {
         logger.error('[PLANLI TRANSFER HATA]', err);
     }
 }, null, true, 'Europe/Istanbul');
+
+app.listen(PORT, () => {
+    logger.info(`Server http://localhost:${PORT} adresinde çalışıyor`);
+});

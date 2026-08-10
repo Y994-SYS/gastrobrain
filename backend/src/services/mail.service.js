@@ -1,3 +1,4 @@
+// mail.service.js (GÜNCELLENMİŞ)
 const nodemailer = require('nodemailer');
 
 // GÜVENLİK: E-posta HTML injection önlemi — kullanıcı kontrolündeki serbest
@@ -172,7 +173,149 @@ const mailService = {
             `
         });
     },
-};
 
+    // ── Kritik Stok Uyarı Maili ─────────────────────────────────────────────
+    async kritikStokUyariGonder(email, firmaAd, kritikStoklar) {
+        const firmaAdGuvenli = htmlKacisla(firmaAd);
+
+        const satirlar = kritikStoklar.map(s => `
+            <tr>
+                <td style="padding: 10px 12px; border-bottom: 1px solid #e5e5e5;">${htmlKacisla(s.ad)}</td>
+                <td style="padding: 10px 12px; border-bottom: 1px solid #e5e5e5; color: #666;">${htmlKacisla(s.kategori)}</td>
+                <td style="padding: 10px 12px; border-bottom: 1px solid #e5e5e5; color: #ef4444; font-weight: bold; font-family: monospace;">
+                    ${s.mevcutStok} ${htmlKacisla(s.birim)}
+                </td>
+                <td style="padding: 10px 12px; border-bottom: 1px solid #e5e5e5; color: #666;">
+                    min: ${s.minStok}
+                </td>
+                ${s.subeAd ? `<td style="padding: 10px 12px; border-bottom: 1px solid #e5e5e5; color: #666;">${htmlKacisla(s.subeAd)}</td>` : ''}
+            </tr>
+        `).join('');
+
+        await transporter.sendMail({
+            from: `"GastroBrain" <${process.env.SMTP_USER}>`,
+            to: email,
+            subject: `🚨 Kritik Stok Uyarısı — ${firmaAdGuvenli} (${kritikStoklar.length} ürün)`,
+            html: `
+                <div style="font-family: sans-serif; max-width: 650px; margin: 0 auto;">
+                    <div style="background: #0a0a0a; padding: 24px 32px; display: flex; align-items: center; justify-content: space-between;">
+                        <h1 style="color: #a3e635; font-size: 24px; margin: 0;">GastroBrain</h1>
+                        <span style="color: #ef4444; font-size: 13px; font-weight: 600;">🚨 KRİTİK STOK</span>
+                    </div>
+                    <div style="padding: 32px; background: #f9f9f9;">
+                        <h2 style="color: #111; margin-top: 0;">Kritik Stok Uyarısı</h2>
+                        <p style="color: #444; line-height: 1.6;">
+                            <strong>${firmaAdGuvenli}</strong> firmasında <strong>${kritikStoklar.length} ürün</strong> 
+                            minimum stok seviyesinin altına düştü.
+                        </p>
+
+                        <div style="background: #fff; border-radius: 8px; overflow: hidden; border: 1px solid #e5e5e5; margin: 24px 0;">
+                            <table style="width: 100%; border-collapse: collapse;">
+                                <thead>
+                                    <tr style="background: #f5f5f5;">
+                                        <th style="padding: 10px 12px; text-align: left; font-size: 12px; color: #666; text-transform: uppercase;">Ürün</th>
+                                        <th style="padding: 10px 12px; text-align: left; font-size: 12px; color: #666; text-transform: uppercase;">Kategori</th>
+                                        <th style="padding: 10px 12px; text-align: left; font-size: 12px; color: #666; text-transform: uppercase;">Mevcut</th>
+                                        <th style="padding: 10px 12px; text-align: left; font-size: 12px; color: #666; text-transform: uppercase;">Minimum</th>
+                                        ${kritikStoklar[0]?.subeAd ? '<th style="padding: 10px 12px; text-align: left; font-size: 12px; color: #666; text-transform: uppercase;">Şube</th>' : ''}
+                                    </tr>
+                                </thead>
+                                <tbody>${satirlar}</tbody>
+                            </table>
+                        </div>
+
+                        <div style="text-align: center; margin: 24px 0;">
+                            <a href="${process.env.APP_URL || 'https://app.gastrobrain.com.tr'}/stok/giris-faturasi"
+                               style="background: #a3e635; color: #0a0a0a; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 15px;">
+                                Stok Girişi Yap →
+                            </a>
+                        </div>
+
+                        <p style="color: #888; font-size: 12px; text-align: center; margin-top: 24px;">
+                            Bu uyarı GastroBrain tarafından otomatik gönderilmiştir.
+                        </p>
+                    </div>
+                </div>
+            `
+        });
+    },
+
+    // ── Günlük Stok Raporu Maili ─────────────────────────────────────────────
+    async gunlukStokRaporuGonder(email, firmaAd, ozet) {
+        const firmaAdGuvenli = htmlKacisla(firmaAd);
+        const bugun = new Date().toLocaleDateString('tr-TR', {
+            weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+        });
+
+        const kritikSatirlar = (ozet.kritikStoklar || []).slice(0, 10).map(s => `
+            <tr>
+                <td style="padding: 8px 12px; border-bottom: 1px solid #f0f0f0;">${htmlKacisla(s.ad)}</td>
+                <td style="padding: 8px 12px; border-bottom: 1px solid #f0f0f0; color: #ef4444; font-family: monospace;">
+                    ${s.mevcutStok} ${htmlKacisla(s.birim)}
+                </td>
+                <td style="padding: 8px 12px; border-bottom: 1px solid #f0f0f0; color: #888;">min: ${s.minStok}</td>
+            </tr>
+        `).join('');
+
+        await transporter.sendMail({
+            from: `"GastroBrain" <${process.env.SMTP_USER}>`,
+            to: email,
+            subject: `📊 Günlük Stok Raporu — ${firmaAdGuvenli}`,
+            html: `
+                <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+                    <div style="background: #0a0a0a; padding: 24px 32px;">
+                        <h1 style="color: #a3e635; font-size: 24px; margin: 0;">GastroBrain</h1>
+                        <p style="color: #888; font-size: 13px; margin: 4px 0 0;">Günlük Stok Raporu — ${bugun}</p>
+                    </div>
+                    <div style="padding: 32px; background: #f9f9f9;">
+                        <h2 style="color: #111; margin-top: 0;">${firmaAdGuvenli}</h2>
+
+                        <!-- Özet Kartlar -->
+                        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 24px;">
+                            <div style="background: #fff; border: 1px solid #e5e5e5; border-radius: 8px; padding: 16px; text-align: center;">
+                                <div style="font-size: 24px; font-weight: bold; color: #111;">${ozet.toplamKart}</div>
+                                <div style="font-size: 12px; color: #888; margin-top: 4px;">Toplam Ürün</div>
+                            </div>
+                            <div style="background: #fff; border: 1px solid ${ozet.kritikSayisi > 0 ? '#fca5a5' : '#e5e5e5'}; border-radius: 8px; padding: 16px; text-align: center;">
+                                <div style="font-size: 24px; font-weight: bold; color: ${ozet.kritikSayisi > 0 ? '#ef4444' : '#22c55e'};">${ozet.kritikSayisi}</div>
+                                <div style="font-size: 12px; color: #888; margin-top: 4px;">Kritik Stok</div>
+                            </div>
+                            <div style="background: #fff; border: 1px solid #e5e5e5; border-radius: 8px; padding: 16px; text-align: center;">
+                                <div style="font-size: 24px; font-weight: bold; color: #a3e635;">₺${Number(ozet.gunlukCiro || 0).toLocaleString('tr-TR')}</div>
+                                <div style="font-size: 12px; color: #888; margin-top: 4px;">Günlük Ciro</div>
+                            </div>
+                        </div>
+
+                        <!-- Kritik Stoklar -->
+                        ${ozet.kritikSayisi > 0 ? `
+                        <h3 style="color: #ef4444; font-size: 15px; margin-bottom: 12px;">⚠️ Kritik Stoklar (${ozet.kritikSayisi})</h3>
+                        <div style="background: #fff; border-radius: 8px; overflow: hidden; border: 1px solid #fca5a5; margin-bottom: 24px;">
+                            <table style="width: 100%; border-collapse: collapse;">
+                                <tbody>${kritikSatirlar}</tbody>
+                            </table>
+                            ${ozet.kritikStoklar?.length > 10 ? `<p style="text-align: center; color: #888; font-size: 12px; padding: 8px;">+${ozet.kritikStoklar.length - 10} ürün daha</p>` : ''}
+                        </div>
+                        ` : `
+                        <div style="background: #f0fdf4; border: 1px solid #86efac; border-radius: 8px; padding: 16px; text-align: center; margin-bottom: 24px;">
+                            <p style="color: #16a34a; margin: 0; font-weight: 600;">✅ Tüm stoklar yeterli seviyede</p>
+                        </div>
+                        `}
+
+                        <div style="text-align: center;">
+                            <a href="${process.env.APP_URL || 'https://app.gastrobrain.com.tr'}/stok/durum"
+                               style="background: #a3e635; color: #0a0a0a; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 15px;">
+                                Stok Durumunu Görüntüle →
+                            </a>
+                        </div>
+
+                        <p style="color: #888; font-size: 12px; text-align: center; margin-top: 24px;">
+                            Bu rapor her gün sabah 08:00'de otomatik gönderilir.
+                        </p>
+                    </div>
+                </div>
+            `
+        });
+    }
+};
 
 module.exports = mailService;

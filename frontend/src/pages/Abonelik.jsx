@@ -6,45 +6,56 @@ import toast from 'react-hot-toast';
 const PLANLAR = [
     {
         id: 'baslangic',
+        prismaAd: 'BASLANGIC',
         ad: 'Başlangıç',
         fiyat: { aylik: 799, yillik: 7990 },
         ozellikler: [
-            '1 Şube',
-            '5 Kullanıcı',
-            'Stok Yönetimi',
-            'Reçete & Maliyet',
-            'Satış Takibi',
-            'Temel Raporlar',
-            'E-posta Desteği',
+            { ad: '1 Şube', var: true },
+            { ad: '5 Kullanıcı', var: true },
+            { ad: 'Stok Yönetimi', var: true },
+            { ad: 'Reçete & Maliyet', var: true },
+            { ad: 'Satış Takibi', var: true },
+            { ad: 'Temel Raporlar', var: true },
+            { ad: 'E-posta Desteği', var: true },
+            { ad: 'Şube Transferi', var: false },
+            { ad: 'Cari Hesap', var: false },
+            { ad: 'Personel & Maaş', var: false },
+            { ad: 'Merkez Depo', var: false },
+            { ad: 'Planlı Transfer', var: false },
         ]
     },
     {
         id: 'profesyonel',
+        prismaAd: 'PROFESYONEL',
         ad: 'Profesyonel',
         fiyat: { aylik: 1499, yillik: 14990 },
         populer: true,
         ozellikler: [
-            'Sınırsız Şube',
-            'Sınırsız Kullanıcı',
-            'Tüm Başlangıç Özellikleri',
-            'Cari Hesap Yönetimi',
-            'Personel & Maaş',
-            'Gelişmiş Raporlar + Excel',
-            'Rol Yönetimi',
-            'Öncelikli Destek',
+            { ad: 'Sınırsız Şube', var: true },
+            { ad: 'Sınırsız Kullanıcı', var: true },
+            { ad: 'Tüm Başlangıç Özellikleri', var: true },
+            { ad: 'Şube Transferi', var: true },
+            { ad: 'Cari Hesap Yönetimi', var: true },
+            { ad: 'Personel & Maaş', var: true },
+            { ad: 'Gelişmiş Raporlar + Excel', var: true },
+            { ad: 'Merkez Depo Yönetimi', var: true },
+            { ad: 'Planlı Transferler', var: true },
+            { ad: 'Şube Karşılaştırma Raporu', var: true },
+            { ad: 'Öncelikli Destek', var: true },
         ]
     },
     {
         id: 'kurumsal',
+        prismaAd: 'KURUMSAL',
         ad: 'Kurumsal',
         fiyat: { aylik: null, yillik: null },
         ozellikler: [
-            'Her şey dahil',
-            'Özel Entegrasyonlar',
-            'Yerinde / Canlı Eğitim',
-            'Yazılı SLA Garantisi',
-            'Özel Hesap Yöneticisi',
-            'Kurumsal Faturalandırma',
+            { ad: 'Her şey dahil', var: true },
+            { ad: 'Özel Entegrasyonlar', var: true },
+            { ad: 'Yerinde / Canlı Eğitim', var: true },
+            { ad: 'Yazılı SLA Garantisi', var: true },
+            { ad: 'Özel Hesap Yöneticisi', var: true },
+            { ad: 'Kurumsal Faturalandırma', var: true },
         ]
     }
 ];
@@ -125,11 +136,26 @@ export default function Abonelik() {
     const [gonderiliyor, setGonderiliyor] = useState(false);
     const [sonBildirim, setSonBildirim] = useState(null);
 
+    // Değişiklik 2: Yeni state'ler
+    const [mevcutPlan, setMevcutPlan] = useState(null);
+    const [lisansBitis, setLisansBitis] = useState(null);
+    const [denemede, setDenemede] = useState(false);
+
     const activePlan = PLANLAR.find(p => p.id === secilenPlan);
 
     useEffect(() => {
+        // Mevcut: ödeme durumu
         api.get('/api/odeme/durumum')
             .then(r => setSonBildirim(r.data))
+            .catch(() => { });
+
+        // YENİ: Tenant plan bilgisi
+        api.get('/api/auth/beni-getir')
+            .then(r => {
+                setMevcutPlan(r.data.tenant?.plan);
+                setLisansBitis(r.data.tenant?.lisansBitis);
+                setDenemede(r.data.kullanici?.denemede);
+            })
             .catch(() => { });
     }, []);
 
@@ -190,6 +216,71 @@ export default function Abonelik() {
                 </div>
             </div>
 
+            {/* Değişiklik 3: Mevcut Plan Banner'ı */}
+            {mevcutPlan && (
+                <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 mb-6">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div className="flex items-center gap-4">
+                            <div className="w-10 h-10 bg-lime-400/10 rounded-xl flex items-center justify-center">
+                                <span className="text-lime-400 text-lg">👑</span>
+                            </div>
+                            <div>
+                                <p className="text-zinc-400 text-xs mb-0.5">Mevcut Planınız</p>
+                                <p className="text-white font-bold text-lg">
+                                    {PLANLAR.find(p => p.prismaAd === mevcutPlan)?.ad || mevcutPlan}
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="flex flex-col md:items-end gap-1">
+                            {denemede ? (
+                                <span className="text-xs bg-blue-400/10 text-blue-400 border border-blue-400/20 px-3 py-1.5 rounded-lg font-medium">
+                                    🎁 30 Günlük Ücretsiz Deneme
+                                </span>
+                            ) : lisansBitis ? (
+                                <div className="text-right">
+                                    <p className="text-zinc-400 text-xs">Lisans Bitiş</p>
+                                    <p className={`text-sm font-semibold ${new Date(lisansBitis) < new Date()
+                                            ? 'text-red-400'
+                                            : Math.ceil((new Date(lisansBitis) - new Date()) / (1000 * 60 * 60 * 24)) <= 7
+                                                ? 'text-red-400'
+                                                : Math.ceil((new Date(lisansBitis) - new Date()) / (1000 * 60 * 60 * 24)) <= 30
+                                                    ? 'text-yellow-400'
+                                                    : 'text-green-400'
+                                        }`}>
+                                        {new Date(lisansBitis) < new Date()
+                                            ? '⚠️ Süresi Doldu'
+                                            : `${Math.ceil((new Date(lisansBitis) - new Date()) / (1000 * 60 * 60 * 24))} gün kaldı`
+                                        }
+                                    </p>
+                                    <p className="text-zinc-500 text-xs">
+                                        {new Date(lisansBitis).toLocaleDateString('tr-TR')}
+                                    </p>
+                                </div>
+                            ) : null}
+                        </div>
+                    </div>
+
+                    {/* Özellik Durumu */}
+                    <div className="mt-4 pt-4 border-t border-zinc-800 grid grid-cols-2 md:grid-cols-3 gap-2">
+                        {[
+                            { ad: 'Şube Transferi', var: mevcutPlan !== 'BASLANGIC' },
+                            { ad: 'Cari Hesap', var: mevcutPlan !== 'BASLANGIC' },
+                            { ad: 'Personel & Maaş', var: mevcutPlan !== 'BASLANGIC' },
+                            { ad: 'Merkez Depo', var: mevcutPlan !== 'BASLANGIC' },
+                            { ad: 'Planlı Transfer', var: mevcutPlan !== 'BASLANGIC' },
+                            { ad: 'Şube Karşılaştırması', var: mevcutPlan !== 'BASLANGIC' },
+                        ].map((o, i) => (
+                            <div key={i} className={`flex items-center gap-2 text-xs px-3 py-2 rounded-lg ${o.var ? 'bg-green-400/5 text-green-400' : 'bg-zinc-800 text-zinc-500'
+                                }`}>
+                                <span>{o.var ? '✓' : '✗'}</span>
+                                <span>{o.ad}</span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
             <BildirimDurumBanner bildirim={sonBildirim} />
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-8">
@@ -209,18 +300,29 @@ export default function Abonelik() {
                             {isSelected && <span className="absolute top-4 right-4 w-2.5 h-2.5 bg-lime-400 rounded-full" />}
 
                             <div className="flex-1">
-                                <h3 className="text-base font-semibold text-zinc-100 mb-1">{plan.ad}</h3>
+                                {/* Değişiklik 5: Mevcut plan badge'i */}
+                                <div className="flex items-center gap-2 mb-1">
+                                    <h3 className="text-base font-semibold text-zinc-100">{plan.ad}</h3>
+                                    {mevcutPlan === plan.prismaAd && (
+                                        <span className="text-xs bg-lime-400/20 text-lime-400 px-2 py-0.5 rounded-full font-medium">
+                                            Mevcut Plan
+                                        </span>
+                                    )}
+                                </div>
                                 <div className="flex items-baseline gap-1 mb-5">
                                     <span className="text-3xl font-bold text-lime-400">{formatTutar(plan)}</span>
                                     {plan.id !== 'kurumsal' && (
                                         <span className="text-zinc-500 text-xs">/{periyot === 'aylik' ? 'ay' : 'yıl'}</span>
                                     )}
                                 </div>
+                                {/* Değişiklik 4: ✓ / ✗ gösterimi */}
                                 <ul className="space-y-2">
                                     {plan.ozellikler.map((o, i) => (
-                                        <li key={i} className="flex items-start gap-2 text-sm text-zinc-300 leading-snug">
-                                            <span className="text-lime-400 font-bold shrink-0 mt-0.5">✓</span>
-                                            <span>{o}</span>
+                                        <li key={i} className={`flex items-start gap-2 text-sm leading-snug ${o.var ? 'text-zinc-300' : 'text-zinc-600'}`}>
+                                            <span className={`font-bold shrink-0 mt-0.5 ${o.var ? 'text-lime-400' : 'text-zinc-700'}`}>
+                                                {o.var ? '✓' : '✗'}
+                                            </span>
+                                            <span>{o.ad}</span>
                                         </li>
                                     ))}
                                 </ul>

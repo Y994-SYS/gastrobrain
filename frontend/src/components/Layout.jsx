@@ -272,7 +272,7 @@ export default function Layout({ children }) {
     };
 
     return (
-        <div className="min-h-screen bg-zinc-950 flex">
+        <div className="min-h-screen bg-zinc-950 flex overflow-x-hidden w-full">
 
             {/* ── Masaüstü Sidebar ── */}
             <aside className="hidden md:flex w-56 bg-zinc-900 border-r border-zinc-800 flex-col fixed h-full z-30">
@@ -301,7 +301,7 @@ export default function Layout({ children }) {
             </aside>
 
             {/* ── İçerik Alanı ── */}
-            <main className="flex-1 md:ml-56 flex flex-col min-h-screen">
+            <main className="flex-1 md:ml-56 flex flex-col min-h-screen min-w-0 overflow-x-hidden">
 
                 {/* Mobil Header */}
                 <header className="md:hidden sticky top-0 z-20 bg-zinc-900/95 backdrop-blur border-b border-zinc-800">
@@ -326,7 +326,7 @@ export default function Layout({ children }) {
                 </header>
 
                 {/* Sayfa İçeriği */}
-                <div className="flex-1 p-4 md:p-6">
+                <div className="flex-1 p-4 md:p-6 overflow-x-hidden min-w-0">
                     <LisansBanner />
                     <DenemeBanner />
                     {children}

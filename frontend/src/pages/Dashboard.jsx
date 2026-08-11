@@ -113,11 +113,11 @@ function SubeOzetiPanel() {
             </div>
 
             {yukleniyor ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 gap-3">
                     {[1, 2, 3].map(i => <SkeletonKart key={i} />)}
                 </div>
             ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 gap-3">
                     {subeler.map(sube => (
                         <div
                             key={sube.id}
@@ -438,7 +438,7 @@ function YonetimDashboard() {
             {(rol === 'TENANT_ADMIN' || rol === 'MUDUR') && <PlanliTransferPanel />}
 
             {/* Özet Kartlar */}
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-6 min-w-0">
                 {yukleniyor ? (
                     <><SkeletonKart /><SkeletonKart /><SkeletonKart /><SkeletonKart /><SkeletonKart /></>
                 ) : (

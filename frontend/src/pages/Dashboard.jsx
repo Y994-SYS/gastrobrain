@@ -10,11 +10,18 @@ const bugunTarih = () => new Date().toLocaleDateString('tr-TR', {
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
 });
 
+// ─── Renk Kodlama Standardı ────────────────────────────────────────────────
+// Yeşil (lime)  = Pozitif / Normal
+// Kırmızı (red) = Kritik / Uyarı
+// Sarı (amber)  = Dikkat gerektiren
+// Zinc (gri)    = Nötr bilgi (durum ifade etmeyen sayaçlar)
+// Bu paletin dışına çıkılmıyor; aşağıdaki tüm bileşenler bu standardı kullanır.
+
 function SkeletonKart() {
     return (
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 animate-pulse">
-            <div className="h-3 w-20 bg-zinc-700 rounded mb-3" />
-            <div className="h-8 w-32 bg-zinc-700 rounded mb-2" />
+        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 animate-pulse">
+            <div className="h-3 w-20 bg-zinc-700 rounded mb-2.5" />
+            <div className="h-7 w-28 bg-zinc-700 rounded mb-1.5" />
             <div className="h-3 w-16 bg-zinc-800 rounded" />
         </div>
     );
@@ -24,7 +31,7 @@ function SkeletonListe({ satir = 3 }) {
     return (
         <div className="divide-y divide-zinc-800">
             {Array.from({ length: satir }).map((_, i) => (
-                <div key={i} className="px-4 py-3 flex justify-between items-center animate-pulse">
+                <div key={i} className="px-4 py-2.5 flex justify-between items-center animate-pulse">
                     <div className="space-y-1.5">
                         <div className="h-3.5 w-28 bg-zinc-700 rounded" />
                         <div className="h-3 w-20 bg-zinc-800 rounded" />
@@ -41,13 +48,35 @@ function OzetKart({ baslik, deger, alt, renk, tikla }) {
         <div
             onClick={tikla}
             className={[
-                'bg-zinc-900 border border-zinc-800 rounded-2xl p-5 transition-colors',
+                'bg-zinc-900 border border-zinc-800 rounded-xl p-4 transition-colors',
                 tikla ? 'cursor-pointer hover:border-zinc-700 active:scale-[0.98]' : ''
             ].join(' ')}
         >
             <div className="text-xs text-zinc-500 mb-1">{baslik}</div>
             <div className={`text-2xl font-black ${renk}`}>{deger}</div>
-            <div className="text-xs text-zinc-500 mt-1">{alt}</div>
+            <div className="text-xs text-zinc-500 mt-0.5">{alt}</div>
+        </div>
+    );
+}
+
+// ─── Kritik Stok Uyarı Bandı (Dashboard hiyerarşisinde en üstte) ─────────────
+function KritikStokBandi({ adet, navigate }) {
+    if (!adet) return null;
+    return (
+        <div
+            onClick={() => navigate('/stok/durum')}
+            className="mb-4 bg-red-500/10 border border-red-500/30 rounded-xl px-5 py-4 flex items-center justify-between gap-4 cursor-pointer hover:border-red-500/50 transition-colors"
+        >
+            <div className="flex items-center gap-3">
+                <span className="text-2xl">⚠️</span>
+                <div>
+                    <div className="text-sm font-bold text-red-400">
+                        {adet} kalem kritik stok seviyesinde
+                    </div>
+                    <div className="text-xs text-red-400/70 mt-0.5">Önce bunu kontrol edin</div>
+                </div>
+            </div>
+            <span className="text-xs text-red-400 shrink-0">Görüntüle →</span>
         </div>
     );
 }
@@ -96,18 +125,18 @@ function SubeOzetiPanel() {
                                 subeSecAlt(sube.id);
                                 navigate('/satislar');
                             }}
-                            className="bg-zinc-900 border border-zinc-800 hover:border-zinc-600 rounded-2xl p-4 cursor-pointer transition-all active:scale-[0.98]"
+                            className="bg-zinc-900 border border-zinc-800 hover:border-zinc-600 rounded-xl p-3.5 cursor-pointer transition-all active:scale-[0.98]"
                         >
                             {/* Şube adı + durum */}
-                            <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center justify-between mb-2.5">
                                 <h3 className="text-sm font-bold text-white truncate pr-2">{sube.ad}</h3>
                                 <span className={`text-xs px-2 py-0.5 rounded-full shrink-0 ${sube.aktif ? 'bg-lime-400/10 text-lime-400' : 'bg-zinc-700 text-zinc-400'}`}>
                                     {sube.aktif ? 'Aktif' : 'Pasif'}
                                 </span>
                             </div>
 
-                            {/* Ana metrik - günlük ciro */}
-                            <div className="mb-3">
+                            {/* Ana metrik - günlük ciro (pozitif = yeşil) */}
+                            <div className="mb-2.5">
                                 <div className="text-2xl font-black text-lime-400">₺{fmt(sube.gunlukCiro)}</div>
                                 <div className="text-xs text-zinc-500 mt-0.5">
                                     {sube.satisSayisi > 0 ? `${sube.satisSayisi} işlem` : 'Bugün satış yok'}
@@ -115,7 +144,7 @@ function SubeOzetiPanel() {
                             </div>
 
                             {/* Alt metrikler */}
-                            <div className="flex items-center gap-3 pt-3 border-t border-zinc-800">
+                            <div className="flex items-center gap-3 pt-2.5 border-t border-zinc-800">
                                 <div className="flex items-center gap-1.5">
                                     <span className={`text-sm font-bold ${sube.kritikStokSayisi > 0 ? 'text-red-400' : 'text-zinc-400'}`}>
                                         {sube.kritikStokSayisi}
@@ -161,8 +190,8 @@ function MerkezDepoUyariPanel() {
     if (!yukleniyor && uyarilar.length === 0) return null;
 
     return (
-        <div className="bg-zinc-900 border border-red-500/20 rounded-2xl overflow-hidden mb-4">
-            <div className="p-4 border-b border-zinc-800 flex justify-between items-center">
+        <div className="bg-zinc-900 border border-red-500/20 rounded-xl overflow-hidden mb-4">
+            <div className="p-3.5 border-b border-zinc-800 flex justify-between items-center">
                 <h2 className="text-sm font-bold text-white">🏭 Merkez Depo Uyarıları</h2>
                 <button
                     onClick={() => navigate('/merkezdepo')}
@@ -174,7 +203,7 @@ function MerkezDepoUyariPanel() {
             {yukleniyor ? <SkeletonListe satir={2} /> : (
                 <div className="divide-y divide-zinc-800">
                     {uyarilar.map((u, i) => (
-                        <div key={i} className="px-4 py-3 flex justify-between items-center">
+                        <div key={i} className="px-4 py-2.5 flex justify-between items-center">
                             <div>
                                 <p className="text-sm text-white">{u.tanim}</p>
                                 <p className="text-xs text-zinc-500">
@@ -220,12 +249,12 @@ function PlanliTransferPanel() {
     if (!yukleniyor && planlar.length === 0) return null;
 
     return (
-        <div className="bg-zinc-900 border border-blue-500/20 rounded-2xl overflow-hidden mb-4">
-            <div className="p-4 border-b border-zinc-800 flex justify-between items-center">
+        <div className="bg-zinc-900 border border-amber-500/20 rounded-xl overflow-hidden mb-4">
+            <div className="p-3.5 border-b border-zinc-800 flex justify-between items-center">
                 <h2 className="text-sm font-bold text-white">
                     ⏰ Bugün Çalışacak Transferler
                     {planlar.length > 0 && (
-                        <span className="ml-2 text-xs bg-blue-400/20 text-blue-400 px-2 py-0.5 rounded-full">
+                        <span className="ml-2 text-xs bg-amber-400/20 text-amber-400 px-2 py-0.5 rounded-full">
                             {planlar.length}
                         </span>
                     )}
@@ -240,7 +269,7 @@ function PlanliTransferPanel() {
             {yukleniyor ? <SkeletonListe satir={2} /> : (
                 <div className="divide-y divide-zinc-800">
                     {planlar.map(plan => (
-                        <div key={plan.id} className="px-4 py-3 flex justify-between items-center">
+                        <div key={plan.id} className="px-4 py-2.5 flex justify-between items-center">
                             <div>
                                 <p className="text-sm text-white">{plan.ad}</p>
                                 <p className="text-xs text-zinc-500">
@@ -250,11 +279,11 @@ function PlanliTransferPanel() {
                             </div>
                             <div className="text-right">
                                 {plan.sonCalisma ? (
-                                    <span className="text-xs bg-green-900/50 text-green-400 px-2 py-1 rounded-lg">
+                                    <span className="text-xs bg-lime-900/40 text-lime-400 px-2 py-1 rounded-lg">
                                         ✓ Çalıştı
                                     </span>
                                 ) : (
-                                    <span className="text-xs bg-blue-900/50 text-blue-400 px-2 py-1 rounded-lg">
+                                    <span className="text-xs bg-amber-900/40 text-amber-400 px-2 py-1 rounded-lg">
                                         Bekliyor
                                     </span>
                                 )}
@@ -279,32 +308,32 @@ function PersonelDashboard() {
                 <p className="text-zinc-500 text-sm mt-0.5">{bugunTarih()}</p>
             </div>
 
-            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 mb-4">
+            <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 mb-4">
                 <div className="flex items-center gap-4">
-                    <div className="w-14 h-14 rounded-full bg-lime-400/10 border border-lime-400/20 flex items-center justify-center text-2xl">
+                    <div className="w-12 h-12 rounded-full bg-lime-400/10 border border-lime-400/20 flex items-center justify-center text-xl">
                         👤
                     </div>
                     <div>
                         <p className="text-zinc-400 text-sm">Hoş geldin,</p>
-                        <p className="text-white text-xl font-bold">{kullanici?.ad}</p>
+                        <p className="text-white text-lg font-bold">{kullanici?.ad}</p>
                         <span className="inline-block mt-1 text-xs bg-zinc-800 text-zinc-400 px-2 py-0.5 rounded-full">Personel</span>
                     </div>
                 </div>
             </div>
 
-            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
-                <div className="p-4 border-b border-zinc-800">
+            <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
+                <div className="p-3.5 border-b border-zinc-800">
                     <h2 className="text-sm font-bold text-white">⚡ Hızlı Erişim</h2>
                 </div>
-                <div className="p-4 grid grid-cols-1 gap-3">
+                <div className="p-3.5 grid grid-cols-1 gap-2.5">
                     {[
                         { path: '/personel', icon: '👥', label: 'Personel Bilgilerim', alt: 'Devam, mesai ve avans kayıtlarım', renk: 'border-lime-500/20 hover:border-lime-500/50' },
                         { path: '/profil', icon: '🙍', label: 'Profilim', alt: 'Şifre değiştir, bilgilerimi güncelle', renk: 'border-zinc-700 hover:border-zinc-500' },
                         { path: '/yardim', icon: '❓', label: 'Yardım', alt: 'Kullanım kılavuzu ve SSS', renk: 'border-zinc-700 hover:border-zinc-500' },
                     ].map(item => (
                         <button key={item.path} onClick={() => navigate(item.path)}
-                            className={`border ${item.renk} bg-zinc-800/50 rounded-xl p-4 text-left transition-colors flex items-center gap-3`}>
-                            <span className="text-2xl">{item.icon}</span>
+                            className={`border ${item.renk} bg-zinc-800/50 rounded-lg p-3 text-left transition-colors flex items-center gap-3`}>
+                            <span className="text-xl">{item.icon}</span>
                             <div>
                                 <div className="text-sm font-semibold text-white">{item.label}</div>
                                 <div className="text-xs text-zinc-500 mt-0.5">{item.alt}</div>
@@ -375,7 +404,7 @@ function YonetimDashboard() {
         { label: 'Giriş Faturası', path: '/stok/giris-faturasi', icon: '📥', renk: 'border-blue-500/20 hover:border-blue-500/50', roller: ['SUPER_ADMIN', 'TENANT_ADMIN', 'MUDUR', 'DEPO'] },
         { label: 'Yeni Satış', path: '/satislar', icon: '💰', renk: 'border-lime-500/20 hover:border-lime-500/50', roller: ['SUPER_ADMIN', 'TENANT_ADMIN', 'MUDUR', 'KASA'] },
         { label: 'Zayi Gideri', path: '/stok/zayi', icon: '🗑️', renk: 'border-red-500/20 hover:border-red-500/50', roller: ['SUPER_ADMIN', 'TENANT_ADMIN', 'MUDUR', 'DEPO'] },
-        { label: 'Tüketim', path: '/stok/tuketim', icon: '🍽️', renk: 'border-orange-500/20 hover:border-orange-500/50', roller: ['SUPER_ADMIN', 'TENANT_ADMIN', 'MUDUR', 'DEPO'] },
+        { label: 'Tüketim', path: '/stok/tuketim', icon: '🍽️', renk: 'border-amber-500/20 hover:border-amber-500/50', roller: ['SUPER_ADMIN', 'TENANT_ADMIN', 'MUDUR', 'DEPO'] },
         { label: 'Reçete Ekle', path: '/receteler', icon: '📝', renk: 'border-purple-500/20 hover:border-purple-500/50', roller: ['SUPER_ADMIN', 'TENANT_ADMIN', 'MUDUR'] },
         { label: 'Ay Sonu Sayım', path: '/stok/ay-sonu-sayim', icon: '📋', renk: 'border-zinc-500/20 hover:border-zinc-500/50', roller: ['SUPER_ADMIN', 'TENANT_ADMIN', 'MUDUR', 'DEPO'] },
     ].filter(item => item.roller.includes(rol));
@@ -388,13 +417,16 @@ function YonetimDashboard() {
             </div>
 
             {hata && (
-                <div className="mb-4 flex items-center justify-between gap-3 bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3">
+                <div className="mb-4 flex items-center justify-between gap-3 bg-red-500/10 border border-red-500/20 rounded-lg px-4 py-3">
                     <div className="flex items-center gap-2 text-sm text-red-400">
                         <span>⚠️</span><span>{hata}</span>
                     </div>
                     <button onClick={getir} className="text-xs text-red-400 hover:text-red-300 underline">Yenile</button>
                 </div>
             )}
+
+            {/* Hiyerarşi: kritik stok varsa en üstte, büyük ve dikkat çekici */}
+            {!yukleniyor && <KritikStokBandi adet={kritikStoklar.length} navigate={navigate} />}
 
             {/* Şube Özeti — sadece TENANT_ADMIN + birden fazla şube */}
             {rol === 'TENANT_ADMIN' && <SubeOzetiPanel />}
@@ -406,7 +438,7 @@ function YonetimDashboard() {
             {(rol === 'TENANT_ADMIN' || rol === 'MUDUR') && <PlanliTransferPanel />}
 
             {/* Özet Kartlar */}
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
                 {yukleniyor ? (
                     <><SkeletonKart /><SkeletonKart /><SkeletonKart /><SkeletonKart /><SkeletonKart /></>
                 ) : (
@@ -419,32 +451,32 @@ function YonetimDashboard() {
                             renk="text-lime-400" tikla={() => navigate('/satislar')} />
                         <OzetKart baslik="Kritik Stok" deger={kritikStoklar.length}
                             alt={kritikStoklar.length > 0 ? 'kalem minimum altında' : 'Stok seviyeleri normal'}
-                            renk={kritikStoklar.length > 0 ? 'text-red-400' : 'text-zinc-400'}
+                            renk={kritikStoklar.length > 0 ? 'text-red-400' : 'text-lime-400'}
                             tikla={() => navigate('/stok/durum')} />
                         <OzetKart baslik="Toplam Borç" deger={`₺${fmt(toplamBorc)}`}
                             alt={cariler.length > 0 ? `${cariler.length} tedarikçi` : 'Bekleyen borç yok'}
-                            renk={toplamBorc > 0 ? 'text-orange-400' : 'text-zinc-400'}
+                            renk={toplamBorc > 0 ? 'text-amber-400' : 'text-lime-400'}
                             tikla={() => navigate('/cari-hesap')} />
                         <OzetKart baslik="Stok Kalemi" deger={stoklar.length}
-                            alt="toplam ürün" renk="text-blue-400"
+                            alt="toplam ürün" renk="text-zinc-300"
                             tikla={() => navigate('/stok/durum')} />
                     </>
                 )}
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {/* Kritik Stoklar */}
-                <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
-                    <div className="p-4 border-b border-zinc-800 flex justify-between items-center">
+                <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
+                    <div className="p-3.5 border-b border-zinc-800 flex justify-between items-center">
                         <h2 className="text-sm font-bold text-white">⚠️ Kritik Stoklar</h2>
                         <button onClick={() => navigate('/stok/durum')} className="text-xs text-zinc-500 hover:text-lime-400 transition-colors">Tümü →</button>
                     </div>
                     {yukleniyor ? <SkeletonListe satir={4} /> : (
                         <div className="divide-y divide-zinc-800">
                             {kritikStoklar.length === 0 ? (
-                                <div className="text-center py-8 text-zinc-500 text-sm"><div className="text-2xl mb-2">✅</div>Tüm stoklar yeterli seviyede</div>
+                                <div className="text-center py-6 text-zinc-500 text-sm"><div className="text-2xl mb-2">✅</div>Tüm stoklar yeterli seviyede</div>
                             ) : kritikStoklar.slice(0, 6).map((s) => (
-                                <div key={s.id} className="px-4 py-3 flex justify-between items-center hover:bg-zinc-800/40 transition-colors">
+                                <div key={s.id} className="px-4 py-2.5 flex justify-between items-center hover:bg-zinc-800/40 transition-colors">
                                     <div>
                                         <div className="text-sm text-white">{s.ad}</div>
                                         <div className="text-xs text-zinc-500">{s.kategori?.ad}</div>
@@ -460,17 +492,17 @@ function YonetimDashboard() {
                 </div>
 
                 {/* Son Satışlar */}
-                <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
-                    <div className="p-4 border-b border-zinc-800 flex justify-between items-center">
+                <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
+                    <div className="p-3.5 border-b border-zinc-800 flex justify-between items-center">
                         <h2 className="text-sm font-bold text-white">💰 Son Satışlar</h2>
                         <button onClick={() => navigate('/satislar')} className="text-xs text-zinc-500 hover:text-lime-400 transition-colors">Tümü →</button>
                     </div>
                     {yukleniyor ? <SkeletonListe satir={4} /> : (
                         <div className="divide-y divide-zinc-800">
                             {satislar.length === 0 ? (
-                                <div className="text-center py-8 text-zinc-500 text-sm"><div className="text-2xl mb-2">🛒</div>Bugün henüz satış yapılmadı</div>
+                                <div className="text-center py-6 text-zinc-500 text-sm"><div className="text-2xl mb-2">🛒</div>Bugün henüz satış yapılmadı</div>
                             ) : satislar.map((s) => (
-                                <div key={s.id} className="px-4 py-3 flex justify-between items-center hover:bg-zinc-800/40 transition-colors">
+                                <div key={s.id} className="px-4 py-2.5 flex justify-between items-center hover:bg-zinc-800/40 transition-colors">
                                     <div>
                                         <div className="text-sm text-white">{s.recete?.ad}</div>
                                         <div className="text-xs text-zinc-500">{s.adet} adet — {new Date(s.tarih).toLocaleDateString('tr-TR')}</div>
@@ -483,22 +515,22 @@ function YonetimDashboard() {
                 </div>
 
                 {/* Bekleyen Borçlar */}
-                <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
-                    <div className="p-4 border-b border-zinc-800 flex justify-between items-center">
+                <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
+                    <div className="p-3.5 border-b border-zinc-800 flex justify-between items-center">
                         <h2 className="text-sm font-bold text-white">🏦 Bekleyen Borçlar</h2>
                         <button onClick={() => navigate('/cari-hesap')} className="text-xs text-zinc-500 hover:text-lime-400 transition-colors">Tümü →</button>
                     </div>
                     {yukleniyor ? <SkeletonListe satir={3} /> : (
                         <div className="divide-y divide-zinc-800">
                             {cariler.length === 0 ? (
-                                <div className="text-center py-8 text-zinc-500 text-sm"><div className="text-2xl mb-2">✅</div>Bekleyen borç yok</div>
+                                <div className="text-center py-6 text-zinc-500 text-sm"><div className="text-2xl mb-2">✅</div>Bekleyen borç yok</div>
                             ) : cariler.map((c) => (
-                                <div key={c.id} className="px-4 py-3 flex justify-between items-center hover:bg-zinc-800/40 transition-colors">
+                                <div key={c.id} className="px-4 py-2.5 flex justify-between items-center hover:bg-zinc-800/40 transition-colors">
                                     <div>
                                         <div className="text-sm text-white">{c.ad}</div>
                                         <div className="text-xs text-zinc-500 font-mono">{c.kod}</div>
                                     </div>
-                                    <div className="text-sm font-mono font-bold text-red-400">₺{fmt(c.bakiye)}</div>
+                                    <div className="text-sm font-mono font-bold text-amber-400">₺{fmt(c.bakiye)}</div>
                                 </div>
                             ))}
                         </div>
@@ -506,14 +538,14 @@ function YonetimDashboard() {
                 </div>
 
                 {/* Hızlı Erişim */}
-                <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
-                    <div className="p-4 border-b border-zinc-800">
+                <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
+                    <div className="p-3.5 border-b border-zinc-800">
                         <h2 className="text-sm font-bold text-white">⚡ Hızlı Erişim</h2>
                     </div>
-                    <div className="p-4 grid grid-cols-2 gap-3">
+                    <div className="p-3.5 grid grid-cols-2 gap-2.5">
                         {hizliErisim.map((item) => (
                             <button key={item.path} onClick={() => navigate(item.path)}
-                                className={`border ${item.renk} bg-zinc-800/50 rounded-xl p-3 text-left transition-colors active:scale-95`}>
+                                className={`border ${item.renk} bg-zinc-800/50 rounded-lg p-3 text-left transition-colors active:scale-95`}>
                                 <div className="text-lg mb-1">{item.icon}</div>
                                 <div className="text-xs font-semibold text-zinc-300">{item.label}</div>
                             </button>
@@ -562,27 +594,27 @@ function KasaDashboard() {
                 <h1 className="text-xl font-bold text-white">Dashboard</h1>
                 <p className="text-zinc-500 text-sm mt-0.5">{bugunTarih()}</p>
             </div>
-            <div className="grid grid-cols-2 gap-4 mb-6">
+            <div className="grid grid-cols-2 gap-3 mb-6">
                 {yukleniyor ? <><SkeletonKart /><SkeletonKart /></> : (
                     <>
                         <OzetKart baslik="Günlük Satış" deger={`₺${fmt(gunlukToplam)}`}
                             alt={gunlukIslemSayisi > 0 ? `${gunlukIslemSayisi} işlem` : 'Bugün henüz satış yok'}
                             renk="text-lime-400" />
-                        <OzetKart baslik="Son Satışlar" deger={satislar.length} alt="kayıt" renk="text-blue-400" />
+                        <OzetKart baslik="Son Satışlar" deger={satislar.length} alt="kayıt" renk="text-zinc-300" />
                     </>
                 )}
             </div>
-            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
-                <div className="p-4 border-b border-zinc-800 flex justify-between items-center">
+            <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
+                <div className="p-3.5 border-b border-zinc-800 flex justify-between items-center">
                     <h2 className="text-sm font-bold text-white">💰 Son Satışlar</h2>
                     <button onClick={() => navigate('/satislar')} className="text-xs text-zinc-500 hover:text-lime-400 transition-colors">Tümü →</button>
                 </div>
                 {yukleniyor ? <SkeletonListe satir={4} /> : (
                     <div className="divide-y divide-zinc-800">
                         {satislar.length === 0 ? (
-                            <div className="text-center py-8 text-zinc-500 text-sm">Henüz satış yok</div>
+                            <div className="text-center py-6 text-zinc-500 text-sm">Henüz satış yok</div>
                         ) : satislar.map((s) => (
-                            <div key={s.id} className="px-4 py-3 flex justify-between items-center">
+                            <div key={s.id} className="px-4 py-2.5 flex justify-between items-center">
                                 <div>
                                     <div className="text-sm text-white">{s.recete?.ad}</div>
                                     <div className="text-xs text-zinc-500">{s.adet} adet — {new Date(s.tarih).toLocaleDateString('tr-TR')}</div>
@@ -593,12 +625,12 @@ function KasaDashboard() {
                     </div>
                 )}
             </div>
-            <div className="mt-4 bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
-                <div className="p-4 border-b border-zinc-800"><h2 className="text-sm font-bold text-white">⚡ Hızlı Erişim</h2></div>
-                <div className="p-4">
+            <div className="mt-3 bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
+                <div className="p-3.5 border-b border-zinc-800"><h2 className="text-sm font-bold text-white">⚡ Hızlı Erişim</h2></div>
+                <div className="p-3.5">
                     <button onClick={() => navigate('/satislar')}
-                        className="w-full border border-lime-500/20 hover:border-lime-500/50 bg-zinc-800/50 rounded-xl p-4 text-left transition-colors flex items-center gap-3">
-                        <span className="text-2xl">💰</span>
+                        className="w-full border border-lime-500/20 hover:border-lime-500/50 bg-zinc-800/50 rounded-lg p-3.5 text-left transition-colors flex items-center gap-3">
+                        <span className="text-xl">💰</span>
                         <div>
                             <div className="text-sm font-semibold text-white">Yeni Satış Ekle</div>
                             <div className="text-xs text-zinc-500 mt-0.5">Günlük satış girişi</div>
@@ -641,30 +673,34 @@ function DepoDashboard() {
                 <h1 className="text-xl font-bold text-white">Dashboard</h1>
                 <p className="text-zinc-500 text-sm mt-0.5">{bugunTarih()}</p>
             </div>
-            <div className="grid grid-cols-2 gap-4 mb-6">
+
+            {/* Hiyerarşi: kritik stok varsa en üstte, büyük ve dikkat çekici */}
+            {!yukleniyor && <KritikStokBandi adet={kritikStoklar.length} navigate={navigate} />}
+
+            <div className="grid grid-cols-2 gap-3 mb-6">
                 {yukleniyor ? <><SkeletonKart /><SkeletonKart /></> : (
                     <>
                         <OzetKart baslik="Kritik Stok" deger={kritikStoklar.length}
-                            alt="kalem minimum altında" renk="text-red-400"
+                            alt="kalem minimum altında" renk={kritikStoklar.length > 0 ? 'text-red-400' : 'text-lime-400'}
                             tikla={() => navigate('/stok/durum')} />
                         <OzetKart baslik="Stok Kalemi" deger={stoklar.length}
-                            alt="toplam ürün" renk="text-blue-400"
+                            alt="toplam ürün" renk="text-zinc-300"
                             tikla={() => navigate('/stok/durum')} />
                     </>
                 )}
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
-                    <div className="p-4 border-b border-zinc-800 flex justify-between items-center">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
+                    <div className="p-3.5 border-b border-zinc-800 flex justify-between items-center">
                         <h2 className="text-sm font-bold text-white">⚠️ Kritik Stoklar</h2>
                         <button onClick={() => navigate('/stok/durum')} className="text-xs text-zinc-500 hover:text-lime-400">Tümü →</button>
                     </div>
                     {yukleniyor ? <SkeletonListe satir={4} /> : (
                         <div className="divide-y divide-zinc-800">
                             {kritikStoklar.length === 0 ? (
-                                <div className="text-center py-8 text-zinc-500 text-sm"><div className="text-2xl mb-2">✅</div>Kritik stok yok</div>
+                                <div className="text-center py-6 text-zinc-500 text-sm"><div className="text-2xl mb-2">✅</div>Kritik stok yok</div>
                             ) : kritikStoklar.slice(0, 6).map((s) => (
-                                <div key={s.id} className="px-4 py-3 flex justify-between items-center">
+                                <div key={s.id} className="px-4 py-2.5 flex justify-between items-center">
                                     <div>
                                         <div className="text-sm text-white">{s.ad}</div>
                                         <div className="text-xs text-zinc-500">{s.kategori?.ad}</div>
@@ -678,17 +714,17 @@ function DepoDashboard() {
                         </div>
                     )}
                 </div>
-                <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
-                    <div className="p-4 border-b border-zinc-800"><h2 className="text-sm font-bold text-white">⚡ Hızlı Erişim</h2></div>
-                    <div className="p-4 grid grid-cols-2 gap-3">
+                <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
+                    <div className="p-3.5 border-b border-zinc-800"><h2 className="text-sm font-bold text-white">⚡ Hızlı Erişim</h2></div>
+                    <div className="p-3.5 grid grid-cols-2 gap-2.5">
                         {[
                             { label: 'Giriş Faturası', path: '/stok/giris-faturasi', icon: '📥', renk: 'border-blue-500/20 hover:border-blue-500/50' },
                             { label: 'İade Faturası', path: '/stok/iade-faturasi', icon: '↩️', renk: 'border-zinc-500/20 hover:border-zinc-500/50' },
                             { label: 'Zayi Gideri', path: '/stok/zayi', icon: '🗑️', renk: 'border-red-500/20 hover:border-red-500/50' },
-                            { label: 'Tüketim', path: '/stok/tuketim', icon: '🍽️', renk: 'border-orange-500/20 hover:border-orange-500/50' },
+                            { label: 'Tüketim', path: '/stok/tuketim', icon: '🍽️', renk: 'border-amber-500/20 hover:border-amber-500/50' },
                         ].map((item) => (
                             <button key={item.path} onClick={() => navigate(item.path)}
-                                className={`border ${item.renk} bg-zinc-800/50 rounded-xl p-3 text-left transition-colors`}>
+                                className={`border ${item.renk} bg-zinc-800/50 rounded-lg p-3 text-left transition-colors`}>
                                 <div className="text-lg mb-1">{item.icon}</div>
                                 <div className="text-xs font-semibold text-zinc-300">{item.label}</div>
                             </button>

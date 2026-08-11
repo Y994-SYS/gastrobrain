@@ -185,9 +185,9 @@ export default function PlanliTransfer() {
     if (yetkisiz) {
         return (
             <div className="flex items-center justify-center h-screen bg-zinc-900">
-                <div className="text-center p-8 border-2 border-amber-400 rounded-lg bg-zinc-800 shadow-lg max-w-md">
-                    <h2 className="text-2xl font-bold text-amber-400 mb-4">⚠️ Planlı Transfer PROFESYONEL Paketinde</h2>
-                    <p className="text-gray-300 mb-6">Bu özelliği kullanmak için paketinizi yükseltmeniz gerekiyor.</p>
+                <div className="text-center p-6 border-2 border-amber-400 rounded-xl bg-zinc-800 shadow-lg max-w-md">
+                    <h2 className="text-2xl font-bold text-amber-400 mb-3">⚠️ Planlı Transfer PROFESYONEL Paketinde</h2>
+                    <p className="text-gray-300 mb-5">Bu özelliği kullanmak için paketinizi yükseltmeniz gerekiyor.</p>
                     <button onClick={() => navigate('/abonelik')} className="bg-lime-400 hover:bg-lime-500 text-zinc-900 font-bold py-2 px-6 rounded-lg">Paket Yükseltin →</button>
                 </div>
             </div>
@@ -197,7 +197,7 @@ export default function PlanliTransfer() {
     if (yukleniyor) return <div className="flex items-center justify-center h-64"><p className="text-zinc-400">Veriler yükleniyor...</p></div>;
 
     return (
-        <div className="p-6 space-y-6">
+        <div className="p-6 space-y-5">
             <div className="flex items-center justify-between">
                 <div>
                     <h1 className="text-2xl font-bold text-white">Planlı Transferler</h1>
@@ -213,11 +213,11 @@ export default function PlanliTransfer() {
 
             {/* Yeni Plan Formu */}
             {formAcik && (
-                <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 space-y-6">
+                <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 space-y-5">
                     <h2 className="text-white font-semibold">Yeni Planlı Transfer</h2>
 
                     {/* Plan Bilgileri */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
                         <div>
                             <label className="text-zinc-400 text-xs block mb-1">Plan Adı *</label>
                             <input
@@ -264,8 +264,8 @@ export default function PlanliTransfer() {
                                     key={g.value}
                                     onClick={() => gunToggle(g.value)}
                                     className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${form.gunler.includes(g.value)
-                                            ? 'bg-lime-400 text-zinc-900'
-                                            : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'
+                                        ? 'bg-lime-400 text-zinc-900'
+                                        : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'
                                         }`}
                                 >
                                     {g.label}
@@ -276,7 +276,7 @@ export default function PlanliTransfer() {
 
                     {/* Kalemler */}
                     <div>
-                        <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center justify-between mb-2.5">
                             <label className="text-white font-medium text-sm">Transfer Kalemleri *</label>
                             <button
                                 onClick={kalemEkle}
@@ -286,9 +286,9 @@ export default function PlanliTransfer() {
                             </button>
                         </div>
 
-                        <div className="space-y-3">
+                        <div className="space-y-2.5">
                             {form.kalemler.map((kalem, index) => (
-                                <div key={index} className="bg-zinc-800 rounded-lg p-4 space-y-3">
+                                <div key={index} className="bg-zinc-800 rounded-lg p-3.5 space-y-2.5">
                                     <div className="flex items-center justify-between">
                                         <span className="text-zinc-400 text-xs font-medium">Kalem {index + 1}</span>
                                         {form.kalemler.length > 1 && (
@@ -379,12 +379,12 @@ export default function PlanliTransfer() {
 
             {/* Planlar Listesi */}
             {planlar.length === 0 ? (
-                <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-12 text-center">
+                <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-10 text-center">
                     <p className="text-zinc-400 mb-2">⏰ Henüz planlı transfer yok</p>
                     <p className="text-zinc-500 text-sm">"+ Yeni Plan" ile oluşturun</p>
                 </div>
             ) : (
-                <div className="space-y-3">
+                <div className="space-y-2.5">
                     {planlar.map(plan => (
                         <div
                             key={plan.id}
@@ -394,7 +394,8 @@ export default function PlanliTransfer() {
                                 <div className="flex-1">
                                     <div className="flex items-center gap-2 flex-wrap">
                                         <p className="text-white font-semibold">{plan.ad}</p>
-                                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${plan.aktif ? 'bg-green-900/50 text-green-400' : 'bg-zinc-700 text-zinc-400'}`}>
+                                        {/* Aktif = pozitif (lime), Pasif = nötr (zinc) */}
+                                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${plan.aktif ? 'bg-lime-900/40 text-lime-400' : 'bg-zinc-700 text-zinc-400'}`}>
                                             {plan.aktif ? 'Aktif' : 'Pasif'}
                                         </span>
                                         <span className="text-xs text-zinc-500">
@@ -403,7 +404,7 @@ export default function PlanliTransfer() {
                                     </div>
 
                                     {/* Kalemler */}
-                                    <div className="mt-3 space-y-1">
+                                    <div className="mt-2.5 space-y-1">
                                         {plan.kalemler?.map((k, i) => (
                                             <div key={i} className="flex items-center gap-2 text-xs text-zinc-400">
                                                 <span className="text-zinc-600">•</span>

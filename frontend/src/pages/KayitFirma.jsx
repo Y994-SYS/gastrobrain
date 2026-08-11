@@ -60,15 +60,16 @@ export default function KayitFirma() {
         <div className="min-h-screen bg-zinc-950 flex items-center justify-center p-4">
             <div className="w-full max-w-md">
 
-                <div className="text-center mb-8">
+                <div className="text-center mb-6">
                     <h1 className="text-3xl font-black text-white tracking-tight">
                         Gastro<span className="text-lime-400">BRAIN</span>
                     </h1>
                     <p className="text-zinc-500 text-sm mt-2">Yeni firma kaydı</p>
                 </div>
 
-                <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 space-y-6">
+                <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 space-y-5">
 
+                    {/* Hata = kırmızı (kritik/uyarı) — standart renk paletiyle uyumlu */}
                     {hata && (
                         <div className="bg-red-500/10 border border-red-500/30 text-red-400 text-sm rounded-lg p-3">
                             {hata}
@@ -77,10 +78,10 @@ export default function KayitFirma() {
 
                     {/* Firma Bilgileri */}
                     <div>
-                        <h3 className="text-zinc-400 text-xs font-semibold uppercase tracking-wider mb-3">
+                        <h3 className="text-zinc-400 text-xs font-semibold uppercase tracking-wider mb-2.5">
                             Firma Bilgileri
                         </h3>
-                        <div className="space-y-3">
+                        <div className="space-y-2.5">
                             <div>
                                 <label className="text-zinc-400 text-sm mb-1.5 block">Firma Adı <span className="text-red-400">*</span></label>
                                 <input
@@ -129,10 +130,10 @@ export default function KayitFirma() {
 
                     {/* Admin Kullanıcı */}
                     <div>
-                        <h3 className="text-zinc-400 text-xs font-semibold uppercase tracking-wider mb-3">
+                        <h3 className="text-zinc-400 text-xs font-semibold uppercase tracking-wider mb-2.5">
                             Yönetici Hesabı
                         </h3>
-                        <div className="space-y-3">
+                        <div className="space-y-2.5">
                             <div>
                                 <label className="text-zinc-400 text-sm mb-1.5 block">Ad Soyad <span className="text-red-400">*</span></label>
                                 <input

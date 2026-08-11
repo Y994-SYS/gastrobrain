@@ -72,7 +72,7 @@ export default function Login() {
             <div className="w-full max-w-sm">
 
                 {/* Logo */}
-                <div className="text-center mb-8">
+                <div className="text-center mb-6">
                     <div className="flex justify-center mb-3">
                         <img src="/logo.png" alt="GastroBRAIN" className="w-16 h-16 object-contain" />
                     </div>
@@ -83,10 +83,10 @@ export default function Login() {
                 </div>
 
                 {/* Kart */}
-                <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
+                <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
 
                     {/* Başlık + adım göstergesi */}
-                    <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center justify-between mb-5">
                         <h2 className="text-white font-bold text-lg">Giriş Yap</h2>
                         <div className="flex items-center gap-1.5">
                             <div className={`w-2 h-2 rounded-full transition-colors ${adim >= 1 ? 'bg-lime-400' : 'bg-zinc-700'}`} />
@@ -95,7 +95,7 @@ export default function Login() {
                         </div>
                     </div>
 
-                    {/* Hata */}
+                    {/* Hata = kırmızı (kritik/uyarı) */}
                     {hata && (
                         <div className="bg-red-500/10 border border-red-500/30 text-red-400 text-sm rounded-lg px-3 py-2.5 mb-4 flex items-center gap-2">
                             <span>⚠️</span>
@@ -105,7 +105,7 @@ export default function Login() {
 
                     {/* ADIM 1 — Email */}
                     {adim === 1 && (
-                        <div className="space-y-4">
+                        <div className="space-y-3.5">
                             <div>
                                 <label className="text-zinc-400 text-sm mb-1.5 block">Email adresi</label>
                                 <input
@@ -138,7 +138,7 @@ export default function Login() {
 
                     {/* ADIM 2 — Firma + Şifre */}
                     {adim === 2 && (
-                        <div className="space-y-4">
+                        <div className="space-y-3.5">
                             {/* Email özeti */}
                             <div className="flex items-center justify-between bg-zinc-800 rounded-lg px-3 py-2">
                                 <span className="text-zinc-300 text-sm truncate">{email}</span>
@@ -162,8 +162,8 @@ export default function Login() {
                                                 onClick={() => !t.tenantAktif ? null : setSeciliTenant(t)}
                                                 disabled={!t.tenantAktif}
                                                 className={`w-full text-left px-3 py-2.5 rounded-lg border text-sm transition-colors ${seciliTenant?.tenantId === t.tenantId
-                                                        ? 'border-lime-400 bg-lime-400/10 text-white'
-                                                        : 'border-zinc-700 bg-zinc-800 text-zinc-300 hover:border-zinc-500'
+                                                    ? 'border-lime-400 bg-lime-400/10 text-white'
+                                                    : 'border-zinc-700 bg-zinc-800 text-zinc-300 hover:border-zinc-500'
                                                     } ${!t.tenantAktif ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}
                                             >
                                                 <span className="font-medium">{t.tenantAd}</span>

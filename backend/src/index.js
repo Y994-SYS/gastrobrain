@@ -227,6 +227,18 @@ new CronJob('0 10,16 * * *', async () => {
         logger.error('[KRİTİK STOK HATA]', err);
     }
 }, null, true, 'Europe/Istanbul');
+// ── SELF-PING (Render uyku modunu engelle) ────────────────────
+// Her 14 dakikada bir kendi kendine ping atar
+new CronJob('*/14 * * * *', async () => {
+    try {
+        const url = process.env.APP_URL?.replace('app.', 'api.')
+            || 'https://api.gastrobrain.com.tr';
+        await fetch(`${url}/`);
+        logger.info('[PING] Self-ping başarılı');
+    } catch (err) {
+        logger.warn('[PING] Self-ping başarısız:', err.message);
+    }
+}, null, true, 'Europe/Istanbul');
 
 // ── MERKEZ DEPO OTOMATİK DAĞITIM (Pazartesi & Cuma saat 06:00) ──
 const merkezDepoService = require('./services/merkezDepo.service');
@@ -262,3 +274,4 @@ new CronJob('* * * * *', async () => {
 app.listen(PORT, () => {
     logger.info(`Server http://localhost:${PORT} adresinde çalışıyor`);
 });
+

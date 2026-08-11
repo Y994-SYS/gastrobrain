@@ -160,15 +160,15 @@ export default function MerkezDepo() {
         );
     }
 
-    // 2. BASLANGIC paketi → yetkisiz
+    // 2. BASLANGIC paketi → yetkisiz (dikkat gerektiren durum = amber)
     if (yetkisiz) {
         return (
             <div className="flex items-center justify-center h-screen bg-zinc-900">
-                <div className="text-center p-8 border-2 border-amber-400 rounded-lg bg-zinc-800 shadow-lg max-w-md">
-                    <h2 className="text-2xl font-bold text-amber-400 mb-4">
+                <div className="text-center p-6 border-2 border-amber-400 rounded-xl bg-zinc-800 shadow-lg max-w-md">
+                    <h2 className="text-2xl font-bold text-amber-400 mb-3">
                         ⚠️ Merkez Depo PROFESYONEL Paketinde
                     </h2>
-                    <p className="text-gray-300 mb-6">
+                    <p className="text-gray-300 mb-5">
                         Bu özelliği kullanmak için paketinizi yükseltmeniz gerekiyor.
                     </p>
                     <button
@@ -193,7 +193,7 @@ export default function MerkezDepo() {
 
     // ─── Ana Render ──────────────────────────────────────────
     return (
-        <div className="p-6 space-y-6">
+        <div className="p-6 space-y-5">
             <div>
                 <h1 className="text-2xl font-bold text-white">Merkez Depo Yönetimi</h1>
                 <p className="text-zinc-500 text-sm mt-1">
@@ -201,13 +201,13 @@ export default function MerkezDepo() {
                 </p>
             </div>
 
-            {/* Durum Özeti */}
+            {/* Durum Özeti — kırmızı: kritik/uyarı, lime: pozitif/normal */}
             {durum.length > 0 && (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                     {durum.map((d, i) => (
                         <div
                             key={i}
-                            className={`bg-zinc-900 rounded-xl p-4 border-l-4 ${d.durum === 'UYARI' ? 'border-l-red-500' : 'border-l-green-500'
+                            className={`bg-zinc-900 rounded-xl p-4 border-l-4 ${d.durum === 'UYARI' ? 'border-l-red-500' : 'border-l-lime-500'
                                 }`}
                         >
                             <p className="text-zinc-400 text-xs">{d.tanim}</p>
@@ -234,8 +234,8 @@ export default function MerkezDepo() {
                         key={tab}
                         onClick={() => setAktifTab(tab)}
                         className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${aktifTab === tab
-                                ? 'bg-lime-400 text-zinc-900'
-                                : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'
+                            ? 'bg-lime-400 text-zinc-900'
+                            : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'
                             }`}
                     >
                         {tab === 'tanimlar' ? 'Tanımlar' : tab === 'dagit' ? 'Manual Dağıtım' : 'Dağıtım Geçmişi'}
@@ -245,9 +245,9 @@ export default function MerkezDepo() {
 
             {/* TAB: Tanımlar */}
             {aktifTab === 'tanimlar' && (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
                     {/* Tanım Ekleme Formu */}
-                    <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 space-y-4">
+                    <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 space-y-3.5">
                         <h2 className="text-white font-semibold">Yeni Tanım</h2>
 
                         <div>
@@ -284,7 +284,7 @@ export default function MerkezDepo() {
                                 id="otomati"
                                 checked={tanımForm.otomatiDagit}
                                 onChange={e => setTanımForm(f => ({ ...f, otomatiDagit: e.target.checked }))}
-                                className="rounded"
+                                className="rounded accent-lime-400"
                             />
                             <label htmlFor="otomati" className="text-zinc-300 text-sm">
                                 Otomatik Dağıtım Açık
@@ -312,11 +312,11 @@ export default function MerkezDepo() {
                     </div>
 
                     {/* Tanımlar Listesi */}
-                    <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 space-y-3">
+                    <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 space-y-3">
                         <h2 className="text-white font-semibold">Aktif Tanımlar</h2>
 
                         {tanimlar.length === 0 ? (
-                            <div className="text-zinc-400 text-sm py-8 text-center">
+                            <div className="text-zinc-400 text-sm py-6 text-center">
                                 <p className="mb-3">📦 Henüz merkez depo tanımı yok</p>
                                 <p className="text-xs text-zinc-500">
                                     Sol taraftaki formdan yeni tanım ekleyerek başlayın
@@ -349,11 +349,11 @@ export default function MerkezDepo() {
 
             {/* TAB: Manual Dağıtım */}
             {aktifTab === 'dagit' && (
-                <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 space-y-4 max-w-2xl">
+                <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 space-y-3.5 max-w-2xl">
                     <h2 className="text-white font-semibold">Manual Dağıtım Yap</h2>
 
                     {tanimlar.length === 0 ? (
-                        <div className="text-zinc-400 text-sm py-8 text-center bg-zinc-800 rounded-lg p-6">
+                        <div className="text-zinc-400 text-sm py-6 text-center bg-zinc-800 rounded-lg p-5">
                             <p className="mb-3">⚠️ Dağıtım yapabilmek için önce merkez depo tanımı ekleyin</p>
                             <button
                                 onClick={() => setAktifTab('tanimlar')}
@@ -430,11 +430,11 @@ export default function MerkezDepo() {
 
             {/* TAB: Dağıtım Geçmişi */}
             {aktifTab === 'gecmis' && (
-                <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6">
-                    <h2 className="text-white font-semibold mb-4">Dağıtım Geçmişi</h2>
+                <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
+                    <h2 className="text-white font-semibold mb-3.5">Dağıtım Geçmişi</h2>
 
                     {gecmis.length === 0 ? (
-                        <p className="text-zinc-500 text-sm text-center py-8">📋 Henüz dağıtım kaydı yok</p>
+                        <p className="text-zinc-500 text-sm text-center py-6">📋 Henüz dağıtım kaydı yok</p>
                     ) : (
                         <div className="overflow-x-auto">
                             <table className="w-full text-sm">

@@ -13,7 +13,7 @@ const inputCls = "w-full bg-zinc-800 text-white px-3 py-2.5 rounded-lg text-sm b
 // ─── Skeleton Kart ────────────────────────────────────────────────────────────
 function SkeletonKart() {
     return (
-        <div className="bg-zinc-900 rounded-2xl p-5 border border-zinc-800 space-y-3 animate-pulse">
+        <div className="bg-zinc-900 rounded-xl p-4 border border-zinc-800 space-y-3 animate-pulse">
             <div className="flex justify-between items-start">
                 <div className="space-y-2">
                     <div className="h-5 w-32 bg-zinc-800 rounded" />
@@ -106,7 +106,7 @@ export default function Subeler() {
     };
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-5">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
                     <h1 className="text-xl font-bold text-white">Şube Yönetimi</h1>
@@ -122,11 +122,11 @@ export default function Subeler() {
                 </button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3.5">
                 {yukleniyor ? (
                     <><SkeletonKart /><SkeletonKart /><SkeletonKart /></>
                 ) : subeler.length === 0 ? (
-                    <div className="col-span-3 text-center py-16">
+                    <div className="col-span-3 text-center py-14">
                         <div className="text-3xl mb-2">🏪</div>
                         <div className="text-zinc-500 text-sm">Henüz şube eklenmemiş</div>
                     </div>
@@ -134,12 +134,12 @@ export default function Subeler() {
                     <div
                         key={sube.id}
                         onClick={() => navigate(`/tanimlamalar/subeler/${sube.id}`)}
-                        className="bg-zinc-900 rounded-2xl p-5 border border-zinc-800 space-y-3 cursor-pointer hover:border-zinc-600 transition-colors"
+                        className="bg-zinc-900 rounded-xl p-4 border border-zinc-800 space-y-2.5 cursor-pointer hover:border-zinc-600 transition-colors"
                     >
                         <div className="flex justify-between items-start gap-2">
                             <div>
                                 <h3 className="text-white font-semibold text-base leading-tight">{sube.ad}</h3>
-                                <span className={`inline-block mt-1 text-xs px-2 py-0.5 rounded-full ${sube.aktif ? 'bg-green-900/50 text-green-400' : 'bg-red-900/50 text-red-400'
+                                <span className={`inline-block mt-1 text-xs px-2 py-0.5 rounded-full ${sube.aktif ? 'bg-lime-900/40 text-lime-400' : 'bg-red-900/50 text-red-400'
                                     }`}>
                                     {sube.aktif ? 'Aktif' : 'Pasif'}
                                 </span>
@@ -196,12 +196,12 @@ export default function Subeler() {
 
             {modalAcik && (
                 <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
-                    <div className="bg-zinc-900 rounded-2xl p-6 w-full max-w-md border border-zinc-700 space-y-4">
+                    <div className="bg-zinc-900 rounded-xl p-5 w-full max-w-md border border-zinc-700 space-y-3.5">
                         <h2 className="text-white font-bold text-lg">
                             {duzenleId ? 'Şube Düzenle' : 'Yeni Şube Ekle'}
                         </h2>
 
-                        <div className="space-y-3">
+                        <div className="space-y-2.5">
                             <div>
                                 <label className="text-zinc-400 text-xs block mb-1.5">Şube Adı *</label>
                                 <input

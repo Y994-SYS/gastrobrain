@@ -113,13 +113,13 @@ export default function TuketimGideri() {
 
     return (
         <div className="max-w-2xl">
-            <div className="mb-6">
+            <div className="mb-5">
                 <h1 className="text-xl font-bold text-white">Tüketim Gideri</h1>
                 <p className="text-zinc-500 text-sm mt-0.5">Personel tüketimi veya mutfak içi kullanım kaydı</p>
             </div>
 
             {/* Mod Toggle */}
-            <div className="flex gap-1 bg-zinc-900 border border-zinc-800 rounded-xl p-1 mb-6">
+            <div className="flex gap-1 bg-zinc-900 border border-zinc-800 rounded-xl p-1 mb-5">
                 <button
                     onClick={() => setMod('tekli')}
                     className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-colors ${mod === 'tekli'
@@ -143,10 +143,10 @@ export default function TuketimGideri() {
             {/* TEKLİ MOD */}
             {mod === 'tekli' && (
                 <>
-                    <div className="bg-blue-500/5 border border-blue-500/20 rounded-xl p-4 mb-6">
-                        <p className="text-blue-400 text-sm">🍽️ Tüketim gideri stoktan düşer ve gider olarak kaydedilir.</p>
+                    <div className="bg-zinc-800/50 border border-zinc-700 rounded-xl p-4 mb-5">
+                        <p className="text-zinc-400 text-sm">🍽️ Tüketim gideri stoktan düşer ve gider olarak kaydedilir.</p>
                     </div>
-                    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 space-y-4">
+                    <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 space-y-3.5">
                         <div>
                             <label className="text-zinc-400 text-sm mb-1.5 block">Stok Kartı *</label>
                             <select
@@ -160,7 +160,7 @@ export default function TuketimGideri() {
                                 ))}
                             </select>
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-2 gap-3.5">
                             <div>
                                 <label className="text-zinc-400 text-sm mb-1.5 block">
                                     Miktar {seciliStok && <span className="text-zinc-500">({seciliStok.birim?.kisaltma})</span>}
@@ -206,10 +206,10 @@ export default function TuketimGideri() {
             {/* REÇETE BAZLI MOD */}
             {mod === 'recete' && (
                 <>
-                    <div className="bg-lime-400/5 border border-lime-400/20 rounded-xl p-4 mb-6">
+                    <div className="bg-lime-400/5 border border-lime-400/20 rounded-xl p-4 mb-5">
                         <p className="text-lime-400 text-sm">🍽 Reçete seç, porsiyon sayısı gir — tüm kalemler otomatik hesaplanıp stoktan düşülür.</p>
                     </div>
-                    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 space-y-4">
+                    <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 space-y-3.5">
                         <div>
                             <label className="text-zinc-400 text-sm mb-1.5 block">Reçete *</label>
                             <select
@@ -226,7 +226,7 @@ export default function TuketimGideri() {
                             </select>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-2 gap-3.5">
                             <div>
                                 <label className="text-zinc-400 text-sm mb-1.5 block">
                                     Porsiyon Sayısı *

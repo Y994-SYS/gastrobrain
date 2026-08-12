@@ -44,7 +44,7 @@ export default function AySonuSayim() {
 
     return (
         <div>
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-5 gap-3">
                 <div>
                     <h1 className="text-xl font-bold text-white">Ay Sonu Sayım</h1>
                     <p className="text-zinc-500 text-sm mt-0.5">Sayım sonuçlarını gir, sistem farkı hesaplayıp stoğu günceller</p>
@@ -55,11 +55,11 @@ export default function AySonuSayim() {
                 </button>
             </div>
 
-            <div className="bg-blue-500/5 border border-blue-500/20 rounded-xl p-4 mb-6">
-                <p className="text-blue-400 text-sm">📋 Saydığın miktarı gir. Boş bıraktığın kalemler işlenmez.</p>
+            <div className="bg-zinc-800/50 border border-zinc-700 rounded-xl p-4 mb-5">
+                <p className="text-zinc-400 text-sm">📋 Saydığın miktarı gir. Boş bıraktığın kalemler işlenmez.</p>
             </div>
 
-            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
+            <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="w-full">
                         <thead>

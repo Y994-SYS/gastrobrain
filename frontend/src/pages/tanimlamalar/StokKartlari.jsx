@@ -136,7 +136,7 @@ export default function StokKartlari() {
     return (
         <div>
             {/* Başlık */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-5 gap-3">
                 <div>
                     <h1 className="text-xl font-bold text-white">Stok Kartları</h1>
                     <p className="text-zinc-500 text-sm mt-0.5">
@@ -163,7 +163,7 @@ export default function StokKartlari() {
                 </div>
             </div>
 
-            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
+            <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
                 <Table
                     kolonlar={kolonlar}
                     veri={filtreliVeri}
@@ -172,7 +172,7 @@ export default function StokKartlari() {
                     yukleniyor={tabloYukleniyor}
                 />
                 {!tabloYukleniyor && filtreliVeri.length === 0 && (
-                    <div className="text-center py-14">
+                    <div className="text-center py-12">
                         <div className="text-3xl mb-2">🗂️</div>
                         <div className="text-zinc-500 text-sm">
                             {arama ? `"${arama}" için sonuç bulunamadı` : 'Henüz stok kartı yok'}
@@ -278,7 +278,7 @@ export default function StokKartlari() {
             {/* Silme Onay Modal */}
             {silOnayId && (
                 <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
-                    <div className="bg-zinc-900 rounded-2xl p-6 w-full max-w-sm border border-zinc-700 space-y-4">
+                    <div className="bg-zinc-900 rounded-xl p-5 w-full max-w-sm border border-zinc-700 space-y-3.5">
                         <h2 className="text-white font-bold">Stok Kartını Sil</h2>
                         <p className="text-zinc-400 text-sm">
                             <span className="text-white font-medium">{silOnayKart?.ad}</span> stok kartını silmek istediğinize emin misiniz?

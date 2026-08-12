@@ -59,14 +59,14 @@ export default function IadeFaturasi() {
 
     return (
         <div className="max-w-2xl">
-            <div className="mb-6">
+            <div className="mb-5">
                 <h1 className="text-xl font-bold text-white">İade Faturası</h1>
                 <p className="text-zinc-500 text-sm mt-0.5">Stoktan düşme ve cariye alacak kaydı</p>
             </div>
-            <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-4 mb-6">
+            <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-4 mb-5">
                 <p className="text-amber-400 text-sm">⚠️ İade faturası stoktan düşer ve seçilen tedarikçiye alacak olarak yansır.</p>
             </div>
-            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 space-y-4">
+            <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 space-y-3.5">
 
                 {/* İade Tipi Toggle */}
                 <div>
@@ -75,8 +75,8 @@ export default function IadeFaturasi() {
                         <button
                             onClick={() => odemeSecimi('cari')}
                             className={`flex-1 py-2.5 rounded-lg text-sm font-semibold transition-all ${odeme === 'cari'
-                                    ? 'bg-orange-500/20 border border-orange-500/60 text-orange-300'
-                                    : 'bg-zinc-800 border border-zinc-700 text-zinc-400 hover:border-zinc-500'
+                                ? 'bg-orange-500/20 border border-orange-500/60 text-orange-300'
+                                : 'bg-zinc-800 border border-zinc-700 text-zinc-400 hover:border-zinc-500'
                                 }`}
                         >
                             📋 Cariye Alacak
@@ -84,8 +84,8 @@ export default function IadeFaturasi() {
                         <button
                             onClick={() => odemeSecimi('nakit')}
                             className={`flex-1 py-2.5 rounded-lg text-sm font-semibold transition-all ${odeme === 'nakit'
-                                    ? 'bg-lime-400/20 border border-lime-400/60 text-lime-300'
-                                    : 'bg-zinc-800 border border-zinc-700 text-zinc-400 hover:border-zinc-500'
+                                ? 'bg-lime-400/20 border border-lime-400/60 text-lime-300'
+                                : 'bg-zinc-800 border border-zinc-700 text-zinc-400 hover:border-zinc-500'
                                 }`}
                         >
                             💵 Nakit İade
@@ -98,7 +98,7 @@ export default function IadeFaturasi() {
                     </p>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-3.5">
                     <div className="col-span-2">
                         <label className="text-zinc-400 text-sm mb-1.5 block">Stok Kartı *</label>
                         <select value={form.stokKartId} onChange={(e) => setForm({ ...form, stokKartId: e.target.value })}

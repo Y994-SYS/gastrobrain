@@ -71,7 +71,7 @@ export default function SubeDetay() {
     );
 
     return (
-        <div className="p-6 space-y-6">
+        <div className="p-6 space-y-5">
 
             {/* ── Başlık ── */}
             <div className="flex items-start justify-between gap-4">
@@ -86,7 +86,7 @@ export default function SubeDetay() {
                         <div className="flex items-center gap-2">
                             <h1 className="text-2xl font-bold text-white">{sube.ad}</h1>
                             <span className={`text-xs px-2 py-0.5 rounded-full ${sube.aktif
-                                ? 'bg-green-900/50 text-green-400'
+                                ? 'bg-lime-900/40 text-lime-400'
                                 : 'bg-red-900/50 text-red-400'}`}>
                                 {sube.aktif ? 'Aktif' : 'Pasif'}
                             </span>
@@ -106,7 +106,7 @@ export default function SubeDetay() {
                     baslik="Bugün Satış"
                     deger={`₺${para(ozet.bugunSatisToplam)}`}
                     alt={`${ozet.bugunSatisAdet} işlem`}
-                    renk={ozet.bugunSatisToplam > 0 ? 'text-emerald-400' : 'text-zinc-500'}
+                    renk={ozet.bugunSatisToplam > 0 ? 'text-lime-400' : 'text-zinc-500'}
                 />
                 <OzetKart
                     icon="📅"
@@ -240,7 +240,7 @@ export default function SubeDetay() {
                                 <tr key={s.id} className="border-b border-zinc-800/50 hover:bg-zinc-800/30 transition-colors">
                                     <td className="py-3 px-4 text-white text-sm">{s.recete?.ad || '—'}</td>
                                     <td className="py-3 px-4 text-right text-zinc-300 text-sm font-mono">{miktar(s.adet)}</td>
-                                    <td className="py-3 px-4 text-right text-emerald-400 text-sm font-semibold font-mono">
+                                    <td className="py-3 px-4 text-right text-lime-400 text-sm font-semibold font-mono">
                                         ₺{para(s.toplam)}
                                     </td>
                                     <td className="py-3 px-4 text-right text-zinc-500 text-xs hidden sm:table-cell">
@@ -304,7 +304,7 @@ export default function SubeDetay() {
                         <div key={h.id} className="bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 flex items-center justify-between gap-3">
                             <div className="flex items-center gap-3">
                                 <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${h.tip === 'SUBE_TRANSFER_IN'
-                                    ? 'bg-emerald-900/50 text-emerald-400'
+                                    ? 'bg-lime-900/40 text-lime-400'
                                     : 'bg-red-900/50 text-red-400'}`}>
                                     {h.tip === 'SUBE_TRANSFER_IN' ? 'GİRİŞ' : 'ÇIKIŞ'}
                                 </span>
@@ -314,7 +314,7 @@ export default function SubeDetay() {
                                 </div>
                             </div>
                             <div className="text-right shrink-0">
-                                <p className={`text-sm font-semibold font-mono ${h.tip === 'SUBE_TRANSFER_IN' ? 'text-emerald-400' : 'text-red-400'}`}>
+                                <p className={`text-sm font-semibold font-mono ${h.tip === 'SUBE_TRANSFER_IN' ? 'text-lime-400' : 'text-red-400'}`}>
                                     {h.tip === 'SUBE_TRANSFER_IN' ? '+' : '-'}{miktar(h.miktar)}
                                 </p>
                                 <p className="text-zinc-500 text-xs">{tarih(h.tarih)}</p>

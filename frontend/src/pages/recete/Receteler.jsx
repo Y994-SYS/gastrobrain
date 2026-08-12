@@ -112,7 +112,7 @@ export default function Receteler() {
 
     return (
         <div>
-            <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center justify-between mb-5">
                 <div>
                     <h1 className="text-xl font-bold text-white">Reçeteler</h1>
                     <p className="text-zinc-500 text-sm mt-0.5">{veri.length} reçete</p>
@@ -125,14 +125,14 @@ export default function Receteler() {
                 </button>
             </div>
 
-            <div className="grid gap-4">
+            <div className="grid gap-3">
                 {veri.length === 0 ? (
-                    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl text-center py-16 text-zinc-500 text-sm">
+                    <div className="bg-zinc-900 border border-zinc-800 rounded-xl text-center py-14 text-zinc-500 text-sm">
                         Henüz reçete yok
                     </div>
                 ) : veri.map((r) => (
-                    <div key={r.id} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
-                        <div className="flex items-start justify-between mb-3">
+                    <div key={r.id} className="bg-zinc-900 border border-zinc-800 rounded-xl p-4">
+                        <div className="flex items-start justify-between mb-2.5">
                             <div>
                                 <h3 className="text-white font-bold">{r.ad}</h3>
                                 <div className="flex gap-3 mt-1 flex-wrap">

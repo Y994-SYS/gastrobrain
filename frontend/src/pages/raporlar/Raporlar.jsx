@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import api from '../../services/api';
 import SubeSecici from '../../components/SubeSecici';
 import useSubeStore from '../../store/subeStore';
@@ -15,6 +15,15 @@ const TABS = [
 ];
 
 const fmt = (n) => Number(n || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+// Eşik bazlı rozet rengi: pozitif = lime, dikkat = amber, kritik = red
+const esikRozet = (deger, iyiEsik, ortaEsik, tersMi = false) => {
+    const iyi = tersMi ? deger <= iyiEsik : deger >= iyiEsik;
+    const orta = tersMi ? deger <= ortaEsik : deger >= ortaEsik;
+    if (iyi) return 'bg-lime-900/50 text-lime-400';
+    if (orta) return 'bg-amber-900/50 text-amber-400';
+    return 'bg-red-900/50 text-red-400';
+};
 
 export default function Raporlar() {
     const [aktifTab, setAktifTab] = useState('satis');
@@ -79,7 +88,7 @@ export default function Raporlar() {
     };
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-5">
             <h1 className="text-xl font-bold text-white">Raporlar</h1>
 
             <SubeSecici />
@@ -122,8 +131,8 @@ export default function Raporlar() {
                 <div className="space-y-4">
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                         <OzetKart baslik="Toplam Ciro" deger={`₺${fmt(veri.ozet?.toplamCiro)}`} renk="lime" />
-                        <OzetKart baslik="Toplam Adet" deger={veri.ozet?.toplamAdet} renk="blue" />
-                        <OzetKart baslik="Satış Kaydı" deger={veri.ozet?.satisAdedi} renk="purple" />
+                        <OzetKart baslik="Toplam Adet" deger={veri.ozet?.toplamAdet} renk="zinc" />
+                        <OzetKart baslik="Satış Kaydı" deger={veri.ozet?.satisAdedi} renk="zinc" />
                     </div>
                     {veri.ozet?.subeGrup?.length > 1 && (
                         <div className="bg-zinc-900 rounded-xl p-4">
@@ -199,7 +208,7 @@ export default function Raporlar() {
             {aktifTab === 'stok' && veri && (
                 <div className="space-y-4">
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                        <OzetKart baslik="Toplam Stok Kartı" deger={veri.ozet?.toplamKart} renk="blue" />
+                        <OzetKart baslik="Toplam Stok Kartı" deger={veri.ozet?.toplamKart} renk="zinc" />
                         <OzetKart baslik="Kritik Stok" deger={veri.ozet?.kritikSayisi} renk="red" />
                         <OzetKart baslik="Toplam Stok Değeri" deger={`₺${fmt(veri.ozet?.toplamDeger)}`} renk="lime" />
                     </div>
@@ -221,7 +230,7 @@ export default function Raporlar() {
                                             <td className="text-right">{s.mevcutStok} {s.birim}</td>
                                             <td className="text-right text-zinc-500">{s.minStok}</td>
                                             <td className="text-right">
-                                                <span className={`px-2 py-0.5 rounded text-xs font-medium ${s.kritikMi ? 'bg-red-900/50 text-red-400' : 'bg-green-900/50 text-green-400'}`}>
+                                                <span className={`px-2 py-0.5 rounded text-xs font-medium ${s.kritikMi ? 'bg-red-900/50 text-red-400' : 'bg-lime-900/50 text-lime-400'}`}>
                                                     {s.kritikMi ? 'KRİTİK' : 'NORMAL'}
                                                 </span>
                                             </td>
@@ -239,7 +248,7 @@ export default function Raporlar() {
                 <div className="space-y-4">
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                         <OzetKart baslik="Toplam Borç" deger={`₺${fmt(veri.ozet?.toplamBorc)}`} renk="red" />
-                        <OzetKart baslik="Toplam Alacak" deger={`₺${fmt(veri.ozet?.toplamAlacak)}`} renk="green" />
+                        <OzetKart baslik="Toplam Alacak" deger={`₺${fmt(veri.ozet?.toplamAlacak)}`} renk="lime" />
                         <OzetKart baslik="Net Bakiye" deger={`₺${fmt(veri.ozet?.netBakiye)}`} renk="lime" />
                     </div>
                     <div className="bg-zinc-900 rounded-xl p-4">
@@ -257,7 +266,7 @@ export default function Raporlar() {
                                             <td className="py-2 text-zinc-500">{c.kod}</td><td>{c.ad}</td>
                                             <td className="text-zinc-400">{c.telefon || '-'}</td>
                                             <td className="text-right">{c.hareketSayisi}</td>
-                                            <td className={`text-right font-medium ${c.bakiye < 0 ? 'text-red-400' : c.bakiye > 0 ? 'text-green-400' : 'text-zinc-400'}`}>
+                                            <td className={`text-right font-medium ${c.bakiye < 0 ? 'text-red-400' : c.bakiye > 0 ? 'text-lime-400' : 'text-zinc-400'}`}>
                                                 ₺{fmt(c.bakiye)}
                                             </td>
                                         </tr>
@@ -272,7 +281,7 @@ export default function Raporlar() {
             {aktifTab === 'maliyet' && veri && (
                 <div className="space-y-4">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <OzetKart baslik="Reçete Sayısı" deger={veri.ozet?.receteSayisi} renk="blue" />
+                        <OzetKart baslik="Reçete Sayısı" deger={veri.ozet?.receteSayisi} renk="zinc" />
                         <OzetKart baslik="Ort. Kâr Marjı" deger={`%${veri.ozet?.ortalamaKarMarji}`} renk="lime" />
                     </div>
                     <div className="bg-zinc-900 rounded-xl p-4">
@@ -291,9 +300,9 @@ export default function Raporlar() {
                                             <td className="py-2 font-medium">{m.ad}</td>
                                             <td className="text-right">₺{fmt(m.satisFiyati)}</td>
                                             <td className="text-right text-red-400">₺{fmt(m.toplamMaliyet)}</td>
-                                            <td className="text-right text-green-400">₺{fmt(m.karMiktari)}</td>
+                                            <td className="text-right text-lime-400">₺{fmt(m.karMiktari)}</td>
                                             <td className="text-right">
-                                                <span className={`px-2 py-0.5 rounded text-xs font-medium ${m.karMarji >= 60 ? 'bg-green-900/50 text-green-400' : m.karMarji >= 40 ? 'bg-yellow-900/50 text-yellow-400' : 'bg-red-900/50 text-red-400'}`}>
+                                                <span className={`px-2 py-0.5 rounded text-xs font-medium ${esikRozet(m.karMarji, 60, 40)}`}>
                                                     %{m.karMarji}
                                                 </span>
                                             </td>
@@ -311,10 +320,10 @@ export default function Raporlar() {
             {aktifTab === 'sube-karsilastirmasi' && veri && (
                 <div className="space-y-4">
                     <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-                        <OzetKart baslik="Şube Sayısı" deger={veri.ozet?.toplamSubeSayisi} renk="blue" />
+                        <OzetKart baslik="Şube Sayısı" deger={veri.ozet?.toplamSubeSayisi} renk="zinc" />
                         <OzetKart baslik="Toplam Ciro" deger={`₺${fmt(veri.ozet?.toplamCiro)}`} renk="lime" />
-                        <OzetKart baslik="Toplam Kâr" deger={`₺${fmt(veri.ozet?.toplamKar)}`} renk="green" />
-                        <OzetKart baslik="Ort. Kâr %" deger={`%${veri.ozet?.ortalamaKarMarji}`} renk="purple" />
+                        <OzetKart baslik="Toplam Kâr" deger={`₺${fmt(veri.ozet?.toplamKar)}`} renk="lime" />
+                        <OzetKart baslik="Ort. Kâr %" deger={`%${veri.ozet?.ortalamaKarMarji}`} renk="zinc" />
                     </div>
 
                     {/* En İyi Şubeler Özet */}
@@ -323,11 +332,11 @@ export default function Raporlar() {
                             <p className="text-zinc-400 text-xs mb-2">🏆 En Yüksek Satış</p>
                             <p className="text-white font-bold text-lg">{veri.enIyi?.enYuksekSatisSube}</p>
                         </div>
-                        <div className="bg-zinc-900 rounded-xl p-4 border border-green-400/30">
+                        <div className="bg-zinc-900 rounded-xl p-4 border border-lime-400/30">
                             <p className="text-zinc-400 text-xs mb-2">💰 En Yüksek Kâr %</p>
                             <p className="text-white font-bold text-lg">{veri.enIyi?.enYuksekKarSube}</p>
                         </div>
-                        <div className="bg-zinc-900 rounded-xl p-4 border border-blue-400/30">
+                        <div className="bg-zinc-900 rounded-xl p-4 border border-lime-400/30">
                             <p className="text-zinc-400 text-xs mb-2">✅ En Düşük Zayi %</p>
                             <p className="text-white font-bold text-lg">{veri.enIyi?.enDusukZayiSube}</p>
                         </div>
@@ -358,20 +367,14 @@ export default function Raporlar() {
                                             <td className="text-right text-lime-400 font-semibold">₺{fmt(s.toplamSatis)}</td>
                                             <td className="text-right">{s.toplamAdet}</td>
                                             <td className="text-right text-red-400">₺{fmt(s.toplamMaliyet)}</td>
-                                            <td className="text-right text-green-400 font-semibold">₺{fmt(s.kar)}</td>
+                                            <td className="text-right text-lime-400 font-semibold">₺{fmt(s.kar)}</td>
                                             <td className="text-right">
-                                                <span className={`px-2 py-0.5 rounded text-xs font-medium ${s.karMarji >= 70 ? 'bg-green-900/50 text-green-400'
-                                                    : s.karMarji >= 50 ? 'bg-yellow-900/50 text-yellow-400'
-                                                        : 'bg-red-900/50 text-red-400'
-                                                    }`}>
+                                                <span className={`px-2 py-0.5 rounded text-xs font-medium ${esikRozet(s.karMarji, 70, 50)}`}>
                                                     %{s.karMarji}
                                                 </span>
                                             </td>
                                             <td className="text-right">
-                                                <span className={`px-2 py-0.5 rounded text-xs font-medium ${s.zayiOrani <= 2 ? 'bg-green-900/50 text-green-400'
-                                                    : s.zayiOrani <= 4 ? 'bg-yellow-900/50 text-yellow-400'
-                                                        : 'bg-red-900/50 text-red-400'
-                                                    }`}>
+                                                <span className={`px-2 py-0.5 rounded text-xs font-medium ${esikRozet(s.zayiOrani, 2, 4, true)}`}>
                                                     %{s.zayiOrani}
                                                 </span>
                                             </td>
@@ -410,9 +413,9 @@ export default function Raporlar() {
             {aktifTab === 'merkezmuhasebesi' && veri && (
                 <div className="space-y-4">
                     <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-                        <OzetKart baslik="Toplam Tedarikçi" deger={veri.ozet?.toplamTedarikci} renk="blue" />
+                        <OzetKart baslik="Toplam Tedarikçi" deger={veri.ozet?.toplamTedarikci} renk="zinc" />
                         <OzetKart baslik="Toplam Borç" deger={`₺${fmt(veri.ozet?.toplamBorc)}`} renk="red" />
-                        <OzetKart baslik="Toplam Alacak" deger={`₺${fmt(veri.ozet?.toplamAlacak)}`} renk="green" />
+                        <OzetKart baslik="Toplam Alacak" deger={`₺${fmt(veri.ozet?.toplamAlacak)}`} renk="lime" />
                         <OzetKart baslik="Net Bakiye" deger={`₺${fmt(veri.ozet?.netToplam)}`} renk="lime" />
                     </div>
 
@@ -426,8 +429,8 @@ export default function Raporlar() {
                             </div>
                         )}
                         {veri.ozet?.alacakliTedarikci > 0 && (
-                            <div className="bg-green-900/20 border border-green-700 rounded-lg p-4">
-                                <p className="text-green-300 text-sm">
+                            <div className="bg-lime-900/20 border border-lime-700 rounded-lg p-4">
+                                <p className="text-lime-300 text-sm">
                                     <strong>✓ {veri.ozet.alacakliTedarikci} tedarikçiden toplam ₺{fmt(veri.ozet.toplamAlacak)} alacak</strong>
                                 </p>
                             </div>
@@ -458,17 +461,17 @@ export default function Raporlar() {
                                             <td className="py-2 font-medium">{t.ad}</td>
                                             <td className="py-2 text-zinc-400">{t.telefon || '-'}</td>
                                             <td className="text-right py-2 text-red-400">₺{fmt(t.toplamBorc)}</td>
-                                            <td className="text-right py-2 text-green-400">₺{fmt(t.toplamAlacak)}</td>
+                                            <td className="text-right py-2 text-lime-400">₺{fmt(t.toplamAlacak)}</td>
                                             <td className={`text-right py-2 font-bold ${t.netBakiye < 0 ? 'text-red-400'
-                                                    : t.netBakiye > 0 ? 'text-green-400'
-                                                        : 'text-zinc-400'
+                                                : t.netBakiye > 0 ? 'text-lime-400'
+                                                    : 'text-zinc-400'
                                                 }`}>
                                                 ₺{fmt(t.netBakiye)}
                                             </td>
                                             <td className="text-center py-2">
                                                 <span className={`px-2 py-0.5 rounded text-xs font-bold ${t.durum === 'BORÇLU' ? 'bg-red-900/50 text-red-300'
-                                                        : t.durum === 'ALACAKLI' ? 'bg-green-900/50 text-green-300'
-                                                            : 'bg-zinc-700 text-zinc-300'
+                                                    : t.durum === 'ALACAKLI' ? 'bg-lime-900/50 text-lime-300'
+                                                        : 'bg-zinc-700 text-zinc-300'
                                                     }`}>
                                                     {t.durum}
                                                 </span>
@@ -499,8 +502,8 @@ export default function Raporlar() {
                             <ul className="space-y-2 text-sm text-zinc-300">
                                 <li>• Toplam Tedarikçi: <strong>{veri.ozet?.toplamTedarikci}</strong></li>
                                 <li>• Ödeme Bekleyen: <strong className="text-red-400">{veri.ozet?.borcletedarikci}</strong></li>
-                                <li>• Para Alınacak: <strong className="text-green-400">{veri.ozet?.alacakliTedarikci}</strong></li>
-                                <li>• Net Durumu: <strong className={veri.ozet?.netToplam < 0 ? 'text-red-400' : 'text-green-400'}>
+                                <li>• Para Alınacak: <strong className="text-lime-400">{veri.ozet?.alacakliTedarikci}</strong></li>
+                                <li>• Net Durumu: <strong className={veri.ozet?.netToplam < 0 ? 'text-red-400' : 'text-lime-400'}>
                                     {veri.ozet?.netToplam < 0 ? '₺' + fmt(Math.abs(veri.ozet.netToplam)) + ' BORÇLU' : '₺' + fmt(veri.ozet?.netToplam) + ' ALACAKLI'}
                                 </strong></li>
                             </ul>
@@ -523,11 +526,17 @@ export default function Raporlar() {
 }
 
 function OzetKart({ baslik, deger, renk }) {
-    const renkler = { lime: 'border-lime-400/30 text-lime-400', blue: 'border-blue-400/30 text-blue-400', red: 'border-red-400/30 text-red-400', green: 'border-green-400/30 text-green-400', purple: 'border-purple-400/30 text-purple-400' };
+    // Standart palet: lime = pozitif, red = kritik, amber = dikkat, zinc = nötr sayaç
+    const renkler = {
+        lime: 'border-lime-400/30 text-lime-400',
+        red: 'border-red-400/30 text-red-400',
+        amber: 'border-amber-400/30 text-amber-400',
+        zinc: 'border-zinc-700 text-zinc-300',
+    };
     return (
         <div className={`bg-zinc-900 rounded-xl p-4 border ${renkler[renk] || renkler.lime}`}>
             <p className="text-zinc-400 text-xs mb-1">{baslik}</p>
-            <p className={`text-2xl font-bold ${renkler[renk]?.split(' ')[1]}`}>{deger}</p>
+            <p className={`text-2xl font-bold ${renkler[renk]?.split(' ')[1] || renkler.lime.split(' ')[1]}`}>{deger}</p>
         </div>
     );
 }

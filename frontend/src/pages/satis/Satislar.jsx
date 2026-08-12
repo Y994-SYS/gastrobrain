@@ -106,7 +106,7 @@ export default function Satislar() {
     return (
         <div>
             {/* Başlık */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-5 gap-3">
                 <div>
                     <h1 className="text-xl font-bold text-white">Satışlar</h1>
                     <p className="text-zinc-500 text-sm mt-0.5">
@@ -130,7 +130,7 @@ export default function Satislar() {
             <SubeSecici />
 
             {/* Tablo */}
-            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
+            <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="w-full">
                         <thead>
@@ -157,7 +157,7 @@ export default function Satislar() {
                                 ))
                             ) : veri.length === 0 ? (
                                 <tr>
-                                    <td colSpan={6} className="text-center py-16 text-zinc-500 text-sm">
+                                    <td colSpan={6} className="text-center py-14 text-zinc-500 text-sm">
                                         <div className="text-3xl mb-2">🛒</div>
                                         Henüz satış kaydı yok
                                     </td>
@@ -300,7 +300,7 @@ export default function Satislar() {
             {/* Silme Onay Modal */}
             {silOnayId && (
                 <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-                    <div className="bg-zinc-900 rounded-2xl p-6 w-full max-w-sm border border-zinc-700 space-y-4">
+                    <div className="bg-zinc-900 rounded-xl p-5 w-full max-w-sm border border-zinc-700 space-y-3.5">
                         <h2 className="text-white font-bold">Satışı Sil</h2>
                         <p className="text-zinc-400 text-sm">
                             <span className="text-white font-medium">{silOnay?.recete?.ad}</span> satışını silmek istediğinize emin misiniz?

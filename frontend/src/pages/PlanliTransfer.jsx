@@ -30,7 +30,8 @@ export default function PlanliTransfer() {
     const [subeler, setSubeler] = useState([]);
     const [stokKartlari, setStokKartlari] = useState([]);
     const [formAcik, setFormAcik] = useState(false);
-
+    const [calistiriyor, setCalistiriyor] = useState(null); // plan id'si tutar
+    const [degistiriyor, setDegistiriyor] = useState(null);
     const [form, setForm] = useState({
         ad: '',
         gunler: [],
@@ -151,25 +152,32 @@ export default function PlanliTransfer() {
     };
 
     const aktifPasifYap = async (id, aktif) => {
+        if (degistiriyor) return;
+        setDegistiriyor(id);
         try {
             await api.patch(`/api/planli-transfer/${id}/aktif`, { aktif });
-            toast.success(aktif ? 'Plan aktif edildi' : 'Plan pasif edildi');
+            toast.success(aktif ? '✅ Plan aktif edildi' : '⏸ Plan durduruldu');
             verileriYukle();
         } catch (err) {
             toast.error(err.response?.data?.hata || 'Hata oluştu');
+        } finally {
+            setDegistiriyor(null);
         }
     };
 
     const hemenCalistir = async (id) => {
+        if (calistiriyor) return; // zaten çalışıyorsa engelle
+        setCalistiriyor(id);
         try {
             const res = await api.post(`/api/planli-transfer/${id}/calistir`);
-            toast.success(`${res.data.kalemSayisi} transfer tamamlandı: ${res.data.plan}`);
+            toast.success(`✅ ${res.data.kalemSayisi} transfer tamamlandı: ${res.data.plan}`);
             verileriYukle();
         } catch (err) {
             toast.error(err.response?.data?.hata || 'Hata oluştu');
+        } finally {
+            setCalistiriyor(null);
         }
     };
-
     const gunToggle = (gun) => {
         setForm(f => ({
             ...f,
@@ -428,15 +436,23 @@ export default function PlanliTransfer() {
                             <div className="flex gap-2 flex-wrap">
                                 <button
                                     onClick={() => hemenCalistir(plan.id)}
-                                    className="flex-1 bg-lime-400 text-zinc-900 px-3 py-2 rounded-lg text-xs font-semibold hover:bg-lime-300 min-w-[80px]"
+                                    disabled={calistiriyor === plan.id}
+                                    className={`flex-1 px-3 py-2 rounded-lg text-xs font-semibold min-w-[80px] transition-all ${calistiriyor === plan.id
+                                        ? 'bg-zinc-600 text-zinc-400 cursor-not-allowed'
+                                        : 'bg-lime-400 text-zinc-900 hover:bg-lime-300'
+                                        }`}
                                 >
-                                    ▶ Çalıştır
+                                    {calistiriyor === plan.id ? '⏳ Çalışıyor...' : '▶ Çalıştır'}
                                 </button>
                                 <button
                                     onClick={() => aktifPasifYap(plan.id, !plan.aktif)}
-                                    className="flex-1 bg-zinc-700 text-zinc-300 px-3 py-2 rounded-lg text-xs hover:bg-zinc-600 min-w-[80px]"
+                                    disabled={degistiriyor === plan.id}
+                                    className={`flex-1 px-3 py-2 rounded-lg text-xs min-w-[80px] transition-all ${degistiriyor === plan.id
+                                            ? 'bg-zinc-800 text-zinc-600 cursor-not-allowed'
+                                            : 'bg-zinc-700 text-zinc-300 hover:bg-zinc-600'
+                                        }`}
                                 >
-                                    {plan.aktif ? '⏸ Durdur' : '▶ Aktif Et'}
+                                    {degistiriyor === plan.id ? '⏳...' : plan.aktif ? '⏸ Durdur' : '▶ Aktif Et'}
                                 </button>
                                 <button
                                     onClick={() => planSil(plan.id)}

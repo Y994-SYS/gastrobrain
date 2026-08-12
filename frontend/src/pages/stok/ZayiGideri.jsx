@@ -35,14 +35,14 @@ export default function ZayiGideri() {
 
     return (
         <div className="max-w-2xl">
-            <div className="mb-6">
+            <div className="mb-5">
                 <h1 className="text-xl font-bold text-white">Zayi Gideri</h1>
                 <p className="text-zinc-500 text-sm mt-0.5">Bozulan, çürüyen veya kaybolan stok kaydı</p>
             </div>
-            <div className="bg-red-500/5 border border-red-500/20 rounded-xl p-4 mb-6">
+            <div className="bg-red-500/5 border border-red-500/20 rounded-xl p-4 mb-5">
                 <p className="text-red-400 text-sm">🗑️ Zayi gideri stoktan düşer ve gider olarak kaydedilir.</p>
             </div>
-            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 space-y-4">
+            <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 space-y-3.5">
                 <div>
                     <label className="text-zinc-400 text-sm mb-1.5 block">Stok Kartı *</label>
                     <select value={form.stokKartId} onChange={(e) => setForm({ ...form, stokKartId: e.target.value })}
@@ -51,7 +51,7 @@ export default function ZayiGideri() {
                         {stokKartlari.map((s) => <option key={s.id} value={s.id}>{s.ad} ({s.kod})</option>)}
                     </select>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-3.5">
                     <div>
                         <label className="text-zinc-400 text-sm mb-1.5 block">Miktar {seciliStok && <span className="text-zinc-500">({seciliStok.birim?.kisaltma})</span>}</label>
                         <input type="number" value={form.miktar} onChange={(e) => setForm({ ...form, miktar: e.target.value })} placeholder="0"

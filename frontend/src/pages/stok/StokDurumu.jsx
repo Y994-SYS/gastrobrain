@@ -29,7 +29,7 @@ export default function StokDurumu() {
 
     return (
         <div>
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-5 gap-3">
                 <div>
                     <h1 className="text-xl font-bold text-white">Stok Durumu</h1>
                     <p className="text-zinc-500 text-sm mt-0.5">
@@ -53,7 +53,7 @@ export default function StokDurumu() {
                 />
             </div>
 
-            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
+            <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="w-full">
                         <thead>
@@ -69,7 +69,7 @@ export default function StokDurumu() {
                         <tbody>
                             {filtrelenmis.length === 0 ? (
                                 <tr>
-                                    <td colSpan={6} className="text-center py-16 text-zinc-500 text-sm">Henüz stok kaydı yok</td>
+                                    <td colSpan={6} className="text-center py-14 text-zinc-500 text-sm">Henüz stok kaydı yok</td>
                                 </tr>
                             ) : filtrelenmis.map((s) => (
                                 <tr key={s.id} className="border-b border-zinc-800/50 hover:bg-zinc-800/30 transition-colors">

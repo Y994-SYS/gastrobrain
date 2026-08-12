@@ -155,11 +155,11 @@ export default function Transfer() {
     if (yetkisiz) {
         return (
             <div className="flex items-center justify-center h-screen bg-zinc-900">
-                <div className="text-center p-8 border-2 border-amber-400 rounded-lg bg-zinc-800 shadow-lg max-w-md">
-                    <h2 className="text-2xl font-bold text-amber-400 mb-4">
+                <div className="text-center p-6 border-2 border-amber-400 rounded-xl bg-zinc-800 shadow-lg max-w-md">
+                    <h2 className="text-2xl font-bold text-amber-400 mb-3">
                         ⚠️ Şube Transferi PROFESYONEL Paketinde
                     </h2>
-                    <p className="text-gray-300 mb-6">
+                    <p className="text-gray-300 mb-5">
                         Bu özelliği kullanmak için paketinizi yükseltmeniz gerekiyor.
                     </p>
                     <button
@@ -174,15 +174,15 @@ export default function Transfer() {
     }
 
     return (
-        <div className="p-6 space-y-6">
+        <div className="p-6 space-y-5">
             <div>
                 <h1 className="text-2xl font-bold text-white">Şubeler Arası Stok Transferi</h1>
                 <p className="text-zinc-500 text-sm mt-1">Birden fazla ürünü tek seferde transfer edin</p>
             </div>
 
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
                 {/* ── Sol: Transfer Formu ──────────────────────────────── */}
-                <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 space-y-5">
+                <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 space-y-4">
                     <h2 className="text-white font-semibold text-base">Yeni Transfer</h2>
 
                     {/* Kaynak & Hedef Şube */}
@@ -244,7 +244,7 @@ export default function Transfer() {
                         ) : stoklar.length === 0 ? (
                             <p className="text-zinc-500 text-sm py-2">Bu şubede transfer edilebilir stok yok</p>
                         ) : (
-                            <div className="space-y-3">
+                            <div className="space-y-2.5">
                                 {kalemler.map((kalem, i) => {
                                     const secilen = stokBakiye(kalem.stokKartId);
                                     return (
@@ -335,7 +335,7 @@ export default function Transfer() {
                 </div>
 
                 {/* ── Sağ: Transfer Geçmişi ────────────────────────────── */}
-                <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 space-y-4">
+                <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 space-y-3.5">
                     <h2 className="text-white font-semibold text-base">Son Transferler</h2>
 
                     {gecmisYukleniyor ? (
@@ -349,10 +349,11 @@ export default function Transfer() {
                                     key={h.id}
                                     className="bg-zinc-800 rounded-lg px-4 py-3 flex items-start justify-between gap-3"
                                 >
+                                    {/* GİRİŞ = pozitif (lime), ÇIKIŞ = kritik/uyarı (red) — tek yeşil ton standardı */}
                                     <div className="flex items-start gap-3 min-w-0">
                                         <span className={`shrink-0 text-xs px-2 py-0.5 rounded-full font-medium mt-0.5 ${h.tip === 'SUBE_TRANSFER_IN'
-                                                ? 'bg-emerald-900/50 text-emerald-400'
-                                                : 'bg-red-900/50 text-red-400'
+                                            ? 'bg-lime-900/40 text-lime-400'
+                                            : 'bg-red-900/50 text-red-400'
                                             }`}>
                                             {h.tip === 'SUBE_TRANSFER_IN' ? 'GİRİŞ' : 'ÇIKIŞ'}
                                         </span>
@@ -365,7 +366,7 @@ export default function Transfer() {
                                         </div>
                                     </div>
                                     <div className="text-right shrink-0">
-                                        <p className={`text-sm font-semibold ${h.tip === 'SUBE_TRANSFER_IN' ? 'text-emerald-400' : 'text-red-400'
+                                        <p className={`text-sm font-semibold ${h.tip === 'SUBE_TRANSFER_IN' ? 'text-lime-400' : 'text-red-400'
                                             }`}>
                                             {h.tip === 'SUBE_TRANSFER_IN' ? '+' : '-'}{miktarFormat(h.miktar)}
                                         </p>

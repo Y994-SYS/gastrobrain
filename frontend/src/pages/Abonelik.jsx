@@ -93,16 +93,17 @@ function BilgiSatiri({ etiket, deger, mono = false, kopyala = false }) {
 }
 
 // ─── Bekleyen / Reddedilen bildirim banner'ı ─────────────────────────────────
+// BEKLIYOR = dikkat gerektiren → amber, REDDEDILDI = kritik → red
 function BildirimDurumBanner({ bildirim }) {
     if (!bildirim) return null;
 
     if (bildirim.durum === 'BEKLIYOR') {
         return (
-            <div className="bg-yellow-400/10 border border-yellow-400/30 rounded-xl p-4 mb-6 flex items-center gap-3">
+            <div className="bg-amber-400/10 border border-amber-400/30 rounded-xl p-4 mb-5 flex items-center gap-3">
                 <span className="text-xl">⏳</span>
                 <div>
-                    <p className="text-yellow-300 text-sm font-medium">Ödeme bildiriminiz inceleniyor</p>
-                    <p className="text-yellow-400/70 text-xs mt-0.5">
+                    <p className="text-amber-300 text-sm font-medium">Ödeme bildiriminiz inceleniyor</p>
+                    <p className="text-amber-400/70 text-xs mt-0.5">
                         {new Date(bildirim.createdAt).toLocaleString('tr-TR')} tarihinde bildirim gönderildi. En geç 24 saat içinde onaylanır.
                     </p>
                 </div>
@@ -112,7 +113,7 @@ function BildirimDurumBanner({ bildirim }) {
 
     if (bildirim.durum === 'REDDEDILDI') {
         return (
-            <div className="bg-red-400/10 border border-red-400/30 rounded-xl p-4 mb-6 flex items-start gap-3">
+            <div className="bg-red-400/10 border border-red-400/30 rounded-xl p-4 mb-5 flex items-start gap-3">
                 <span className="text-xl">✗</span>
                 <div>
                     <p className="text-red-300 text-sm font-medium">Son ödeme bildiriminiz reddedildi</p>
@@ -193,7 +194,7 @@ export default function Abonelik() {
     return (
         <div className="max-w-5xl mx-auto">
 
-            <div className="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
+            <div className="mb-6 flex flex-col md:flex-row md:items-end justify-between gap-4">
                 <div>
                     <h1 className="text-2xl font-semibold text-zinc-100 mb-1">Abonelik Yönetimi</h1>
                     <p className="text-zinc-400 text-sm">Lisansınızı yenilemek veya yükseltmek için plan seçin.</p>
@@ -216,9 +217,9 @@ export default function Abonelik() {
                 </div>
             </div>
 
-            {/* Değişiklik 3: Mevcut Plan Banner'ı */}
+            {/* Mevcut Plan Banner'ı */}
             {mevcutPlan && (
-                <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 mb-6">
+                <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 mb-5">
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                         <div className="flex items-center gap-4">
                             <div className="w-10 h-10 bg-lime-400/10 rounded-xl flex items-center justify-center">
@@ -234,19 +235,19 @@ export default function Abonelik() {
 
                         <div className="flex flex-col md:items-end gap-1">
                             {denemede ? (
-                                <span className="text-xs bg-blue-400/10 text-blue-400 border border-blue-400/20 px-3 py-1.5 rounded-lg font-medium">
+                                <span className="text-xs bg-amber-400/10 text-amber-400 border border-amber-400/20 px-3 py-1.5 rounded-lg font-medium">
                                     🎁 30 Günlük Ücretsiz Deneme
                                 </span>
                             ) : lisansBitis ? (
                                 <div className="text-right">
                                     <p className="text-zinc-400 text-xs">Lisans Bitiş</p>
                                     <p className={`text-sm font-semibold ${new Date(lisansBitis) < new Date()
+                                        ? 'text-red-400'
+                                        : Math.ceil((new Date(lisansBitis) - new Date()) / (1000 * 60 * 60 * 24)) <= 7
                                             ? 'text-red-400'
-                                            : Math.ceil((new Date(lisansBitis) - new Date()) / (1000 * 60 * 60 * 24)) <= 7
-                                                ? 'text-red-400'
-                                                : Math.ceil((new Date(lisansBitis) - new Date()) / (1000 * 60 * 60 * 24)) <= 30
-                                                    ? 'text-yellow-400'
-                                                    : 'text-green-400'
+                                            : Math.ceil((new Date(lisansBitis) - new Date()) / (1000 * 60 * 60 * 24)) <= 30
+                                                ? 'text-amber-400'
+                                                : 'text-lime-400'
                                         }`}>
                                         {new Date(lisansBitis) < new Date()
                                             ? '⚠️ Süresi Doldu'
@@ -261,8 +262,8 @@ export default function Abonelik() {
                         </div>
                     </div>
 
-                    {/* Özellik Durumu */}
-                    <div className="mt-4 pt-4 border-t border-zinc-800 grid grid-cols-2 md:grid-cols-3 gap-2">
+                    {/* Özellik Durumu — pozitif = lime, yok = nötr gri */}
+                    <div className="mt-3.5 pt-3.5 border-t border-zinc-800 grid grid-cols-2 md:grid-cols-3 gap-2">
                         {[
                             { ad: 'Şube Transferi', var: mevcutPlan !== 'BASLANGIC' },
                             { ad: 'Cari Hesap', var: mevcutPlan !== 'BASLANGIC' },
@@ -271,7 +272,7 @@ export default function Abonelik() {
                             { ad: 'Planlı Transfer', var: mevcutPlan !== 'BASLANGIC' },
                             { ad: 'Şube Karşılaştırması', var: mevcutPlan !== 'BASLANGIC' },
                         ].map((o, i) => (
-                            <div key={i} className={`flex items-center gap-2 text-xs px-3 py-2 rounded-lg ${o.var ? 'bg-green-400/5 text-green-400' : 'bg-zinc-800 text-zinc-500'
+                            <div key={i} className={`flex items-center gap-2 text-xs px-3 py-2 rounded-lg ${o.var ? 'bg-lime-400/5 text-lime-400' : 'bg-zinc-800 text-zinc-500'
                                 }`}>
                                 <span>{o.var ? '✓' : '✗'}</span>
                                 <span>{o.ad}</span>
@@ -283,14 +284,14 @@ export default function Abonelik() {
 
             <BildirimDurumBanner bildirim={sonBildirim} />
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-8">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                 {PLANLAR.map(plan => {
                     const isSelected = secilenPlan === plan.id;
                     return (
                         <div
                             key={plan.id}
                             onClick={() => setSecilenPlan(plan.id)}
-                            className={`relative border rounded-2xl p-6 cursor-pointer transition-all flex flex-col ${isSelected ? 'border-lime-400 bg-lime-400/5 ring-1 ring-lime-400/50' : 'border-zinc-800 bg-zinc-900 hover:border-zinc-700'}`}
+                            className={`relative border rounded-xl p-5 cursor-pointer transition-all flex flex-col ${isSelected ? 'border-lime-400 bg-lime-400/5 ring-1 ring-lime-400/50' : 'border-zinc-800 bg-zinc-900 hover:border-zinc-700'}`}
                         >
                             {plan.populer && (
                                 <span className="absolute -top-3 left-1/2 -translate-x-1/2 text-[10px] bg-lime-400 text-black font-extrabold px-3 py-1 rounded-full uppercase tracking-wider whitespace-nowrap">
@@ -300,7 +301,7 @@ export default function Abonelik() {
                             {isSelected && <span className="absolute top-4 right-4 w-2.5 h-2.5 bg-lime-400 rounded-full" />}
 
                             <div className="flex-1">
-                                {/* Değişiklik 5: Mevcut plan badge'i */}
+                                {/* Mevcut plan badge'i */}
                                 <div className="flex items-center gap-2 mb-1">
                                     <h3 className="text-base font-semibold text-zinc-100">{plan.ad}</h3>
                                     {mevcutPlan === plan.prismaAd && (
@@ -309,13 +310,13 @@ export default function Abonelik() {
                                         </span>
                                     )}
                                 </div>
-                                <div className="flex items-baseline gap-1 mb-5">
+                                <div className="flex items-baseline gap-1 mb-4">
                                     <span className="text-3xl font-bold text-lime-400">{formatTutar(plan)}</span>
                                     {plan.id !== 'kurumsal' && (
                                         <span className="text-zinc-500 text-xs">/{periyot === 'aylik' ? 'ay' : 'yıl'}</span>
                                     )}
                                 </div>
-                                {/* Değişiklik 4: ✓ / ✗ gösterimi */}
+                                {/* ✓ / ✗ gösterimi */}
                                 <ul className="space-y-2">
                                     {plan.ozellikler.map((o, i) => (
                                         <li key={i} className={`flex items-start gap-2 text-sm leading-snug ${o.var ? 'text-zinc-300' : 'text-zinc-600'}`}>
@@ -328,7 +329,7 @@ export default function Abonelik() {
                                 </ul>
                             </div>
 
-                            <div className={`mt-5 text-center text-sm font-semibold py-2 rounded-lg transition-colors ${isSelected ? 'bg-lime-400 text-black' : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'}`}>
+                            <div className={`mt-4 text-center text-sm font-semibold py-2 rounded-lg transition-colors ${isSelected ? 'bg-lime-400 text-black' : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'}`}>
                                 {isSelected ? '✓ Seçildi' : 'Seç'}
                             </div>
                         </div>
@@ -337,14 +338,14 @@ export default function Abonelik() {
             </div>
 
             {secilenPlan && (
-                <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
+                <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
                     {secilenPlan === 'kurumsal' ? (
                         <div>
                             <h2 className="text-lg font-semibold text-zinc-100 mb-2">Kurumsal Çözüm Talebi</h2>
-                            <p className="text-sm text-zinc-400 mb-6">
+                            <p className="text-sm text-zinc-400 mb-5">
                                 Çoklu şube entegrasyonları, yerinde personel eğitimi ve size özel hesap yöneticisi için bizimle iletişime geçin.
                             </p>
-                            <div className="bg-lime-400/10 border border-lime-400/20 rounded-xl p-5 flex flex-col md:flex-row items-center justify-between gap-4">
+                            <div className="bg-lime-400/10 border border-lime-400/20 rounded-xl p-4 flex flex-col md:flex-row items-center justify-between gap-4">
                                 <div>
                                     <p className="font-medium text-zinc-200">İşletmenize özel SLA sözleşmesi hazırlayalım.</p>
                                     <p className="text-xs text-zinc-400 mt-0.5">Talebiniz bize ulaştıktan sonra 2 saat içinde dönüş yapıyoruz.</p>
@@ -359,7 +360,7 @@ export default function Abonelik() {
                         </div>
                     ) : (
                         <div>
-                            <h2 className="text-lg font-semibold text-zinc-100 mb-5">Ödeme Bilgileri</h2>
+                            <h2 className="text-lg font-semibold text-zinc-100 mb-4">Ödeme Bilgileri</h2>
 
                             <div className="space-y-3">
                                 <BilgiSatiri etiket="IBAN" deger={IBAN} mono kopyala />
@@ -379,10 +380,10 @@ export default function Abonelik() {
                                     </div>
                                 </div>
 
-                                {/* Ödeme Yaptım akışı */}
+                                {/* Ödeme Yaptım akışı — bekleme durumu = amber */}
                                 {bekleyenVarMi ? (
-                                    <div className="bg-yellow-400/5 border border-yellow-400/20 rounded-xl p-4 text-center">
-                                        <p className="text-yellow-300 text-sm">
+                                    <div className="bg-amber-400/5 border border-amber-400/20 rounded-xl p-4 text-center">
+                                        <p className="text-amber-300 text-sm">
                                             Zaten bekleyen bir ödeme bildiriminiz var, yenisini gönderemezsiniz.
                                         </p>
                                     </div>

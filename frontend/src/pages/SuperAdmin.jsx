@@ -4,9 +4,10 @@ import api from '../services/api';
 import useAuthStore from '../store/auth.store';
 import toast from 'react-hot-toast';
 
+// Plan rozetleri: Başlangıç = nötr (zinc), Profesyonel = dikkat/orta (amber), Kurumsal = pozitif/üst (lime)
 const PLAN_RENK = {
     BASLANGIC: 'text-zinc-400 bg-zinc-800',
-    PROFESYONEL: 'text-blue-400 bg-blue-400/10',
+    PROFESYONEL: 'text-amber-400 bg-amber-400/10',
     KURUMSAL: 'text-lime-400 bg-lime-400/10',
 };
 
@@ -30,7 +31,7 @@ function LisansRozet({ bitis }) {
     if (gun === null) return <span className="text-zinc-600 text-xs">—</span>;
     if (gun < 0) return <span className="text-xs px-2 py-0.5 rounded-full bg-red-900/50 text-red-400">Süresi doldu</span>;
     if (gun <= 7) return <span className="text-xs px-2 py-0.5 rounded-full bg-red-900/40 text-red-400">{gun} gün</span>;
-    if (gun <= 30) return <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-900/40 text-yellow-400">{gun} gün</span>;
+    if (gun <= 30) return <span className="text-xs px-2 py-0.5 rounded-full bg-amber-900/40 text-amber-400">{gun} gün</span>;
     return <span className="text-xs px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-400">{gun} gün</span>;
 }
 
@@ -100,21 +101,21 @@ function BekleyenOdemelerPaneli({ onIslemSonrasi }) {
     }
 
     return (
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
+        <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
             <div className="px-4 py-3 border-b border-zinc-800 flex items-center justify-between">
                 <h2 className="font-semibold text-sm">Bekleyen Ödemeler ({bildirimler.length})</h2>
                 <button onClick={getir} className="text-zinc-500 hover:text-lime-400 text-xs transition-colors">Yenile</button>
             </div>
 
             {bildirimler.length === 0 ? (
-                <div className="text-center py-12">
+                <div className="text-center py-10">
                     <div className="text-3xl mb-2">✓</div>
                     <p className="text-zinc-500 text-sm">Bekleyen ödeme bildirimi yok</p>
                 </div>
             ) : (
                 <div className="divide-y divide-zinc-800">
                     {bildirimler.map(b => (
-                        <div key={b.id} className="p-4 space-y-3">
+                        <div key={b.id} className="p-4 space-y-2.5">
                             <div className="flex items-start justify-between gap-3">
                                 <div className="min-w-0">
                                     <p className="font-medium text-white text-sm truncate">{b.tenant.ad}</p>
@@ -162,7 +163,7 @@ function BekleyenOdemelerPaneli({ onIslemSonrasi }) {
             {/* Red modal */}
             {redModalAcik && (
                 <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-                    <div className="bg-zinc-900 border border-zinc-700 rounded-2xl p-5 w-full max-w-sm space-y-3">
+                    <div className="bg-zinc-900 border border-zinc-700 rounded-xl p-5 w-full max-w-sm space-y-3">
                         <h3 className="font-semibold text-white text-sm">Bildirimi Reddet</h3>
                         <textarea
                             value={redNotu}
@@ -333,7 +334,7 @@ export default function SuperAdmin() {
         <div className="min-h-screen bg-zinc-950 text-white p-4 md:p-6">
             <div className="max-w-7xl mx-auto">
 
-                <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center justify-between mb-5">
                     <div>
                         <h1 className="text-2xl font-black">
                             Gastro<span className="text-lime-400">BRAIN</span>
@@ -349,17 +350,18 @@ export default function SuperAdmin() {
                     </button>
                 </div>
 
+                {/* Nötr sayaçlar (durum ifade etmiyor) gri, Aktif Firma pozitif = lime */}
                 {istatistik && (
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
                         <IstatistikKart etiket="Toplam Firma" deger={istatistik.toplamTenant} renk="text-white" />
                         <IstatistikKart etiket="Aktif Firma" deger={istatistik.aktifTenant} renk="text-lime-400" />
-                        <IstatistikKart etiket="Bu Ay Yeni" deger={istatistik.yeniKayitlar} renk="text-blue-400" />
-                        <IstatistikKart etiket="Toplam Kullanıcı" deger={istatistik.toplamKullanici} renk="text-purple-400" />
+                        <IstatistikKart etiket="Bu Ay Yeni" deger={istatistik.yeniKayitlar} renk="text-zinc-300" />
+                        <IstatistikKart etiket="Toplam Kullanıcı" deger={istatistik.toplamKullanici} renk="text-zinc-300" />
                     </div>
                 )}
 
                 {/* Sekmeler */}
-                <div className="flex gap-2 mb-6 border-b border-zinc-800">
+                <div className="flex gap-2 mb-5 border-b border-zinc-800">
                     <button
                         onClick={() => setAktifSekme('firmalar')}
                         className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${aktifSekme === 'firmalar' ? 'border-lime-400 text-lime-400' : 'border-transparent text-zinc-400 hover:text-white'}`}
@@ -380,10 +382,10 @@ export default function SuperAdmin() {
                 {aktifSekme === 'odemeler' ? (
                     <BekleyenOdemelerPaneli onIslemSonrasi={() => { veriGetir(); bekleyenSayisiniGetir(); }} />
                 ) : (
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
 
                         <div className="lg:col-span-2">
-                            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
+                            <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
                                 <div className="px-4 py-3 border-b border-zinc-800 flex items-center justify-between gap-3">
                                     <h2 className="font-semibold text-sm shrink-0">Firmalar ({filtreliTenantlar.length})</h2>
                                     <div className="flex items-center gap-2 flex-1 justify-end">
@@ -432,15 +434,15 @@ export default function SuperAdmin() {
 
                         <div>
                             {secili ? (
-                                <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
+                                <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
                                     <div className="px-4 py-3 border-b border-zinc-800 flex items-center justify-between">
                                         <h2 className="font-semibold text-sm truncate">{secili.ad}</h2>
                                         <button onClick={() => setSecili(null)} className="text-zinc-600 hover:text-white text-xl leading-none ml-2 shrink-0">×</button>
                                     </div>
 
-                                    <div className="p-4 space-y-5 max-h-[calc(100vh-250px)] overflow-y-auto">
+                                    <div className="p-4 space-y-4 max-h-[calc(100vh-250px)] overflow-y-auto">
 
-                                        <div className="space-y-3">
+                                        <div className="space-y-2.5">
                                             <div className="flex items-center justify-between">
                                                 <span className="text-zinc-400 text-xs">Durum</span>
                                                 <button
@@ -464,7 +466,7 @@ export default function SuperAdmin() {
                                             </div>
                                         </div>
 
-                                        <div className="space-y-2 pt-3 border-t border-zinc-800">
+                                        <div className="space-y-2 pt-2.5 border-t border-zinc-800">
                                             {[
                                                 { etiket: 'Slug', deger: secili.slug, mono: true },
                                                 { etiket: 'Email', deger: secili.email },
@@ -481,14 +483,14 @@ export default function SuperAdmin() {
                                             ))}
                                         </div>
 
-                                        <div className="grid grid-cols-2 gap-2 pt-3 border-t border-zinc-800">
+                                        <div className="grid grid-cols-2 gap-2 pt-2.5 border-t border-zinc-800">
                                             {[
                                                 { etiket: 'Şube', deger: secili.subeler?.length ?? 0 },
                                                 { etiket: 'Kullanıcı', deger: secili.kullanicilar?.length ?? 0 },
                                                 { etiket: 'Stok Kartı', deger: secili._count?.stokKartlari ?? 0 },
                                                 { etiket: 'Satış', deger: secili._count?.satislar ?? 0 },
                                             ].map(s => (
-                                                <div key={s.etiket} className="bg-zinc-800 rounded-xl p-2 text-center">
+                                                <div key={s.etiket} className="bg-zinc-800 rounded-lg p-2 text-center">
                                                     <p className="text-lg font-bold text-white">{s.deger}</p>
                                                     <p className="text-zinc-500 text-xs">{s.etiket}</p>
                                                 </div>
@@ -496,7 +498,7 @@ export default function SuperAdmin() {
                                         </div>
 
                                         {secili.kullanicilar?.length > 0 && (
-                                            <div className="pt-3 border-t border-zinc-800">
+                                            <div className="pt-2.5 border-t border-zinc-800">
                                                 <p className="text-zinc-500 text-xs mb-2 font-semibold uppercase tracking-wider">Kullanıcılar</p>
                                                 <div className="space-y-2">
                                                     {secili.kullanicilar.map(k => (
@@ -514,10 +516,10 @@ export default function SuperAdmin() {
                                             </div>
                                         )}
 
-                                        <div className="pt-3 border-t border-zinc-800">
-                                            <p className="text-zinc-500 text-xs mb-3 font-semibold uppercase tracking-wider">Lisans Yönetimi</p>
+                                        <div className="pt-2.5 border-t border-zinc-800">
+                                            <p className="text-zinc-500 text-xs mb-2.5 font-semibold uppercase tracking-wider">Lisans Yönetimi</p>
 
-                                            <div className="flex gap-2 mb-3">
+                                            <div className="flex gap-2 mb-2.5">
                                                 <button
                                                     onClick={() => hizliUzat(secili.id, 30)}
                                                     className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-100 text-xs py-2 rounded-lg transition-colors"
@@ -563,7 +565,7 @@ export default function SuperAdmin() {
                                     </div>
                                 </div>
                             ) : (
-                                <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-8 text-center">
+                                <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 text-center">
                                     <div className="text-3xl mb-2">👈</div>
                                     <p className="text-zinc-500 text-sm">Detaylar için bir firma seçin</p>
                                 </div>

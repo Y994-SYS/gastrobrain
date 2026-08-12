@@ -5,9 +5,11 @@ import toast from 'react-hot-toast';
 // SUPER_ADMIN bilerek yok — güvenlik açığı önlemi
 const ROLLER = ['TENANT_ADMIN', 'MUDUR', 'DEPO', 'KASA', 'PERSONEL'];
 
+// Rol rozetleri kategoriktir (durum değil), bu yüzden kendi ayırt edici renklerini
+// koruyor — ama pozitif/kritik/dikkat paletiyle çakışmaması için sarı yerine amber kullanılıyor.
 const ROL_RENK = {
     TENANT_ADMIN: 'bg-orange-900/50 text-orange-400',
-    MUDUR: 'bg-yellow-900/50 text-yellow-400',
+    MUDUR: 'bg-amber-900/50 text-amber-400',
     DEPO: 'bg-blue-900/50 text-blue-400',
     KASA: 'bg-purple-900/50 text-purple-400',
     PERSONEL: 'bg-zinc-800 text-zinc-400',
@@ -30,7 +32,7 @@ const ROL_ACIKLAMA = {
     MUDUR: {
         ozet: 'Operasyonel yönetim',
         detay: 'Stok, satış, reçete, cari hesap, rapor ve personel modüllerine erişir. Kullanıcı ekleme/çıkarma ve şube ayarlarına giremez.',
-        renk: 'border-yellow-500/30 bg-yellow-500/5 text-yellow-300',
+        renk: 'border-amber-500/30 bg-amber-500/5 text-amber-300',
     },
     DEPO: {
         ozet: 'Sadece stok',
@@ -152,7 +154,7 @@ export default function Kullanicilar() {
     const seciliRolBilgi = ROL_ACIKLAMA[form.rol];
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-5">
             {/* Başlık */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
@@ -172,7 +174,7 @@ export default function Kullanicilar() {
             {/* İçerik */}
             {yukleniyor ? (
                 /* Masaüstü skeleton */
-                <div className="hidden sm:block bg-zinc-900 rounded-2xl border border-zinc-800 overflow-hidden">
+                <div className="hidden sm:block bg-zinc-900 rounded-xl border border-zinc-800 overflow-hidden">
                     <table className="w-full text-sm">
                         <thead>
                             <tr className="text-zinc-500 border-b border-zinc-800 bg-zinc-800/30">
@@ -187,17 +189,17 @@ export default function Kullanicilar() {
                     </table>
                 </div>
             ) : kullanicilar.length === 0 ? (
-                <div className="bg-zinc-900 rounded-2xl border border-zinc-800 text-center py-16">
+                <div className="bg-zinc-900 rounded-xl border border-zinc-800 text-center py-14">
                     <div className="text-3xl mb-2">👤</div>
                     <div className="text-zinc-500 text-sm">Henüz kullanıcı yok</div>
                 </div>
             ) : (
                 <>
                     {/* Mobil kart görünümü */}
-                    <div className="space-y-3 sm:hidden">
+                    <div className="space-y-2.5 sm:hidden">
                         {kullanicilar.map(k => (
-                            <div key={k.id} className="bg-zinc-900 rounded-2xl border border-zinc-800 p-4">
-                                <div className="flex items-start justify-between gap-2 mb-3">
+                            <div key={k.id} className="bg-zinc-900 rounded-xl border border-zinc-800 p-3.5">
+                                <div className="flex items-start justify-between gap-2 mb-2.5">
                                     <div className="min-w-0">
                                         <div className="text-white font-medium truncate">{k.ad}</div>
                                         <div className="text-zinc-500 text-xs truncate mt-0.5">{k.email}</div>
@@ -207,9 +209,9 @@ export default function Kullanicilar() {
                                     </span>
                                 </div>
 
-                                <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-zinc-400 mb-3">
+                                <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-zinc-400 mb-2.5">
                                     <span>🏪 {k.sube?.ad || 'Şube yok'}</span>
-                                    <span className={`px-2 py-0.5 rounded-full ${k.aktif ? 'bg-green-900/50 text-green-400' : 'bg-red-900/50 text-red-400'}`}>
+                                    <span className={`px-2 py-0.5 rounded-full ${k.aktif ? 'bg-lime-900/40 text-lime-400' : 'bg-red-900/50 text-red-400'}`}>
                                         {k.aktif ? 'Aktif' : 'Pasif'}
                                     </span>
                                     <span className="text-zinc-600">{new Date(k.createdAt).toLocaleDateString('tr-TR')}</span>
@@ -228,7 +230,7 @@ export default function Kullanicilar() {
                     </div>
 
                     {/* Masaüstü tablo */}
-                    <div className="hidden sm:block bg-zinc-900 rounded-2xl border border-zinc-800 overflow-hidden">
+                    <div className="hidden sm:block bg-zinc-900 rounded-xl border border-zinc-800 overflow-hidden">
                         <div className="overflow-x-auto">
                             <table className="w-full text-sm">
                                 <thead>
@@ -250,7 +252,7 @@ export default function Kullanicilar() {
                                             </td>
                                             <td className="px-4 py-3 text-zinc-400 text-xs">{k.sube?.ad || '—'}</td>
                                             <td className="px-4 py-3">
-                                                <span className={`px-2 py-0.5 rounded-full text-xs ${k.aktif ? 'bg-green-900/50 text-green-400' : 'bg-red-900/50 text-red-400'}`}>
+                                                <span className={`px-2 py-0.5 rounded-full text-xs ${k.aktif ? 'bg-lime-900/40 text-lime-400' : 'bg-red-900/50 text-red-400'}`}>
                                                     {k.aktif ? 'Aktif' : 'Pasif'}
                                                 </span>
                                             </td>
@@ -277,12 +279,12 @@ export default function Kullanicilar() {
             {/* Ekle / Düzenle Modal */}
             {modalAcik && (
                 <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
-                    <div className="bg-zinc-900 rounded-2xl p-5 sm:p-6 w-full max-w-md border border-zinc-700 max-h-[90vh] overflow-y-auto">
-                        <h2 className="text-white font-bold text-lg mb-5">
+                    <div className="bg-zinc-900 rounded-xl p-5 w-full max-w-md border border-zinc-700 max-h-[90vh] overflow-y-auto">
+                        <h2 className="text-white font-bold text-lg mb-4">
                             {duzenleId ? 'Kullanıcı Düzenle' : 'Yeni Kullanıcı Ekle'}
                         </h2>
 
-                        <div className="space-y-3">
+                        <div className="space-y-2.5">
                             <div>
                                 <label className="text-zinc-400 text-xs block mb-1.5">Ad Soyad *</label>
                                 <input
@@ -361,7 +363,7 @@ export default function Kullanicilar() {
                             )}
                         </div>
 
-                        <div className="flex gap-3 mt-5 pt-4 border-t border-zinc-800">
+                        <div className="flex gap-3 mt-4 pt-3.5 border-t border-zinc-800">
                             <button onClick={modalKapat} className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 py-2.5 rounded-lg text-sm transition-colors">
                                 İptal
                             </button>
@@ -380,7 +382,7 @@ export default function Kullanicilar() {
             {/* Silme Onay Modal */}
             {silOnay && (
                 <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
-                    <div className="bg-zinc-900 rounded-2xl p-6 w-full max-w-sm border border-zinc-700 space-y-4">
+                    <div className="bg-zinc-900 rounded-xl p-5 w-full max-w-sm border border-zinc-700 space-y-3.5">
                         <h2 className="text-white font-bold">Kullanıcıyı Sil</h2>
                         <p className="text-zinc-400 text-sm">
                             <span className="text-white font-medium">{silOnay.ad}</span> adlı kullanıcıyı silmek istediğinize emin misiniz?

@@ -236,12 +236,14 @@ export default function Personel() {
         setDevamModal(true);
     };
 
-    const durumRenk = (durum) => ({ CALISTI: 'text-lime-400', IZIN: 'text-blue-400', RAPOR: 'text-orange-400', DEVAMSIZ: 'text-red-400' }[durum] || 'text-zinc-400');
+    // Durum renkleri: CALISTI = pozitif (lime), DEVAMSIZ = kritik (red),
+    // RAPOR = dikkat gerektiren (amber), IZIN = nötr/planlı (zinc)
+    const durumRenk = (durum) => ({ CALISTI: 'text-lime-400', IZIN: 'text-zinc-400', RAPOR: 'text-amber-400', DEVAMSIZ: 'text-red-400' }[durum] || 'text-zinc-400');
     const aylar = ['', 'Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'];
 
     return (
         <div>
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-5 gap-3">
                 <div>
                     <h1 className="text-xl font-bold text-white">Personel</h1>
                     <p className="text-zinc-500 text-sm mt-0.5">{veri.length} personel</p>
@@ -253,14 +255,14 @@ export default function Personel() {
 
             <SubeSecici />
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
-                    <div className="p-4 border-b border-zinc-800"><h2 className="text-sm font-bold text-white">Personeller</h2></div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
+                    <div className="p-3.5 border-b border-zinc-800"><h2 className="text-sm font-bold text-white">Personeller</h2></div>
                     <div className="divide-y divide-zinc-800">
                         {veri.length === 0 ? (
-                            <div className="text-center py-10 text-zinc-500 text-sm">Personel yok</div>
+                            <div className="text-center py-8 text-zinc-500 text-sm">Personel yok</div>
                         ) : veri.map((p) => (
-                            <div key={p.id} onClick={() => personelDetay(p)} className={`p-4 cursor-pointer hover:bg-zinc-800/50 transition-colors ${secili?.id === p.id ? 'bg-zinc-800' : ''}`}>
+                            <div key={p.id} onClick={() => personelDetay(p)} className={`p-3.5 cursor-pointer hover:bg-zinc-800/50 transition-colors ${secili?.id === p.id ? 'bg-zinc-800' : ''}`}>
                                 <div className="flex justify-between items-start">
                                     <div>
                                         <div className="text-sm font-semibold text-white">{p.ad} {p.soyad}</div>
@@ -279,8 +281,8 @@ export default function Personel() {
 
                 <div className="md:col-span-2">
                     {secili ? (
-                        <div className="space-y-4">
-                            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
+                        <div className="space-y-3.5">
+                            <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4">
                                 <div className="flex flex-col sm:flex-row justify-between gap-3">
                                     <div>
                                         <h2 className="text-white font-bold text-lg">{secili.ad} {secili.soyad}</h2>
@@ -293,43 +295,43 @@ export default function Personel() {
                                     </div>
                                     <div className="flex flex-wrap gap-2">
                                         <button onClick={() => setMaasModal(true)} className="text-xs border border-zinc-700 text-zinc-400 hover:text-lime-400 hover:border-lime-400 px-3 py-1.5 rounded-lg transition-colors">💰 Maaş</button>
-                                        <button onClick={() => setAvansModal(true)} className="text-xs border border-zinc-700 text-zinc-400 hover:text-orange-400 hover:border-orange-400 px-3 py-1.5 rounded-lg transition-colors">💳 Avans</button>
+                                        <button onClick={() => setAvansModal(true)} className="text-xs border border-zinc-700 text-zinc-400 hover:text-amber-400 hover:border-amber-400 px-3 py-1.5 rounded-lg transition-colors">💳 Avans</button>
                                         <button onClick={devamModalAc} className="text-xs border border-zinc-700 text-zinc-400 hover:text-blue-400 hover:border-blue-400 px-3 py-1.5 rounded-lg transition-colors">📋 Devam</button>
-                                        <button onClick={izinModalAc} className="text-xs border border-zinc-700 text-zinc-400 hover:text-emerald-400 hover:border-emerald-400 px-3 py-1.5 rounded-lg transition-colors">🏖️ Düzeltme</button>
+                                        <button onClick={izinModalAc} className="text-xs border border-zinc-700 text-zinc-400 hover:text-lime-400 hover:border-lime-400 px-3 py-1.5 rounded-lg transition-colors">🏖️ Düzeltme</button>
                                     </div>
                                 </div>
                             </div>
 
                             {/* Yıllık İzin Durumu kartı */}
-                            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
-                                <div className="p-4 border-b border-zinc-800 flex justify-between items-center">
+                            <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
+                                <div className="p-3.5 border-b border-zinc-800 flex justify-between items-center">
                                     <h3 className="text-sm font-bold text-white">Yıllık İzin Durumu {izinDurumu?.yil || buYil}</h3>
                                     {izinYukleniyor && <span className="text-xs text-zinc-600">yükleniyor...</span>}
                                 </div>
                                 {izinDurumu ? (
                                     <div className="grid grid-cols-2 sm:grid-cols-4 divide-x divide-zinc-800">
-                                        <div className="p-4 text-center">
+                                        <div className="p-3.5 text-center">
                                             <div className="text-xs text-zinc-500 mb-1">Kıdem</div>
                                             <div className="text-lg font-bold text-white">{izinDurumu.kidemYili} yıl</div>
                                         </div>
-                                        <div className="p-4 text-center">
+                                        <div className="p-3.5 text-center">
                                             <div className="text-xs text-zinc-500 mb-1">Hak Edilen</div>
                                             <div className="text-lg font-bold text-lime-400">{izinDurumu.hakEdilenGun} gün</div>
                                         </div>
-                                        <div className="p-4 text-center">
+                                        <div className="p-3.5 text-center">
                                             <div className="text-xs text-zinc-500 mb-1">Kullanılan</div>
-                                            <div className="text-lg font-bold text-orange-400">{izinDurumu.kullanilanGun} gün</div>
+                                            <div className="text-lg font-bold text-amber-400">{izinDurumu.kullanilanGun} gün</div>
                                             <div className="text-[11px] text-zinc-600 mt-1">
                                                 {izinDurumu.otomatikGun} devam kaydı{izinDurumu.manuelDuzeltme !== 0 ? ` + ${izinDurumu.manuelDuzeltme} düzeltme` : ''}
                                             </div>
                                         </div>
-                                        <div className="p-4 text-center">
+                                        <div className="p-3.5 text-center">
                                             <div className="text-xs text-zinc-500 mb-1">Kalan</div>
-                                            <div className={`text-lg font-bold ${izinDurumu.kalanGun < 0 ? 'text-red-400' : 'text-blue-400'}`}>{izinDurumu.kalanGun} gün</div>
+                                            <div className={`text-lg font-bold ${izinDurumu.kalanGun < 0 ? 'text-red-400' : 'text-lime-400'}`}>{izinDurumu.kalanGun} gün</div>
                                         </div>
                                     </div>
                                 ) : (
-                                    <div className="text-center py-6 text-zinc-500 text-xs">İzin bilgisi alınamadı</div>
+                                    <div className="text-center py-5 text-zinc-500 text-xs">İzin bilgisi alınamadı</div>
                                 )}
                             </div>
 
@@ -343,7 +345,7 @@ export default function Personel() {
                                             </div>
                                             <div className="flex items-center gap-3">
                                                 <span className="text-sm font-mono text-white">₺{m.tutar}</span>
-                                                <span className={`text-xs px-2 py-0.5 rounded-full ${m.odendi ? 'bg-lime-400/10 text-lime-400' : 'bg-red-400/10 text-red-400'}`}>{m.odendi ? 'Ödendi' : 'Bekliyor'}</span>
+                                                <span className={`text-xs px-2 py-0.5 rounded-full ${m.odendi ? 'bg-lime-400/10 text-lime-400' : 'bg-amber-400/10 text-amber-400'}`}>{m.odendi ? 'Ödendi' : 'Bekliyor'}</span>
                                             </div>
                                         </div>
                                     )
@@ -358,7 +360,7 @@ export default function Personel() {
                                                 </div>
                                                 <div className="text-xs text-zinc-500">{new Date(a.tarih).toLocaleDateString('tr-TR')}</div>
                                             </div>
-                                            <span className="text-sm font-mono text-orange-400">₺{a.tutar}</span>
+                                            <span className="text-sm font-mono text-amber-400">₺{a.tutar}</span>
                                         </div>
                                     )
                                 },
@@ -375,18 +377,18 @@ export default function Personel() {
                                     )
                                 }
                             ].map(({ baslik, liste, bos, render }) => (
-                                <div key={baslik} className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
-                                    <div className="p-4 border-b border-zinc-800"><h3 className="text-sm font-bold text-white">{baslik}</h3></div>
+                                <div key={baslik} className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
+                                    <div className="p-3.5 border-b border-zinc-800"><h3 className="text-sm font-bold text-white">{baslik}</h3></div>
                                     <div className="divide-y divide-zinc-800 max-h-40 overflow-y-auto">
                                         {!liste?.length ? (
-                                            <div className="text-center py-6 text-zinc-500 text-xs">{bos}</div>
+                                            <div className="text-center py-5 text-zinc-500 text-xs">{bos}</div>
                                         ) : liste.map(render)}
                                     </div>
                                 </div>
                             ))}
                         </div>
                     ) : (
-                        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl flex items-center justify-center h-48 text-zinc-500 text-sm">
+                        <div className="bg-zinc-900 border border-zinc-800 rounded-xl flex items-center justify-center h-48 text-zinc-500 text-sm">
                             Soldaki listeden bir personel seç
                         </div>
                     )}
@@ -531,7 +533,7 @@ export default function Personel() {
                             </div>
                         )}
                         {devamForm.durum === 'IZIN' && (
-                            <p className="text-xs text-emerald-400 bg-emerald-400/10 rounded-lg px-3 py-2">
+                            <p className="text-xs text-lime-400 bg-lime-400/10 rounded-lg px-3 py-2">
                                 {devamModu === 'aralik'
                                     ? 'Bu aralıktaki her gün, yıllık izin sayacına otomatik olarak eklenecek.'
                                     : 'Bu kayıt, yıllık izin sayacına otomatik olarak 1 gün ekleyecek.'}

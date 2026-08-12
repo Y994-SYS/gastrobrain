@@ -93,35 +93,35 @@ export default function CariHesap() {
 
     return (
         <div>
-            <div className="mb-6">
+            <div className="mb-5">
                 <h1 className="text-xl font-bold text-white">Cari Hesap</h1>
                 <p className="text-zinc-500 text-sm mt-0.5">Tedarikçi bakiyeleri ve ödeme takibi</p>
             </div>
 
-            <div className="grid grid-cols-2 gap-4 mb-6">
-                <div className="bg-zinc-900 border border-red-500/20 rounded-2xl p-4">
+            <div className="grid grid-cols-2 gap-3 mb-5">
+                <div className="bg-zinc-900 border border-red-500/20 rounded-xl p-4">
                     <div className="text-xs text-zinc-500 mb-1">Toplam Borç</div>
                     <div className="text-red-400 font-bold text-xl">₺{fmt(toplamBorc)}</div>
                 </div>
-                <div className="bg-zinc-900 border border-lime-500/20 rounded-2xl p-4">
+                <div className="bg-zinc-900 border border-lime-500/20 rounded-xl p-4">
                     <div className="text-xs text-zinc-500 mb-1">Toplam Alacak</div>
                     <div className="text-lime-400 font-bold text-xl">₺{fmt(toplamAlacak)}</div>
                 </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-                <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
-                    <div className="p-4 border-b border-zinc-800">
+            <div className="grid grid-cols-2 gap-3">
+                <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
+                    <div className="p-3.5 border-b border-zinc-800">
                         <h2 className="text-sm font-bold text-white">Cariler</h2>
                     </div>
                     <div className="divide-y divide-zinc-800">
                         {cariler.length === 0 ? (
-                            <div className="text-center py-10 text-zinc-500 text-sm">Cari kart yok</div>
+                            <div className="text-center py-8 text-zinc-500 text-sm">Cari kart yok</div>
                         ) : cariler.map((c) => (
                             <div
                                 key={c.id}
                                 onClick={() => cariSec(c)}
-                                className={`p-4 cursor-pointer hover:bg-zinc-800/50 transition-colors ${seciliCari?.id === c.id ? 'bg-zinc-800' : ''}`}
+                                className={`p-3.5 cursor-pointer hover:bg-zinc-800/50 transition-colors ${seciliCari?.id === c.id ? 'bg-zinc-800' : ''}`}
                             >
                                 <div className="flex justify-between items-start">
                                     <div>
@@ -137,10 +137,10 @@ export default function CariHesap() {
                     </div>
                 </div>
 
-                <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
+                <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
                     {seciliCari ? (
                         <>
-                            <div className="p-4 border-b border-zinc-800 flex justify-between items-center">
+                            <div className="p-3.5 border-b border-zinc-800 flex justify-between items-center">
                                 <div>
                                     <h2 className="text-sm font-bold text-white">{seciliCari.ad}</h2>
                                     <div className={`text-xs font-mono mt-0.5 ${seciliCari.bakiye > 0 ? 'text-red-400' : 'text-lime-400'}`}>
@@ -156,7 +156,7 @@ export default function CariHesap() {
                             </div>
                             <div className="divide-y divide-zinc-800 max-h-96 overflow-y-auto">
                                 {hareketler.length === 0 ? (
-                                    <div className="text-center py-10 text-zinc-500 text-sm">Hareket yok</div>
+                                    <div className="text-center py-8 text-zinc-500 text-sm">Hareket yok</div>
                                 ) : hareketler.map((h) => (
                                     <div key={h.id} className={`p-3 flex justify-between items-start ${h._gecici ? 'opacity-60' : ''}`}>
                                         <div>

@@ -390,61 +390,60 @@ export default function PlanliTransfer() {
                             key={plan.id}
                             className={`bg-zinc-900 border rounded-xl p-4 ${plan.aktif ? 'border-zinc-800' : 'border-zinc-700 opacity-60'}`}
                         >
-                            <div className="flex items-start justify-between gap-4">
-                                <div className="flex-1">
-                                    <div className="flex items-center gap-2 flex-wrap">
-                                        <p className="text-white font-semibold">{plan.ad}</p>
-                                        {/* Aktif = pozitif (lime), Pasif = nötr (zinc) */}
-                                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${plan.aktif ? 'bg-lime-900/40 text-lime-400' : 'bg-zinc-700 text-zinc-400'}`}>
-                                            {plan.aktif ? 'Aktif' : 'Pasif'}
-                                        </span>
-                                        <span className="text-xs text-zinc-500">
-                                            {gunEtiket(plan.gunler)} — {String(plan.saat).padStart(2, '0')}:{String(plan.dakika).padStart(2, '0')}
-                                        </span>
-                                    </div>
-
-                                    {/* Kalemler */}
-                                    <div className="mt-2.5 space-y-1">
-                                        {plan.kalemler?.map((k, i) => (
-                                            <div key={i} className="flex items-center gap-2 text-xs text-zinc-400">
-                                                <span className="text-zinc-600">•</span>
-                                                <span className="text-zinc-300 font-medium">{k.stokKart?.ad}</span>
-                                                <span className="text-lime-400">{k.miktar} {k.stokKart?.birim?.kisaltma}</span>
-                                                <span className="text-zinc-600">→</span>
-                                                <span>{k.kaynakSube?.ad}</span>
-                                                <span className="text-zinc-600">→</span>
-                                                <span>{k.hedefSube?.ad}</span>
-                                            </div>
-                                        ))}
-                                    </div>
-
-                                    {plan.sonCalisma && (
-                                        <p className="text-zinc-600 text-xs mt-2">
-                                            Son çalışma: {new Date(plan.sonCalisma).toLocaleString('tr-TR')}
-                                        </p>
-                                    )}
+                            {/* Üst satır: ad + badge + zamanlama */}
+                            <div className="flex items-start justify-between gap-2 mb-3">
+                                <div className="flex items-center gap-2 flex-wrap min-w-0">
+                                    <p className="text-white font-semibold truncate">{plan.ad}</p>
+                                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ${plan.aktif ? 'bg-green-900/50 text-green-400' : 'bg-zinc-700 text-zinc-400'}`}>
+                                        {plan.aktif ? 'Aktif' : 'Pasif'}
+                                    </span>
                                 </div>
+                                <span className="text-xs text-zinc-500 shrink-0">
+                                    {gunEtiket(plan.gunler)} {String(plan.saat).padStart(2, '0')}:{String(plan.dakika).padStart(2, '0')}
+                                </span>
+                            </div>
 
-                                <div className="flex flex-col gap-2 shrink-0">
-                                    <button
-                                        onClick={() => hemenCalistir(plan.id)}
-                                        className="bg-lime-400 text-zinc-900 px-3 py-1.5 rounded text-xs font-semibold hover:bg-lime-300"
-                                    >
-                                        ▶ Çalıştır
-                                    </button>
-                                    <button
-                                        onClick={() => aktifPasifYap(plan.id, !plan.aktif)}
-                                        className="bg-zinc-700 text-zinc-300 px-3 py-1.5 rounded text-xs hover:bg-zinc-600"
-                                    >
-                                        {plan.aktif ? '⏸ Durdur' : '▶ Aktif Et'}
-                                    </button>
-                                    <button
-                                        onClick={() => planSil(plan.id)}
-                                        className="bg-red-900/50 text-red-400 px-3 py-1.5 rounded text-xs hover:bg-red-900"
-                                    >
-                                        🗑 Sil
-                                    </button>
-                                </div>
+                            {/* Kalemler */}
+                            <div className="space-y-1 mb-4">
+                                {plan.kalemler?.map((k, i) => (
+                                    <div key={i} className="flex items-center gap-2 text-xs text-zinc-400 flex-wrap">
+                                        <span className="text-zinc-600">•</span>
+                                        <span className="text-zinc-300 font-medium">{k.stokKart?.ad}</span>
+                                        <span className="text-lime-400">{k.miktar} {k.stokKart?.birim?.kisaltma}</span>
+                                        <span className="text-zinc-600">→</span>
+                                        <span>{k.kaynakSube?.ad}</span>
+                                        <span className="text-zinc-600">→</span>
+                                        <span>{k.hedefSube?.ad}</span>
+                                    </div>
+                                ))}
+                            </div>
+
+                            {plan.sonCalisma && (
+                                <p className="text-zinc-600 text-xs mb-3">
+                                    Son çalışma: {new Date(plan.sonCalisma).toLocaleString('tr-TR')}
+                                </p>
+                            )}
+
+                            {/* Alt satır: Butonlar - mobil uyumlu */}
+                            <div className="flex gap-2 flex-wrap">
+                                <button
+                                    onClick={() => hemenCalistir(plan.id)}
+                                    className="flex-1 bg-lime-400 text-zinc-900 px-3 py-2 rounded-lg text-xs font-semibold hover:bg-lime-300 min-w-[80px]"
+                                >
+                                    ▶ Çalıştır
+                                </button>
+                                <button
+                                    onClick={() => aktifPasifYap(plan.id, !plan.aktif)}
+                                    className="flex-1 bg-zinc-700 text-zinc-300 px-3 py-2 rounded-lg text-xs hover:bg-zinc-600 min-w-[80px]"
+                                >
+                                    {plan.aktif ? '⏸ Durdur' : '▶ Aktif Et'}
+                                </button>
+                                <button
+                                    onClick={() => planSil(plan.id)}
+                                    className="bg-red-900/50 text-red-400 px-3 py-2 rounded-lg text-xs hover:bg-red-900 min-w-[60px]"
+                                >
+                                    🗑 Sil
+                                </button>
                             </div>
                         </div>
                     ))}

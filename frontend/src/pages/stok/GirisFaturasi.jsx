@@ -36,10 +36,13 @@ export default function GirisFaturasi() {
 
     const odemeSecimi = (tip) => {
         setOdeme(tip);
-        if (tip === 'pesin') setUst(u => ({ ...u, cariKartId: '' }));
+        // Vadeli'den Peşin'e geçerken cariKartId'yi temizle
+        if (tip === 'pesin') {
+            setUst(u => ({ ...u, cariKartId: '' }));
+        }
     };
 
-    // Stok kartının son giriş fiyatını çek (stokKart objesinde varsa kullan, yoksa hareketlerden sorgula)
+    // Stok kartının son giriş fiyatını çek
     const sonFiyatGetir = async (stokKartId, idx) => {
         try {
             const res = await api.get(`/api/stok/hareketler?stokKartId=${stokKartId}`);
@@ -47,7 +50,6 @@ export default function GirisFaturasi() {
             const sonGiris = hareketler.find(h => h.tip === 'GIRIS_FATURA' && h.birimFiyat);
             if (sonGiris) {
                 kalemGuncelle(idx, 'sonFiyat', sonGiris.birimFiyat);
-                // Birim fiyat alanı boşsa otomatik doldur
                 setKalemler(prev => {
                     const yeni = [...prev];
                     if (!yeni[idx].birimFiyat) yeni[idx].birimFiyat = String(sonGiris.birimFiyat);
@@ -56,7 +58,7 @@ export default function GirisFaturasi() {
                 });
             }
         } catch {
-            // sessizce geç — son fiyat bulunamazsa sorun değil
+            // sessizce geç
         }
     };
 
@@ -93,9 +95,15 @@ export default function GirisFaturasi() {
             return toast.error('Tüm kalemleri eksiksiz doldurun veya boş kalemleri silin');
         }
 
+        // Peşin ödemede tedarikçi zorunlu değil, isteğe bağlı
+        const cariKartId = odeme === 'pesin' ? ust.cariKartId || '' : ust.cariKartId;
+
+        if (odeme === 'vadeli' && !cariKartId) {
+            return toast.error('Vadeli ödeme için tedarikçi seçilmesi zorunludur');
+        }
+
         setYukleniyor(true);
         try {
-            // Her kalem için ayrı fatura kaydı — backend tekli endpoint kullanıyor
             await Promise.all(
                 gecerliKalemler.map(k =>
                     api.post('/api/stok/giris-faturasi', {
@@ -105,7 +113,8 @@ export default function GirisFaturasi() {
                         subeId: ust.subeId,
                         tarih: ust.tarih,
                         aciklama: ust.aciklama,
-                        cariKartId: odeme === 'pesin' ? '' : ust.cariKartId,
+                        cariKartId: cariKartId,
+                        odemeTipi: odeme // backend'e ödeme tipini de gönder
                     })
                 )
             );
@@ -157,7 +166,7 @@ export default function GirisFaturasi() {
                     <p className="text-xs text-zinc-500 mt-1.5">
                         {odeme === 'vadeli'
                             ? 'Tedarikçi cari hesabına borç olarak işlenir'
-                            : 'Nakit ödeme — cari hesaba işlenmez'}
+                            : 'Nakit ödeme — tedarikçi bilgisi isteğe bağlıdır'}
                     </p>
                 </div>
 
@@ -173,21 +182,31 @@ export default function GirisFaturasi() {
                         />
                     </div>
 
-                    {odeme === 'vadeli' && (
-                        <div>
-                            <label className="text-zinc-400 text-sm mb-1.5 block">Tedarikçi (Cari)</label>
-                            <select
-                                value={ust.cariKartId}
-                                onChange={(e) => setUst({ ...ust, cariKartId: e.target.value })}
-                                className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-4 py-2.5 text-sm outline-none focus:border-lime-400 transition-colors"
-                            >
-                                <option value="">Seç (isteğe bağlı)</option>
-                                {cariKartlar.map((c) => (
-                                    <option key={c.id} value={c.id}>{c.ad}</option>
-                                ))}
-                            </select>
-                        </div>
-                    )}
+                    {/* Tedarikçi alanı - HER ZAMAN görünür */}
+                    <div>
+                        <label className="text-zinc-400 text-sm mb-1.5 block">
+                            Tedarikçi (Cari)
+                            {odeme === 'vadeli' && <span className="text-red-400 ml-1">*</span>}
+                            {odeme === 'pesin' && <span className="text-zinc-500 ml-1 text-xs">(isteğe bağlı)</span>}
+                        </label>
+                        <select
+                            value={ust.cariKartId}
+                            onChange={(e) => setUst({ ...ust, cariKartId: e.target.value })}
+                            className={`w-full bg-zinc-800 border rounded-lg px-4 py-2.5 text-sm outline-none transition-colors text-white
+                                ${odeme === 'vadeli'
+                                    ? 'border-orange-500/30 focus:border-orange-400'
+                                    : 'border-zinc-700 focus:border-lime-400'
+                                }`}
+                        >
+                            <option value="">{odeme === 'vadeli' ? 'Tedarikçi seçin' : 'Seç (isteğe bağlı)'}</option>
+                            {cariKartlar.map((c) => (
+                                <option key={c.id} value={c.id}>{c.ad}</option>
+                            ))}
+                        </select>
+                        {odeme === 'vadeli' && ust.cariKartId === '' && (
+                            <p className="text-orange-400 text-[11px] mt-1">⚠ Vadeli ödeme için tedarikçi seçilmesi zorunludur</p>
+                        )}
+                    </div>
 
                     <div className="col-span-2">
                         <label className="text-zinc-400 text-sm mb-1.5 block">Açıklama</label>

@@ -19,6 +19,9 @@ export default function MerkezDepo() {
 
     const [yukleniyor, setYukleniyor] = useState(false);
     const [aktifTab, setAktifTab] = useState('tanimlar');
+    const [tanimEkleniyor, setTanimEkleniyor] = useState(false);
+    const [dagitimYapiliyor, setDagitimYapiliyor] = useState(false);
+    const [siliyor, setSiliyor] = useState(null);
 
     const [tanımForm, setTanımForm] = useState({
         stokKartId: '',
@@ -98,7 +101,9 @@ export default function MerkezDepo() {
     const taninmEkle = async () => {
         if (!tanımForm.stokKartId) { toast.error('Stok kartı seçin'); return; }
         if (!tanımForm.minStokSeviyesi) { toast.error('Min stok seviyesi girin'); return; }
+        if (tanimEkleniyor) return;
 
+        setTanimEkleniyor(true);
         try {
             await api.post('/api/merkezdepo/tanim', {
                 stokKartId: parseInt(tanımForm.stokKartId),
@@ -106,25 +111,30 @@ export default function MerkezDepo() {
                 otomatiDagit: tanımForm.otomatiDagit,
                 aciklama: tanımForm.aciklama
             });
-
-            toast.success('Tanım eklendi');
+            toast.success('✅ Tanım eklendi');
             setTanımForm({ stokKartId: '', minStokSeviyesi: '', otomatiDagit: true, aciklama: '' });
             verileriYukle();
         } catch (err) {
             toast.error(err.response?.data?.hata || 'Hata oluştu');
+        } finally {
+            setTanimEkleniyor(false);
         }
     };
 
     // ── Tanım Sil ────────────────────────────────────────────
     const taninmSil = async (id) => {
         if (!confirm('Bu tanımı silmek istediğinize emin misiniz?')) return;
+        if (siliyor) return;
 
+        setSiliyor(id);
         try {
             await api.delete(`/api/merkezdepo/tanim/${id}`);
             toast.success('Tanım silindi');
             verileriYukle();
         } catch (err) {
             toast.error(err.response?.data?.hata || 'Hata oluştu');
+        } finally {
+            setSiliyor(null);
         }
     };
 
@@ -133,7 +143,9 @@ export default function MerkezDepo() {
         if (!dagitForm.merkezDepoId) { toast.error('Merkez depo seçin'); return; }
         if (!dagitForm.hedefSubeId) { toast.error('Hedef şube seçin'); return; }
         if (!dagitForm.miktar) { toast.error('Miktar girin'); return; }
+        if (dagitimYapiliyor) return;
 
+        setDagitimYapiliyor(true);
         try {
             await api.post('/api/merkezdepo/dagit', {
                 merkezDepoId: parseInt(dagitForm.merkezDepoId),
@@ -141,12 +153,13 @@ export default function MerkezDepo() {
                 miktar: parseFloat(dagitForm.miktar),
                 aciklama: dagitForm.aciklama
             });
-
-            toast.success('Dağıtım yapıldı');
+            toast.success('✅ Dağıtım yapıldı');
             setDagitForm({ merkezDepoId: '', hedefSubeId: '', miktar: '', aciklama: '' });
             verileriYukle();
         } catch (err) {
             toast.error(err.response?.data?.hata || 'Hata oluştu');
+        } finally {
+            setDagitimYapiliyor(false);
         }
     };
 
@@ -302,12 +315,13 @@ export default function MerkezDepo() {
                             />
                         </div>
 
+                        {/* Tanım Ekle butonu */}
                         <button
                             onClick={taninmEkle}
-                            disabled={!tanımForm.stokKartId || !tanımForm.minStokSeviyesi}
+                            disabled={!tanımForm.stokKartId || !tanımForm.minStokSeviyesi || tanimEkleniyor}
                             className="w-full bg-lime-400 text-zinc-900 py-2 rounded-lg text-sm font-semibold hover:bg-lime-300 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                         >
-                            Tanım Ekle
+                            {tanimEkleniyor ? '⏳ Ekleniyor...' : 'Tanım Ekle'}
                         </button>
                     </div>
 
@@ -333,11 +347,14 @@ export default function MerkezDepo() {
                                                 {t.otomatiDagit && ' • 🔄 Otomatik'}
                                             </p>
                                         </div>
+                                        {/* Sil butonu */}
                                         <button
                                             onClick={() => taninmSil(t.id)}
-                                            className="text-red-400 hover:text-red-300 text-xs font-bold ml-2"
+                                            disabled={siliyor === t.id}
+                                            className={`text-xs font-bold ml-2 transition-colors ${siliyor === t.id ? 'text-zinc-600 cursor-not-allowed' : 'text-red-400 hover:text-red-300'
+                                                }`}
                                         >
-                                            Sil
+                                            {siliyor === t.id ? '⏳' : 'Sil'}
                                         </button>
                                     </div>
                                 ))}
@@ -417,11 +434,13 @@ export default function MerkezDepo() {
                                 />
                             </div>
 
+                            {/* Dağıtım butonu */}
                             <button
                                 onClick={manuelDagit}
-                                className="w-full bg-lime-400 text-zinc-900 py-2 rounded-lg text-sm font-semibold hover:bg-lime-300 transition-colors"
+                                disabled={dagitimYapiliyor}
+                                className="w-full bg-lime-400 text-zinc-900 py-2 rounded-lg text-sm font-semibold hover:bg-lime-300 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                             >
-                                Dağıtımı Gerçekleştir
+                                {dagitimYapiliyor ? '⏳ Dağıtılıyor...' : 'Dağıtımı Gerçekleştir'}
                             </button>
                         </>
                     )}

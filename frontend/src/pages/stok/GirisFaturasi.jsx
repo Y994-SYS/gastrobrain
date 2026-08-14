@@ -104,15 +104,20 @@ export default function GirisFaturasi() {
 
         setYukleniyor(true);
         try {
-            await api.post('/api/stok/giris-faturasi', {
-                stokKartId: k.stokKartId,
-                miktar: k.miktar,
-                birimFiyat: k.birimFiyat,
-                subeId: ust.subeId,
-                tarih: ust.tarih,
-                aciklama: ust.aciklama,
-                cariKartId: cariKartId,
-            });
+            await Promise.all(
+                gecerliKalemler.map(k =>
+                    api.post('/api/stok/giris-faturasi', {
+                        stokKartId: k.stokKartId,
+                        miktar: k.miktar,
+                        birimFiyat: k.birimFiyat,
+                        subeId: ust.subeId,
+                        tarih: ust.tarih,
+                        aciklama: ust.aciklama,
+                        cariKartId: cariKartId,
+
+                    })
+                )
+            );
             toast.success(
                 `${gecerliKalemler.length} kalem ${odeme === 'pesin' ? 'peşin' : 'vadeli'} giriş faturası olarak kaydedildi`
             );

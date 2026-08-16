@@ -25,12 +25,26 @@ const cariKartService = {
     },
 
     async olustur(data, tenantId) {
-        return prisma.cariKart.create({ data: { ...data, tenantId } });
+        try {
+            return await prisma.cariKart.create({ data: { ...data, tenantId } });
+        } catch (err) {
+            if (err.code === 'P2002') {
+                throw new Error('Bu cari kod zaten kullanılıyor, farklı bir kod seçin');
+            }
+            throw err;
+        }
     },
 
     async guncelle(id, data, tenantId) {
         await this.biriniGetir(id, tenantId);
-        return prisma.cariKart.update({ where: { id }, data });
+        try {
+            return await prisma.cariKart.update({ where: { id }, data });
+        } catch (err) {
+            if (err.code === 'P2002') {
+                throw new Error('Bu cari kod zaten kullanılıyor, farklı bir kod seçin');
+            }
+            throw err;
+        }
     },
 
     async sil(id, tenantId) {

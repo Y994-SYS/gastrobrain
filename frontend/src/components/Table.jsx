@@ -44,7 +44,7 @@ export default function Table({ kolonlar, veri, onDüzenle, onSil }) {
                                     Düzenle
                                 </button>
                                 <button
-                                    onClick={() => onSil(satir.id)}
+                                    onClick={() => onSil(satir)}
                                     className="text-xs text-zinc-400 hover:text-red-400 transition-colors"
                                 >
                                     Sil

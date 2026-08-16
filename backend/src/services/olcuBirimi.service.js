@@ -17,12 +17,26 @@ const olcuBirimiService = {
     },
 
     async olustur(data, tenantId) {
-        return prisma.olcuBirimi.create({ data: { ...data, tenantId } });
+        try {
+            return await prisma.olcuBirimi.create({ data: { ...data, tenantId } });
+        } catch (err) {
+            if (err.code === 'P2002') {
+                throw new Error('Bu birim adı veya kısaltma zaten kullanılıyor');
+            }
+            throw err;
+        }
     },
 
     async guncelle(id, data, tenantId) {
         await this.biriniGetir(id, tenantId);
-        return prisma.olcuBirimi.update({ where: { id }, data });
+        try {
+            return await prisma.olcuBirimi.update({ where: { id }, data });
+        } catch (err) {
+            if (err.code === 'P2002') {
+                throw new Error('Bu birim adı veya kısaltma zaten kullanılıyor');
+            }
+            throw err;
+        }
     },
 
     async sil(id, tenantId) {

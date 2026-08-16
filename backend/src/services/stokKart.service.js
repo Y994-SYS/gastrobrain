@@ -47,20 +47,34 @@ const stokKartService = {
 
     async olustur(data, tenantId) {
         await iliskileriDogrula(data, tenantId);
-        return prisma.stokKart.create({
-            data: { ...data, tenantId },
-            include: { kategori: true, birim: true }
-        });
+        try {
+            return await prisma.stokKart.create({
+                data: { ...data, tenantId },
+                include: { kategori: true, birim: true }
+            });
+        } catch (err) {
+            if (err.code === 'P2002') {
+                throw new Error('Bu stok kodu zaten kullanılıyor, farklı bir kod seçin');
+            }
+            throw err;
+        }
     },
 
     async guncelle(id, data, tenantId) {
         await this.biriniGetir(id, tenantId);
         await iliskileriDogrula(data, tenantId);
-        return prisma.stokKart.update({
-            where: { id },
-            data,
-            include: { kategori: true, birim: true }
-        });
+        try {
+            return await prisma.stokKart.update({
+                where: { id },
+                data,
+                include: { kategori: true, birim: true }
+            });
+        } catch (err) {
+            if (err.code === 'P2002') {
+                throw new Error('Bu stok kodu zaten kullanılıyor, farklı bir kod seçin');
+            }
+            throw err;
+        }
     },
 
     async sil(id, tenantId) {

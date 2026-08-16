@@ -16,15 +16,24 @@ const ZORLA_IZINLI_ROLLER = ['TENANT_ADMIN', 'ADMIN', 'MUDUR'];
 
 export default function Satislar() {
     const { kullanici } = useAuthStore();
-    const { seciliSubeId } = useSubeStore();
+    const { seciliSubeId, subeler } = useSubeStore();
     const subeParam = seciliSubeId ? `?subeId=${seciliSubeId}` : '';
     const zorlaYetkisiVar = ZORLA_IZINLI_ROLLER.includes(kullanici?.rol);
 
+    // TENANT_ADMIN ve birden fazla şubesi olan kullanıcılar için satış formunda
+    // şube seçimi gösterilir — aksi halde satış her zaman sessizce kullanıcının
+    // kendi şubesine kaydedilir, bu da görüntülenen şubeyle tutarsızlığa yol açar.
+    const subeSecimiGerekli = kullanici?.rol === 'TENANT_ADMIN' && subeler.length > 1;
+
+    // Yeni satış formu varsayılan olarak şu an EKRANDA GÖRÜNTÜLENEN şubeyi kullanır
+    // (seciliSubeId). "Tüm Şubeler" görünümündeyse (seciliSubeId null) kullanıcının
+    // kendi şubesine düşer — bu durumda subeSecimiGerekli true olduğundan zaten
+    // formda görünür bir seçim alanı olacak, sessiz bir varsayım kalmıyor.
     const bosForm = useCallback(() => ({
-        receteId: '', subeId: kullanici?.subeId || '',
+        receteId: '', subeId: seciliSubeId || kullanici?.subeId || '',
         adet: '1', birimFiyat: '', aciklama: '',
         tarih: new Date().toISOString().split('T')[0]
-    }), [kullanici?.subeId]);
+    }), [kullanici?.subeId, seciliSubeId]);
 
     const [veri, setVeri] = useState([]);
     const [receteler, setReceteler] = useState([]);
@@ -37,6 +46,10 @@ export default function Satislar() {
 
     // Yetersiz stok hatası geldiğinde, zorla kaydet onayı için bekleyen hata mesajı
     const [zorlaOnayMesaji, setZorlaOnayMesaji] = useState(null);
+
+    const goruntulenenSubeAdi = seciliSubeId
+        ? subeler.find(s => s.id === seciliSubeId)?.ad
+        : null;
 
     const getir = useCallback(async () => {
         setTabloYukleniyor(true);
@@ -60,6 +73,8 @@ export default function Satislar() {
     const kaydet = async (zorla = false) => {
         if (!form.receteId || !form.adet || !form.birimFiyat)
             return toast.error('Reçete, adet ve fiyat zorunlu');
+        if (subeSecimiGerekli && !form.subeId)
+            return toast.error('Şube seçimi zorunlu');
         setYukleniyor(true);
         try {
             const res = await api.post('/api/satislar', { ...form, zorla });
@@ -111,6 +126,10 @@ export default function Satislar() {
                     <h1 className="text-xl font-bold text-white">Satışlar</h1>
                     <p className="text-zinc-500 text-sm mt-0.5">
                         {tabloYukleniyor ? 'Yükleniyor...' : `${veri.length} kayıt`}
+                        {' — '}
+                        <span className="text-zinc-400">
+                            {goruntulenenSubeAdi || 'Tüm Şubeler'}
+                        </span>
                     </p>
                 </div>
                 <div className="flex items-center gap-3">
@@ -160,6 +179,11 @@ export default function Satislar() {
                                     <td colSpan={6} className="text-center py-14 text-zinc-500 text-sm">
                                         <div className="text-3xl mb-2">🛒</div>
                                         Henüz satış kaydı yok
+                                        {goruntulenenSubeAdi && (
+                                            <div className="text-xs text-zinc-600 mt-1">
+                                                ({goruntulenenSubeAdi} için gösteriliyor — üstteki şube seçiciden değiştirebilirsiniz)
+                                            </div>
+                                        )}
                                     </td>
                                 </tr>
                             ) : veri.map((s) => (
@@ -211,6 +235,24 @@ export default function Satislar() {
                                 ))}
                             </select>
                         </div>
+
+                        {/* Şube seçimi — sadece TENANT_ADMIN ve birden fazla şube varsa gösterilir.
+                            Diğer roller için backend zaten kendi şubelerini zorluyor. */}
+                        {subeSecimiGerekli && (
+                            <div>
+                                <label className="text-zinc-400 text-sm mb-1.5 block">Şube *</label>
+                                <select
+                                    value={form.subeId}
+                                    onChange={(e) => setForm({ ...form, subeId: e.target.value })}
+                                    className={inputCls}
+                                >
+                                    <option value="">— Şube seç —</option>
+                                    {subeler.map(s => (
+                                        <option key={s.id} value={s.id}>{s.ad}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        )}
 
                         <div className="grid grid-cols-2 gap-3">
                             <div>
@@ -287,7 +329,7 @@ export default function Satislar() {
                         {!zorlaOnayMesaji && (
                             <button
                                 onClick={() => kaydet(false)}
-                                disabled={yukleniyor || !form.receteId || !form.adet || !form.birimFiyat}
+                                disabled={yukleniyor || !form.receteId || !form.adet || !form.birimFiyat || (subeSecimiGerekli && !form.subeId)}
                                 className="w-full bg-lime-400 hover:bg-lime-300 disabled:opacity-40 disabled:cursor-not-allowed text-black font-bold rounded-lg py-2.5 text-sm transition-colors"
                             >
                                 {yukleniyor ? 'Kaydediliyor...' : 'Satışı Kaydet'}

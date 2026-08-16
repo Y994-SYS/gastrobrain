@@ -4,15 +4,28 @@ import api from '../../services/api';
 import Modal from '../../components/Modal';
 import SubeSecici from '../../components/SubeSecici';
 import useSubeStore from '../../store/subeStore';
+import useAuthStore from '../../store/auth.store';
 
-const bosPersonel = {
+const bosPersonel = (subeId = '') => ({
     ad: '', soyad: '', telefon: '',
     baslangicTarihi: new Date().toISOString().split('T')[0],
-    maas: '', subeId: ''
-};
+    maas: '', subeId
+});
+
 export default function Personel() {
-    const { seciliSubeId } = useSubeStore();
+    const { kullanici } = useAuthStore();
+    const { seciliSubeId, subeler } = useSubeStore();
     const subeParam = seciliSubeId ? `?subeId=${seciliSubeId}` : '';
+
+    // TENANT_ADMIN ve birden fazla şubesi olan kullanıcılar için personel formunda
+    // şube seçimi gösterilir — aksi halde personel her zaman sessizce kullanıcının
+    // kendi şubesine kaydedilir, bu da görüntülenen şubeyle tutarsızlığa yol açar
+    // (bkz. Satışlar sayfasındaki aynı sorun).
+    const subeSecimiGerekli = kullanici?.rol === 'TENANT_ADMIN' && subeler.length > 1;
+
+    const goruntulenenSubeAdi = seciliSubeId
+        ? subeler.find(s => s.id === seciliSubeId)?.ad
+        : null;
 
     const [veri, setVeri] = useState([]);
     const [secili, setSecili] = useState(null);
@@ -21,7 +34,7 @@ export default function Personel() {
     const [avansModal, setAvansModal] = useState(false);
     const [devamModal, setDevamModal] = useState(false);
     const [izinModal, setIzinModal] = useState(false);
-    const [form, setForm] = useState(bosPersonel);
+    const [form, setForm] = useState(bosPersonel());
     const [duzenleId, setDuzenleId] = useState(null);
     const [yukleniyor, setYukleniyor] = useState(false);
 
@@ -79,6 +92,7 @@ export default function Personel() {
 
     const kaydet = async () => {
         if (!form.ad || !form.soyad || !form.maas) return toast.error('Ad, soyad ve maaş zorunlu');
+        if (subeSecimiGerekli && !form.subeId) return toast.error('Şube seçimi zorunlu');
         setYukleniyor(true);
         try {
             if (duzenleId) {
@@ -92,7 +106,7 @@ export default function Personel() {
                 toast.success('Personel eklendi');
             }
             setPersonelModal(false);
-            setForm(bosPersonel);
+            setForm(bosPersonel(seciliSubeId || ''));
             setDuzenleId(null);
         } catch (err) {
             toast.error(err.response?.data?.mesaj || 'Hata oluştu');
@@ -104,6 +118,15 @@ export default function Personel() {
     const duzenle = (p) => {
         setForm({ ad: p.ad, soyad: p.soyad, telefon: p.telefon || '', maas: p.maas, subeId: p.subeId, baslangicTarihi: new Date(p.baslangicTarihi).toISOString().split('T')[0] });
         setDuzenleId(p.id);
+        setPersonelModal(true);
+    };
+
+    const yeniPersonelModalAc = () => {
+        // Yeni personel formu, ekranda o an GÖRÜNTÜLENEN şubeyi varsayılan alır
+        // (seciliSubeId). "Tüm Şubeler" görünümündeyse (null) ve TENANT_ADMIN
+        // birden fazla şubeye sahipse, formda seçim alanı zaten görünür olacak.
+        setForm(bosPersonel(seciliSubeId || ''));
+        setDuzenleId(null);
         setPersonelModal(true);
     };
 
@@ -245,9 +268,15 @@ export default function Personel() {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-5 gap-3">
                 <div>
                     <h1 className="text-xl font-bold text-white">Personel</h1>
-                    <p className="text-zinc-500 text-sm mt-0.5">{veri.length} personel</p>
+                    <p className="text-zinc-500 text-sm mt-0.5">
+                        {veri.length} personel
+                        {' — '}
+                        <span className="text-zinc-400">
+                            {goruntulenenSubeAdi || 'Tüm Şubeler'}
+                        </span>
+                    </p>
                 </div>
-                <button onClick={() => { setForm(bosPersonel); setDuzenleId(null); setPersonelModal(true); }} className="bg-lime-400 hover:bg-lime-300 text-black font-bold text-sm px-4 py-2 rounded-lg transition-colors">
+                <button onClick={yeniPersonelModalAc} className="bg-lime-400 hover:bg-lime-300 text-black font-bold text-sm px-4 py-2 rounded-lg transition-colors">
                     + Yeni Personel
                 </button>
             </div>
@@ -259,7 +288,14 @@ export default function Personel() {
                     <div className="p-3.5 border-b border-zinc-800"><h2 className="text-sm font-bold text-white">Personeller</h2></div>
                     <div className="divide-y divide-zinc-800">
                         {veri.length === 0 ? (
-                            <div className="text-center py-8 text-zinc-500 text-sm">Personel yok</div>
+                            <div className="text-center py-8 text-zinc-500 text-sm">
+                                Personel yok
+                                {goruntulenenSubeAdi && (
+                                    <div className="text-xs text-zinc-600 mt-1">
+                                        ({goruntulenenSubeAdi} için gösteriliyor)
+                                    </div>
+                                )}
+                            </div>
                         ) : veri.map((p) => (
                             <div key={p.id} onClick={() => personelDetay(p)} className={`p-3.5 cursor-pointer hover:bg-zinc-800/50 transition-colors ${secili?.id === p.id ? 'bg-zinc-800' : ''}`}>
                                 <div className="flex justify-between items-start">
@@ -408,12 +444,36 @@ export default function Personel() {
                                 <label className="text-zinc-400 text-sm mb-1.5 block">Maaş (₺) *</label>
                                 <input type="number" value={form.maas} onChange={(e) => setForm({ ...form, maas: e.target.value })} className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-3 py-2.5 text-sm outline-none focus:border-lime-400 transition-colors" />
                             </div>
-                            <div>
-                                <label className="text-zinc-400 text-sm mb-1.5 block">Başlangıç Tarihi</label>
-                                <input type="date" value={form.baslangicTarihi} onChange={(e) => setForm({ ...form, baslangicTarihi: e.target.value })} className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-3 py-2.5 text-sm outline-none focus:border-lime-400 transition-colors" />
-                            </div>
                         </div>
-                        <button onClick={kaydet} disabled={yukleniyor} className="w-full bg-lime-400 hover:bg-lime-300 disabled:opacity-50 text-black font-bold rounded-lg py-2.5 text-sm transition-colors">
+
+                        {/* Şube seçimi — sadece TENANT_ADMIN ve birden fazla şube varsa gösterilir.
+                            Diğer roller için backend zaten kendi şubelerini zorluyor. */}
+                        {subeSecimiGerekli && (
+                            <div>
+                                <label className="text-zinc-400 text-sm mb-1.5 block">Şube *</label>
+                                <select
+                                    value={form.subeId}
+                                    onChange={(e) => setForm({ ...form, subeId: e.target.value })}
+                                    className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-3 py-2.5 text-sm outline-none focus:border-lime-400 transition-colors"
+                                >
+                                    <option value="">— Şube seç —</option>
+                                    {subeler.map(s => (
+                                        <option key={s.id} value={s.id}>{s.ad}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        )}
+
+                        <div>
+                            <label className="text-zinc-400 text-sm mb-1.5 block">Başlangıç Tarihi</label>
+                            <input type="date" value={form.baslangicTarihi} onChange={(e) => setForm({ ...form, baslangicTarihi: e.target.value })} className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-3 py-2.5 text-sm outline-none focus:border-lime-400 transition-colors" />
+                        </div>
+
+                        <button
+                            onClick={kaydet}
+                            disabled={yukleniyor || (subeSecimiGerekli && !form.subeId)}
+                            className="w-full bg-lime-400 hover:bg-lime-300 disabled:opacity-50 text-black font-bold rounded-lg py-2.5 text-sm transition-colors"
+                        >
                             {yukleniyor ? 'Kaydediliyor...' : 'Kaydet'}
                         </button>
                     </div>

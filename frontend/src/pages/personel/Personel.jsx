@@ -6,11 +6,10 @@ import SubeSecici from '../../components/SubeSecici';
 import useSubeStore from '../../store/subeStore';
 
 const bosPersonel = {
-    ad: '', soyad: '', telefon: '', tcKimlik: '',
+    ad: '', soyad: '', telefon: '',
     baslangicTarihi: new Date().toISOString().split('T')[0],
     maas: '', subeId: ''
 };
-
 export default function Personel() {
     const { seciliSubeId } = useSubeStore();
     const subeParam = seciliSubeId ? `?subeId=${seciliSubeId}` : '';
@@ -103,7 +102,7 @@ export default function Personel() {
     };
 
     const duzenle = (p) => {
-        setForm({ ad: p.ad, soyad: p.soyad, telefon: p.telefon || '', tcKimlik: p.tcKimlik || '', maas: p.maas, subeId: p.subeId, baslangicTarihi: new Date(p.baslangicTarihi).toISOString().split('T')[0] });
+        setForm({ ad: p.ad, soyad: p.soyad, telefon: p.telefon || '', maas: p.maas, subeId: p.subeId, baslangicTarihi: new Date(p.baslangicTarihi).toISOString().split('T')[0] });
         setDuzenleId(p.id);
         setPersonelModal(true);
     };
@@ -399,7 +398,7 @@ export default function Personel() {
                 <Modal baslik={duzenleId ? 'Personel Düzenle' : 'Yeni Personel'} onKapat={() => setPersonelModal(false)}>
                     <div className="space-y-4">
                         <div className="grid grid-cols-2 gap-3">
-                            {[['Ad *', 'ad'], ['Soyad *', 'soyad'], ['Telefon', 'telefon'], ['TC Kimlik', 'tcKimlik']].map(([lbl, key]) => (
+                            {[['Ad *', 'ad'], ['Soyad *', 'soyad'], ['Telefon', 'telefon']].map(([lbl, key]) => (
                                 <div key={key}>
                                     <label className="text-zinc-400 text-sm mb-1.5 block">{lbl}</label>
                                     <input value={form[key]} onChange={(e) => setForm({ ...form, [key]: e.target.value })} className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-3 py-2.5 text-sm outline-none focus:border-lime-400 transition-colors" />

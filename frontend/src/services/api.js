@@ -18,16 +18,28 @@ api.interceptors.response.use(
     (response) => response,
     (error) => {
         const status = error.response?.status;
+        const istekUrl = error.config?.url || '';
 
-        // 401 — oturum süresi doldu
-        if (status === 401) {
+        // Bu endpoint'ler oturumsuz/public çalışır — 401 burada "oturum
+        // süresi doldu" anlamına gelmez, sadece "giriş bilgisi yanlış"
+        // anlamına gelir. Hard-redirect yapmak hem gereksiz hem de asıl
+        // hata mesajını (mesaj alanını) okumadan sayfayı sıfırlıyor.
+        const oturumsuzEndpointler = [
+            '/auth/giris',
+            '/auth/kayit-firma',
+            '/auth/tenant-listesi',
+            '/auth/sifre-sifirlama-talep',
+            '/auth/sifre-sifirla',
+        ];
+        const oturumsuzMu = oturumsuzEndpointler.some(p => istekUrl.includes(p));
+
+        if (status === 401 && !oturumsuzMu) {
             localStorage.removeItem('gastroiq_token');
             localStorage.removeItem('gastroiq_tenant');
             window.location.href = '/giris';
             return Promise.reject(error);
         }
 
-        // 429 — rate limit aşıldı
         if (status === 429) {
             const retryAfter = error.response?.data?.retryAfter;
             const dakika = retryAfter ? Math.ceil(retryAfter / 60) : 15;

@@ -2,9 +2,17 @@ const { z } = require('zod');
 
 const ATANABILIR_ROLLER = ['TENANT_ADMIN', 'MUDUR', 'DEPO', 'KASA', 'PERSONEL'];
 
+const email = z.string()
+    .trim()
+    .toLowerCase()
+    .transform(v => v
+        .replace(/ğ/g, 'g').replace(/ü/g, 'u').replace(/ş/g, 's')
+        .replace(/ı/g, 'i').replace(/ö/g, 'o').replace(/ç/g, 'c'))
+    .pipe(z.string().email('Geçerli bir email adresi girin').max(255));
+
 const kullaniciOlusturSchema = z.object({
     ad: z.string().trim().min(1, 'Ad zorunlu').max(100),
-    email: email,
+    email,
     sifre: z.string().min(6, 'Şifre en az 6 karakter olmalı').max(72),
     rol: z.enum(ATANABILIR_ROLLER, {
         errorMap: () => ({ message: 'Bu rol atanamaz' })
@@ -38,14 +46,7 @@ const sifreDegistirSchema = z.object({
 const idParamSchema = z.object({
     id: z.coerce.number().int('Geçersiz id').positive('Geçersiz id'),
 });
-const email = z.string()
-    .trim()
-    .toLowerCase()
-    .transform(v => v
-        .replace(/ğ/g, 'g').replace(/ü/g, 'u').replace(/ş/g, 's')
-        .replace(/ı/g, 'i').replace(/ö/g, 'o').replace(/ç/g, 'c'))
-    .pipe(z.string().email('Geçerli bir email adresi girin'))
-    .max(255);
+
 module.exports = {
     kullaniciOlusturSchema,
     kullaniciGuncelleSchema,

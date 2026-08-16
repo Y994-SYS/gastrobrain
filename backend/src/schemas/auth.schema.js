@@ -9,8 +9,7 @@ const email = z.string()
     .transform(v => v
         .replace(/ğ/g, 'g').replace(/ü/g, 'u').replace(/ş/g, 's')
         .replace(/ı/g, 'i').replace(/ö/g, 'o').replace(/ç/g, 'c'))
-    .pipe(z.string().email('Geçerli bir email adresi girin'))
-    .max(255);
+    .pipe(z.string().email('Geçerli bir email adresi girin').max(255));
 const sifre = z.string().min(6, 'Şifre en az 6 karakter olmalı').max(72); // bcrypt 72 byte sınırı
 
 const opsiyonelString = (maxLen) => z.preprocess(

@@ -97,37 +97,40 @@ const olustur = async (req, res) => {
 
 const guncelle = async (req, res) => {
     try {
+        const id = parseInt(req.params.id);
         const mevcut = await prisma.kullanici.findFirst({
-            where: { id: parseInt(req.params.id), tenantId: req.kullanici.tenantId }
+            where: { id, tenantId: req.kullanici.tenantId }
         });
         if (!mevcut) return res.status(404).json({ hata: 'Kullanıcı bulunamadı' });
 
         const { ad, email, sifre, rol, subeId, aktif } = req.body;
+
+        // GÜVENLİK: sil() içinde kendi kendini silmeye karşı koruma vardı,
+        // ama güncelle()'de kendi hesabını pasife çekmeye karşı koruma
+        // eksikti — bir admin kendini yanlışlıkla sistemden kilitleyebiliyordu.
+        if (req.kullanici.id === id && aktif === false) {
+            return res.status(400).json({ hata: 'Kendi hesabınızı devre dışı bırakamazsınız' });
+        }
 
         if (rol && !ATANABILIR_ROLLER.includes(rol)) {
             return res.status(403).json({ hata: 'Bu rol atanamaz' });
         }
 
         const data = { ad, email, rol, aktif };
-        // subeId: body'de hiç gönderilmediyse (undefined) mevcut değere
-        // dokunulmaz. Açıkça null gönderildiyse (kullanıcı şubeden bilerek
-        // çıkarılmak isteniyorsa) null yapılır. Eskiden `subeId || null`
-        // kullanılıyordu — bu, subeId hiç gönderilmese bile şubeyi
-        // yanlışlıkla null'a düşürüyordu.
         if (subeId !== undefined) {
             data.subeId = subeId === null || subeId === '' ? null : subeId;
         }
         if (sifre) data.sifre = await bcrypt.hash(sifre, 10);
 
         const kullanici = await prisma.kullanici.update({
-            where: { id: parseInt(req.params.id) },
+            where: { id },
             data,
             select: { id: true, ad: true, email: true, rol: true, aktif: true, createdAt: true },
         });
 
         await auditLog.kaydet({
             eylem: 'KULLANICI_GUNCELLE',
-            detay: { kullaniciId: parseInt(req.params.id), ad, rol, aktif },
+            detay: { kullaniciId: id, ad, rol, aktif },
             kullaniciId: req.kullanici.id,
             tenantId: req.kullanici.tenantId,
             ip: req.ip

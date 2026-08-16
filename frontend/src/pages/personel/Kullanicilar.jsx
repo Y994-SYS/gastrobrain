@@ -363,10 +363,13 @@ export default function Kullanicilar() {
                                 <div className="flex items-center gap-2 py-1">
                                     <input
                                         type="checkbox" id="aktif" checked={form.aktif}
+                                        disabled={duzenleId === kendiKullaniciId}  // kendi id'ni useAuthStore'dan al
                                         onChange={e => setForm({ ...form, aktif: e.target.checked })}
-                                        className="accent-lime-400 w-4 h-4"
+                                        className="accent-lime-400 w-4 h-4 disabled:opacity-40"
                                     />
-                                    <label htmlFor="aktif" className="text-zinc-300 text-sm cursor-pointer">Aktif</label>
+                                    <label htmlFor="aktif" className="text-zinc-300 text-sm cursor-pointer">
+                                        Aktif {duzenleId === kendiKullaniciId && <span className="text-zinc-600">(kendi hesabınız)</span>}
+                                    </label>
                                 </div>
                             )}
                         </div>

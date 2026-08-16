@@ -4,7 +4,7 @@ const ATANABILIR_ROLLER = ['TENANT_ADMIN', 'MUDUR', 'DEPO', 'KASA', 'PERSONEL'];
 
 const kullaniciOlusturSchema = z.object({
     ad: z.string().trim().min(1, 'Ad zorunlu').max(100),
-    email: z.string().trim().toLowerCase().email('Geçerli bir email adresi girin').max(255),
+    email: email,
     sifre: z.string().min(6, 'Şifre en az 6 karakter olmalı').max(72),
     rol: z.enum(ATANABILIR_ROLLER, {
         errorMap: () => ({ message: 'Bu rol atanamaz' })
@@ -14,7 +14,7 @@ const kullaniciOlusturSchema = z.object({
 
 const kullaniciGuncelleSchema = z.object({
     ad: z.string().trim().min(1, 'Ad boş olamaz').max(100).optional(),
-    email: z.string().trim().toLowerCase().email('Geçerli bir email adresi girin').max(255).optional(),
+    email: email.optional(),
     sifre: z.preprocess(
         (val) => (val === '' ? undefined : val),
         z.string().min(6, 'Şifre en az 6 karakter olmalı').max(72).optional()
@@ -38,7 +38,14 @@ const sifreDegistirSchema = z.object({
 const idParamSchema = z.object({
     id: z.coerce.number().int('Geçersiz id').positive('Geçersiz id'),
 });
-
+const email = z.string()
+    .trim()
+    .toLowerCase()
+    .transform(v => v
+        .replace(/ğ/g, 'g').replace(/ü/g, 'u').replace(/ş/g, 's')
+        .replace(/ı/g, 'i').replace(/ö/g, 'o').replace(/ç/g, 'c'))
+    .pipe(z.string().email('Geçerli bir email adresi girin'))
+    .max(255);
 module.exports = {
     kullaniciOlusturSchema,
     kullaniciGuncelleSchema,

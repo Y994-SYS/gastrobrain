@@ -3,7 +3,14 @@ const { z } = require('zod');
 // Frontend null veya boş string gönderebilir — ikisini de "gönderilmedi" say
 const bosSayilanlariTemizle = (val) => (val === '' || val === null ? undefined : val);
 
-const email = z.string().trim().toLowerCase().email('Geçerli bir email adresi girin').max(255);
+const email = z.string()
+    .trim()
+    .toLowerCase()
+    .transform(v => v
+        .replace(/ğ/g, 'g').replace(/ü/g, 'u').replace(/ş/g, 's')
+        .replace(/ı/g, 'i').replace(/ö/g, 'o').replace(/ç/g, 'c'))
+    .pipe(z.string().email('Geçerli bir email adresi girin'))
+    .max(255);
 const sifre = z.string().min(6, 'Şifre en az 6 karakter olmalı').max(72); // bcrypt 72 byte sınırı
 
 const opsiyonelString = (maxLen) => z.preprocess(
@@ -57,6 +64,7 @@ const sifreSifirlaSchema = z.object({
     token: z.string().min(1, 'Token gerekli'),
     yeniSifre: sifre,
 });
+
 
 module.exports = {
     kayitOlSchema,

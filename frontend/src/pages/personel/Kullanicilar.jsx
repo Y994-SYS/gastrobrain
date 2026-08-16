@@ -305,7 +305,16 @@ export default function Kullanicilar() {
                                 <label className="text-zinc-400 text-xs block mb-1.5">Email *</label>
                                 <input
                                     type="email" value={form.email}
-                                    onChange={e => setForm({ ...form, email: e.target.value })}
+                                    onChange={e => {
+                                        const temiz = e.target.value
+                                            .replace(/ğ/g, 'g').replace(/Ğ/g, 'G')
+                                            .replace(/ü/g, 'u').replace(/Ü/g, 'U')
+                                            .replace(/ş/g, 's').replace(/Ş/g, 'S')
+                                            .replace(/ı/g, 'i').replace(/İ/g, 'I')
+                                            .replace(/ö/g, 'o').replace(/Ö/g, 'O')
+                                            .replace(/ç/g, 'c').replace(/Ç/g, 'C');
+                                        setForm({ ...form, email: temiz });
+                                    }}
                                     className={inputCls} placeholder="ali@gastrobrain.com"
                                     autoCapitalize="none" autoCorrect="off"
                                 />

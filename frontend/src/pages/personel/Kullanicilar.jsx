@@ -122,7 +122,15 @@ export default function Kullanicilar() {
         if (!duzenleId && !form.sifre) { toast.error('Şifre zorunlu'); return; }
         setKaydediyor(true);
         try {
-            const payload = { ...form, subeId: form.subeId ? parseInt(form.subeId) : null };
+            const { aktif, ...formGonderilecek } = form;
+            const payload = {
+                ...formGonderilecek,
+                subeId: form.subeId ? parseInt(form.subeId) : null,
+                // aktif alanı yalnızca düzenlemede gönderilir —
+                // create şeması bu alanı tanımıyor (.strict()), bu yüzden
+                // yeni kayıtta göndermek isteği tamamen reddettiriyordu.
+                ...(duzenleId ? { aktif } : {}),
+            };
             if (duzenleId) {
                 if (!payload.sifre) delete payload.sifre;
                 await api.put(`/api/kullanicilar/${duzenleId}`, payload);
@@ -134,12 +142,12 @@ export default function Kullanicilar() {
             modalKapat();
             listele();
         } catch (e) {
-            toast.error(e.response?.data?.hata || 'Kayıt başarısız');
+            const mesaj = e.response?.data?.mesaj || e.response?.data?.hata || 'Kayıt başarısız';
+            toast.error(mesaj);
         } finally {
             setKaydediyor(false);
         }
     };
-
     const sil = async (id) => {
         try {
             await api.delete(`/api/kullanicilar/${id}`);
@@ -147,10 +155,10 @@ export default function Kullanicilar() {
             setSilOnay(null);
             listele();
         } catch (e) {
-            toast.error(e.response?.data?.hata || 'Silinemedi');
+            const mesaj = e.response?.data?.mesaj || e.response?.data?.hata || 'Silinemedi';
+            toast.error(mesaj);
         }
     };
-
     const seciliRolBilgi = ROL_ACIKLAMA[form.rol];
 
     return (

@@ -20,20 +20,19 @@ export default function Satislar() {
     const subeParam = seciliSubeId ? `?subeId=${seciliSubeId}` : '';
     const zorlaYetkisiVar = ZORLA_IZINLI_ROLLER.includes(kullanici?.rol);
 
-    // TENANT_ADMIN ve birden fazla şubesi olan kullanıcılar için satış formunda
-    // şube seçimi gösterilir — aksi halde satış her zaman sessizce kullanıcının
-    // kendi şubesine kaydedilir, bu da görüntülenen şubeyle tutarsızlığa yol açar.
-    const subeSecimiGerekli = kullanici?.rol === 'TENANT_ADMIN' && subeler.length > 1;
+    // KURAL: Bir satış her zaman, satışı giren kullanıcının KENDİ şubesi adına
+    // kaydedilir — Dashboard'da veya başka bir sayfada hangi şubeyi
+    // GÖRÜNTÜLEDİĞİ (seciliSubeId) bunu değiştirmez. Merkez şube müşterisine
+    // merkez satış yapar, diğer şube kendi satışını kendi girer. Bu yüzden
+    // satış formu şube seçtirmez; kullanici.subeId sabit kullanılır.
+    const kendiSubeAdi = kullanici?.sube?.ad || subeler.find(s => s.id === kullanici?.subeId)?.ad;
+    const baskaSubeGoruntuleniyor = seciliSubeId && seciliSubeId !== kullanici?.subeId;
 
-    // Yeni satış formu varsayılan olarak şu an EKRANDA GÖRÜNTÜLENEN şubeyi kullanır
-    // (seciliSubeId). "Tüm Şubeler" görünümündeyse (seciliSubeId null) kullanıcının
-    // kendi şubesine düşer — bu durumda subeSecimiGerekli true olduğundan zaten
-    // formda görünür bir seçim alanı olacak, sessiz bir varsayım kalmıyor.
     const bosForm = useCallback(() => ({
-        receteId: '', subeId: seciliSubeId || kullanici?.subeId || '',
+        receteId: '', subeId: kullanici?.subeId || '',
         adet: '1', birimFiyat: '', aciklama: '',
         tarih: new Date().toISOString().split('T')[0]
-    }), [kullanici?.subeId, seciliSubeId]);
+    }), [kullanici?.subeId]);
 
     const [veri, setVeri] = useState([]);
     const [receteler, setReceteler] = useState([]);
@@ -73,8 +72,6 @@ export default function Satislar() {
     const kaydet = async (zorla = false) => {
         if (!form.receteId || !form.adet || !form.birimFiyat)
             return toast.error('Reçete, adet ve fiyat zorunlu');
-        if (subeSecimiGerekli && !form.subeId)
-            return toast.error('Şube seçimi zorunlu');
         setYukleniyor(true);
         try {
             const res = await api.post('/api/satislar', { ...form, zorla });
@@ -148,6 +145,14 @@ export default function Satislar() {
 
             <SubeSecici />
 
+            {/* Başka bir şube görüntülenirken bilgilendirme — satış yine de
+                kullanıcının kendi şubesine kaydedilecek */}
+            {baskaSubeGoruntuleniyor && (
+                <div className="mb-4 bg-blue-500/10 border border-blue-500/30 rounded-lg px-4 py-2.5 text-xs text-blue-300">
+                    ℹ️ Şu an <b>{goruntulenenSubeAdi}</b> şubesinin satışlarını görüntülüyorsunuz. Yeni satış eklerseniz bu, sizin şubeniz olan <b>{kendiSubeAdi || 'kendi şubeniz'}</b> adına kaydedilir.
+                </div>
+            )}
+
             {/* Tablo */}
             <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
                 <div className="overflow-x-auto">
@@ -219,6 +224,13 @@ export default function Satislar() {
             {modal && (
                 <Modal baslik="Yeni Satış" onKapat={() => setModal(false)}>
                     <div className="space-y-4">
+                        {/* Satışın hangi şube adına kaydedileceği — sabit ve değiştirilemez.
+                            Bir kullanıcı sadece kendi şubesi adına satış girebilir. */}
+                        <div className="bg-zinc-800/60 border border-zinc-700 rounded-lg px-3 py-2 flex items-center justify-between">
+                            <span className="text-zinc-400 text-xs">Satış şubesi</span>
+                            <span className="text-sm font-semibold text-white">🏪 {kendiSubeAdi || '—'}</span>
+                        </div>
+
                         <div>
                             <label className="text-zinc-400 text-sm mb-1.5 block">Reçete *</label>
                             <select
@@ -235,24 +247,6 @@ export default function Satislar() {
                                 ))}
                             </select>
                         </div>
-
-                        {/* Şube seçimi — sadece TENANT_ADMIN ve birden fazla şube varsa gösterilir.
-                            Diğer roller için backend zaten kendi şubelerini zorluyor. */}
-                        {subeSecimiGerekli && (
-                            <div>
-                                <label className="text-zinc-400 text-sm mb-1.5 block">Şube *</label>
-                                <select
-                                    value={form.subeId}
-                                    onChange={(e) => setForm({ ...form, subeId: e.target.value })}
-                                    className={inputCls}
-                                >
-                                    <option value="">— Şube seç —</option>
-                                    {subeler.map(s => (
-                                        <option key={s.id} value={s.id}>{s.ad}</option>
-                                    ))}
-                                </select>
-                            </div>
-                        )}
 
                         <div className="grid grid-cols-2 gap-3">
                             <div>
@@ -329,7 +323,7 @@ export default function Satislar() {
                         {!zorlaOnayMesaji && (
                             <button
                                 onClick={() => kaydet(false)}
-                                disabled={yukleniyor || !form.receteId || !form.adet || !form.birimFiyat || (subeSecimiGerekli && !form.subeId)}
+                                disabled={yukleniyor || !form.receteId || !form.adet || !form.birimFiyat}
                                 className="w-full bg-lime-400 hover:bg-lime-300 disabled:opacity-40 disabled:cursor-not-allowed text-black font-bold rounded-lg py-2.5 text-sm transition-colors"
                             >
                                 {yukleniyor ? 'Kaydediliyor...' : 'Satışı Kaydet'}

@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import useAuthStore from '../store/auth.store';
-import useSubeStore from '../store/subeStore';
 
 const fmt = (n) => Number(n || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
@@ -82,11 +81,15 @@ function KritikStokBandi({ adet, navigate }) {
 }
 
 // ─── Şube Özet Kartları ───────────────────────────────────────────────────────
+// Bu kartlar salt-okunur bir özet amaçlıdır (TENANT_ADMIN'in tüm şubelere
+// genel bakışı). Tıklamak satış ekranına GÖTÜRMEZ — satış her zaman
+// kullanıcının kendi şubesi adına, Satışlar sayfasından girilir. Buradaki
+// tıklama, ilgili şubenin detay/özet sayfasına (stok, satış geçmişi,
+// personel, transferler) yönlendirir — bkz. SubeDetay.jsx.
 function SubeOzetiPanel() {
     const [subeler, setSubeler] = useState([]);
     const [yukleniyor, setYukleniyor] = useState(true);
     const navigate = useNavigate();
-    const { subeSecAlt } = useSubeStore();
 
     useEffect(() => {
         const getir = async () => {
@@ -121,10 +124,7 @@ function SubeOzetiPanel() {
                     {subeler.map(sube => (
                         <div
                             key={sube.id}
-                            onClick={() => {
-                                subeSecAlt(sube.id);
-                                navigate('/satislar');
-                            }}
+                            onClick={() => navigate(`/tanimlamalar/subeler/${sube.id}`)}
                             className="bg-zinc-900 border border-zinc-800 hover:border-zinc-600 rounded-xl p-3.5 cursor-pointer transition-all active:scale-[0.98]"
                         >
                             {/* Şube adı + durum */}
@@ -428,7 +428,8 @@ function YonetimDashboard() {
             {/* Hiyerarşi: kritik stok varsa en üstte, büyük ve dikkat çekici */}
             {!yukleniyor && <KritikStokBandi adet={kritikStoklar.length} navigate={navigate} />}
 
-            {/* Şube Özeti — sadece TENANT_ADMIN + birden fazla şube */}
+            {/* Şube Özeti — sadece TENANT_ADMIN + birden fazla şube.
+                Tıklamak satışa değil, o şubenin salt-okunur detay sayfasına götürür. */}
             {rol === 'TENANT_ADMIN' && <SubeOzetiPanel />}
 
             {/* Merkez Depo Uyarıları — TENANT_ADMIN + MUDUR */}

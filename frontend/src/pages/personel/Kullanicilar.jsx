@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import api from '../../services/api';
 import toast from 'react-hot-toast';
+import useAuthStore from '../../store/auth.store';
 
 // SUPER_ADMIN bilerek yok — güvenlik açığı önlemi
 const ROLLER = ['TENANT_ADMIN', 'MUDUR', 'DEPO', 'KASA', 'PERSONEL'];
@@ -69,6 +70,10 @@ function SkeletonSatir() {
 }
 
 export default function Kullanicilar() {
+    // Giriş yapmış kullanıcının kendi id'si — "kendi hesabını pasife
+    // çekemezsin" kontrolü için kullanılıyor.
+    const kendiKullaniciId = useAuthStore((state) => state.kullanici?.id);
+
     const [kullanicilar, setKullanicilar] = useState([]);
     const [subeler, setSubeler] = useState([]);
     const [yukleniyor, setYukleniyor] = useState(true);
@@ -148,6 +153,7 @@ export default function Kullanicilar() {
             setKaydediyor(false);
         }
     };
+
     const sil = async (id) => {
         try {
             await api.delete(`/api/kullanicilar/${id}`);
@@ -159,6 +165,7 @@ export default function Kullanicilar() {
             toast.error(mesaj);
         }
     };
+
     const seciliRolBilgi = ROL_ACIKLAMA[form.rol];
 
     return (
@@ -372,7 +379,7 @@ export default function Kullanicilar() {
                                 <div className="flex items-center gap-2 py-1">
                                     <input
                                         type="checkbox" id="aktif" checked={form.aktif}
-                                        disabled={duzenleId === kendiKullaniciId}  // kendi id'ni useAuthStore'dan al
+                                        disabled={duzenleId === kendiKullaniciId}
                                         onChange={e => setForm({ ...form, aktif: e.target.checked })}
                                         className="accent-lime-400 w-4 h-4 disabled:opacity-40"
                                     />

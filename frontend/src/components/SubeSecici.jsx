@@ -4,13 +4,17 @@ import useAuthStore from '../store/auth.store';
 
 export default function SubeSecici() {
     const kullanici = useAuthStore(s => s.kullanici);
-    const { subeler, seciliSubeId, subeleriYukle, subeSecAlt } = useSubeStore();
+    const { subeler, seciliSubeId, subeleriYukle, subeSecAlt, varsayilaniAyarla } = useSubeStore();
 
     useEffect(() => {
         // Sadece TENANT_ADMIN için şubeleri yükle
         // Diğer roller zaten kendi şubelerine kilitli (backend hallediyor)
         if (kullanici?.rol === 'TENANT_ADMIN') {
             subeleriYukle();
+            // Varsayılan görünüm "Tüm Şubeler" değil, kullanıcının kendi
+            // şubesidir — bu çağrı oturum başına bir kez etkilidir, sonraki
+            // sayfa geçişlerinde kullanıcının manuel seçimini ezmez.
+            varsayilaniAyarla(kullanici.subeId);
         }
     }, [kullanici]);
 
@@ -27,8 +31,8 @@ export default function SubeSecici() {
                 <button
                     onClick={() => subeSecAlt(null)}
                     className={`text-xs px-3 py-1.5 rounded-lg border transition-colors ${seciliSubeId === null
-                            ? 'bg-lime-400/10 border-lime-400/40 text-lime-400 font-semibold'
-                            : 'border-zinc-700 text-zinc-400 hover:border-zinc-500 hover:text-zinc-200'
+                        ? 'bg-lime-400/10 border-lime-400/40 text-lime-400 font-semibold'
+                        : 'border-zinc-700 text-zinc-400 hover:border-zinc-500 hover:text-zinc-200'
                         }`}
                 >
                     Tüm Şubeler
@@ -38,8 +42,8 @@ export default function SubeSecici() {
                         key={sube.id}
                         onClick={() => subeSecAlt(sube.id)}
                         className={`text-xs px-3 py-1.5 rounded-lg border transition-colors ${seciliSubeId === sube.id
-                                ? 'bg-lime-400/10 border-lime-400/40 text-lime-400 font-semibold'
-                                : 'border-zinc-700 text-zinc-400 hover:border-zinc-500 hover:text-zinc-200'
+                            ? 'bg-lime-400/10 border-lime-400/40 text-lime-400 font-semibold'
+                            : 'border-zinc-700 text-zinc-400 hover:border-zinc-500 hover:text-zinc-200'
                             }`}
                     >
                         {sube.ad}

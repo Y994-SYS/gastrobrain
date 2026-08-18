@@ -22,6 +22,7 @@ import CariHesap from './pages/cari/CariHesap';
 import Personel from './pages/personel/Personel';
 import Dashboard from './pages/Dashboard';
 import Raporlar from './pages/raporlar/Raporlar';
+import KarZarar from './pages/raporlar/KarZarar';
 import Subeler from './pages/tanimlamalar/Subeler';
 import Kullanicilar from './pages/personel/Kullanicilar';
 import SuperAdmin from './pages/SuperAdmin';
@@ -135,6 +136,7 @@ export default function App() {
 
         {/* ── Raporlar — temel hepse açık, gelişmiş Profesyonel+ ──────── */}
         <Route path="/raporlar" element={<PrivateRoute roller={R.YONETIM}><Raporlar /></PrivateRoute>} />
+        <Route path="/raporlar/kar-zarar" element={<PrivateRoute roller={R.YONETIM}><KarZarar /></PrivateRoute>} />
 
         {/* ── Personel — Profesyonel+ ──────────────────────────────────── */}
         <Route path="/personel" element={<PrivateRoute roller={R.PERSONEL} planOzellik="personel"><Personel /></PrivateRoute>} />

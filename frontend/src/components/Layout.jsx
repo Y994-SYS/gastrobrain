@@ -51,6 +51,7 @@ const menuGruplari = [
         roller: R.YONETIM,
         items: [
             { path: '/raporlar', label: 'Raporlar', icon: '📈', roller: R.YONETIM },
+            { path: '/raporlar/kar-zarar', label: 'Kâr-Zarar', icon: '💹', roller: R.YONETIM },
             { path: '/cari-hesap', label: 'Cari Hesap', icon: '🏦', roller: R.YONETIM },
         ]
     },

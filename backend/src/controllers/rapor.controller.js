@@ -233,6 +233,150 @@ const maliyetRaporu = async (req, res) => {
     }
 };
 
+// ─── KÂR-ZARAR RAPORU (Gelir - Gider) ──────────────────────────
+// Not: Maliyet (COGS) hesabı bilinçli olarak subeKarsilastirmasi'ndaki
+// BASİTLEŞTİRİLMİŞ formülle aynı tutulmuştur (birimFiyat * kalem.miktar * satis.adet),
+// satis.service.js'deki gerçek stok düşüm formülü (carpan/bölen/porsiyon oranlı)
+// KULLANILMAMIŞTIR — amaç, "Raporlar" sayfasındaki Maliyet/Kâr rakamlarıyla
+// birebir tutarlı kalmaktır.
+const karZararRaporu = async (req, res) => {
+    try {
+        const { baslangic, bitis } = req.query;
+        const tenantId = req.kullanici.tenantId;
+        const subeId = subeIdBelirle(req);
+
+        if (!baslangic || !bitis) {
+            return res.status(400).json({ hata: 'Başlangıç ve bitiş tarihi zorunlu' });
+        }
+        const baslangicTarihi = new Date(baslangic);
+        const bitisTarihi = new Date(bitis);
+        bitisTarihi.setHours(23, 59, 59, 999);
+        if (isNaN(baslangicTarihi.getTime()) || isNaN(bitisTarihi.getTime()) || bitisTarihi < baslangicTarihi) {
+            return res.status(400).json({ hata: 'Geçersiz tarih aralığı' });
+        }
+
+        // ── GELİR: Satışlar ──────────────────────────────────────────
+        const satisWhere = { sube: { tenantId }, tarih: { gte: baslangicTarihi, lte: bitisTarihi } };
+        if (subeId) satisWhere.subeId = subeId;
+
+        const satislar = await prisma.satis.findMany({
+            where: satisWhere,
+            include: {
+                recete: {
+                    include: {
+                        kalemler: {
+                            include: {
+                                stokKart: {
+                                    include: {
+                                        stokHareketleri: {
+                                            where: { tip: 'GIRIS_FATURA' },
+                                            orderBy: { tarih: 'desc' },
+                                            take: 1
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        const toplamGelir = satislar.reduce((t, s) => t + s.toplam, 0);
+
+        // ── MALİYET (COGS) ────────────────────────────────────────────
+        let toplamMaliyet = 0;
+        for (const satis of satislar) {
+            for (const kalem of satis.recete.kalemler) {
+                const birimFiyat = kalem.stokKart.stokHareketleri[0]?.birimFiyat || 0;
+                toplamMaliyet += birimFiyat * kalem.miktar * satis.adet;
+            }
+        }
+
+        // ── PERSONEL MAAŞ (sadece FİİLEN ÖDENMİŞ olanlar — nakit çıkışı) ─
+        // Avanslar bilinçli olarak DAHİL EDİLMEMİŞTİR: avans daha sonra
+        // maaştan kesiliyorsa aynı tutar iki kez sayılmış olurdu. Bu
+        // ilişkiyi kesin olarak izleyecek bir mekanizma bulunmadığından
+        // (personelMaas ile personelAvans arasında bağlantı yok), çifte
+        // sayım riskini almamak için avans bu raporun dışında tutulmuştur.
+        const maaslar = await prisma.personelMaas.findMany({
+            where: {
+                odendi: true,
+                tarih: { gte: baslangicTarihi, lte: bitisTarihi },
+                personel: { tenantId, ...(subeId ? { subeId } : {}) },
+            }
+        });
+        const toplamMaas = maaslar.reduce((t, m) => t + m.tutar, 0);
+
+        // ── TEDARİKÇİ ÖDEMELERİ (cari — tenant bazlı, şubeye bölünemez) ─
+        const odemeler = await prisma.cariHareket.findMany({
+            where: {
+                tip: 'ODEME',
+                tarih: { gte: baslangicTarihi, lte: bitisTarihi },
+                cariKart: { tenantId },
+            }
+        });
+        const toplamTedarikciOdeme = odemeler.reduce((t, o) => t + o.tutar, 0);
+
+        // ── ZAYİ GİDERİ (miktar × son giriş fiyatı) ───────────────────
+        const zayiWhere = {
+            tip: 'ZAYI',
+            tarih: { gte: baslangicTarihi, lte: bitisTarihi },
+            stokKart: { tenantId },
+        };
+        if (subeId) zayiWhere.subeId = subeId;
+        const zayiHareketleri = await prisma.stokHareket.findMany({
+            where: zayiWhere,
+            include: {
+                stokKart: {
+                    include: {
+                        stokHareketleri: { where: { tip: 'GIRIS_FATURA' }, orderBy: { tarih: 'desc' }, take: 1 }
+                    }
+                }
+            }
+        });
+        let toplamZayiGideri = 0;
+        for (const h of zayiHareketleri) {
+            const sonFiyat = h.stokKart.stokHareketleri[0]?.birimFiyat || 0;
+            toplamZayiGideri += sonFiyat * h.miktar;
+        }
+
+        // ── ÖZET ────────────────────────────────────────────────────
+        const brutKar = toplamGelir - toplamMaliyet;
+        const toplamGider = toplamMaliyet + toplamMaas + toplamTedarikciOdeme + toplamZayiGideri;
+        const netKar = toplamGelir - toplamGider;
+
+        res.json({
+            donem: { baslangic: baslangicTarihi, bitis: bitisTarihi },
+            gelir: {
+                satisCiro: Math.round(toplamGelir * 100) / 100,
+                satisAdedi: satislar.length,
+            },
+            giderler: {
+                maliyet: Math.round(toplamMaliyet * 100) / 100,
+                personelMaas: Math.round(toplamMaas * 100) / 100,
+                tedarikciOdemeleri: Math.round(toplamTedarikciOdeme * 100) / 100,
+                zayiGideri: Math.round(toplamZayiGideri * 100) / 100,
+            },
+            ozet: {
+                toplamGelir: Math.round(toplamGelir * 100) / 100,
+                brutKar: Math.round(brutKar * 100) / 100,
+                brutKarMarji: toplamGelir > 0 ? Math.round((brutKar / toplamGelir) * 10000) / 100 : 0,
+                toplamGider: Math.round(toplamGider * 100) / 100,
+                netKar: Math.round(netKar * 100) / 100,
+                netKarMarji: toplamGelir > 0 ? Math.round((netKar / toplamGelir) * 10000) / 100 : 0,
+            },
+            notlar: {
+                // Frontend bu bayrakları kullanıcıya açıklayıcı not olarak gösterebilir
+                cariTumIsletmeGeneli: true,
+                avansDahilDegil: true,
+            },
+        });
+    } catch (err) {
+        res.status(500).json({ hata: err.message });
+    }
+};
+
 // ─── EXCEL EXPORT ──────────────────────────────────────────────
 const excelExport = async (req, res) => {
     try {
@@ -499,13 +643,8 @@ const merkezMuhasebesi = async (req, res) => {
 
         // Her tedarikçi için şube bazlı borç/alacak hesapla
         const tedarikciAnaliz = cariKartlar.map(cari => {
-            // Her hareketin tutarını şubeye göre grupla (kalemlerdeki stokKart'tan şubeyi bulamayız)
-            // Alternatif: cariHareket'te subeId olup olmadığını kontrol et
-            // Şimdilik: cariHareket üzerinden hareket tiplerine göre hesapla
-
             let toplamBorc = 0;
             let toplamAlacak = 0;
-            const subeGrup = {};
 
             for (const hareket of cari.hareketler) {
                 if (hareket.tip === 'BORC') {
@@ -513,10 +652,6 @@ const merkezMuhasebesi = async (req, res) => {
                 } else if (['ALACAK', 'TAHSILAT'].includes(hareket.tip)) {
                     toplamAlacak += hareket.tutar;
                 }
-
-                // Kalemler üzerinden şube bilgisi çekmek gerekir (cariHareket'te subeId yok)
-                // Şimdilik kalemlerden stokKart getirip işleyeceğiz, ama subeId olmadığından merkez sayabiliriz
-                // Gerçek implementasyon: cariHareket schema'sına subeId eklemek gerekir
             }
 
             const netBakiye = toplamAlacak - toplamBorc;
@@ -543,7 +678,7 @@ const merkezMuhasebesi = async (req, res) => {
 
         res.json({
             tedarikciler: tedarikciAnaliz
-                .filter(t => t.toplamBorc > 0 || t.toplamAlacak > 0) // Sıfırı filtreleyebiliriz
+                .filter(t => t.toplamBorc > 0 || t.toplamAlacak > 0)
                 .sort((a, b) => Math.abs(b.netBakiye) - Math.abs(a.netBakiye)),
             ozet: {
                 toplamTedarikci: cariKartlar.length,
@@ -559,4 +694,4 @@ const merkezMuhasebesi = async (req, res) => {
     }
 };
 
-module.exports = { satisRaporu, stokRaporu, cariRaporu, maliyetRaporu, excelExport, subeKarsilastirmasi, merkezMuhasebesi };
+module.exports = { satisRaporu, stokRaporu, cariRaporu, maliyetRaporu, karZararRaporu, excelExport, subeKarsilastirmasi, merkezMuhasebesi };

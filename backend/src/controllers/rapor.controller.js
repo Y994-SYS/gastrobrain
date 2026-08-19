@@ -677,9 +677,18 @@ const merkezMuhasebesi = async (req, res) => {
             };
         });
 
-        // Toplam özet
-        const toplamBorc = tedarikciAnaliz.reduce((t, c) => t + c.toplamBorc, 0);
-        const toplamAlacak = tedarikciAnaliz.reduce((t, c) => t + c.toplamAlacak, 0);
+        // ÖZET KARTLAR — Cari Raporu ile AYNI mantık kullanılır: ham BORC /
+        // (ÖDEME+ALACAK) bileşen toplamları DEĞİL, sadece her tedarikçinin
+        // NET BAKİYESİ toplanır. Önceki hesap (ham bileşen toplamı) kapanmış
+        // hesapları da (örn. borcu tamamen ödenmiş bir tedarikçi) "Toplam
+        // Borç" kartına dahil ediyordu — bu da alttaki "Net Durum" özetiyle
+        // çelişen, yanıltıcı derecede büyük bir rakam üretiyordu.
+        const toplamBorc = tedarikciAnaliz
+            .filter(t => t.netBakiye < 0)
+            .reduce((t, c) => t + Math.abs(c.netBakiye), 0);
+        const toplamAlacak = tedarikciAnaliz
+            .filter(t => t.netBakiye > 0)
+            .reduce((t, c) => t + c.netBakiye, 0);
         const netToplam = toplamAlacak - toplamBorc;
 
         res.json({

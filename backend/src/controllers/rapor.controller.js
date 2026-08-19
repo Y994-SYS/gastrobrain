@@ -649,7 +649,13 @@ const merkezMuhasebesi = async (req, res) => {
             for (const hareket of cari.hareketler) {
                 if (hareket.tip === 'BORC') {
                     toplamBorc += hareket.tutar;
-                } else if (['ALACAK', 'TAHSILAT'].includes(hareket.tip)) {
+                } else if (['ALACAK', 'ODEME'].includes(hareket.tip)) {
+                    // DÜZELTME: Bu alanda daha önce 'TAHSILAT' aranıyordu — bu
+                    // enum değeri sistemde hiç kullanılmıyor (gerçek kayıt tipi
+                    // 'ODEME'), bu yüzden yapılan tüm ödemeler borçtan hiç
+                    // düşülmüyordu ve Merkez Muhasebesi raporu borcu olduğundan
+                    // çok daha yüksek gösteriyordu. cariRaporu ile aynı enum'a
+                    // (ODEME) çekildi.
                     toplamAlacak += hareket.tutar;
                 }
             }

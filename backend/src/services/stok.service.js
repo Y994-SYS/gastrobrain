@@ -255,10 +255,18 @@ const stokService = {
         });
     },
 
-    // DÜZELTME: mevcutStok artık `prisma` yerine `tx` üzerinden okunuyor —
-    // öncesinde yazma transaction içindeydi ama okuma dışındaydı, bu da
-    // "oku sonra hesapla" adımının transaction'ın tutarlılık garantisinden
-    // faydalanmamasına yol açıyordu.
+    // DÜZELTME (fark bug): Frontend'den her zaman sabit bir aciklama
+    // ('Ay sonu sayım') geldiği için `aciklama || fallback-metin` ifadesi hep
+    // sol tarafı seçiyordu — "fark: ±X" hiç kaydedilmiyordu. bakiyeHesapla bu
+    // deseni bulamayınca miktarı HER ZAMAN pozitif sayıyordu (eski davranış
+    // fallback'i), bu da negatif farkların bile bakiyeye eklenmesine yol
+    // açıyordu (örn. 125 sistemde, 5 sayıldı, fark -120 iken sonuç 245
+    // çıkıyordu). Artık kullanıcının açıklaması varsa KORUNUYOR ama fark
+    // bilgisi her zaman sona ekleniyor, üzerine yazılmıyor.
+    //
+    // mevcutStok da (önceki düzeltmeyle aynı şekilde) `prisma` yerine `tx`
+    // üzerinden okunuyor ki "oku sonra hesapla" adımı transaction'ın
+    // tutarlılık garantisinden faydalansın.
     async aySonuSayimEkle({ stokKartId, subeId, sayimMiktari, aciklama }, tenantId) {
         const stokKart = await prisma.stokKart.findFirst({ where: { id: Number(stokKartId), tenantId } });
         if (!stokKart) throw new Error('Stok kartı bulunamadı');
@@ -268,12 +276,14 @@ const stokService = {
         return prisma.$transaction(async (tx) => {
             const mevcutStok = await mevcutStokHesapla(tx, stokKartId, gercekSubeId, tenantId);
             const fark = Number(sayimMiktari) - mevcutStok;
+            const farkMetni = `fark: ${fark > 0 ? '+' : ''}${fark.toFixed(2)}`;
+            const temelAciklama = (aciklama && aciklama.trim()) || 'Ay sonu sayım';
 
             const hareket = await tx.stokHareket.create({
                 data: {
                     tip: 'AY_SONU_SAYIM',
                     miktar: Math.abs(fark),
-                    aciklama: aciklama || `Ay sonu sayım — fark: ${fark > 0 ? '+' : ''}${fark.toFixed(2)}`,
+                    aciklama: `${temelAciklama} — ${farkMetni}`,
                     stokKartId: Number(stokKartId),
                     subeId: gercekSubeId,
                 }

@@ -9,67 +9,95 @@ export default function AySonuSayim() {
     const [sayimlar, setSayimlar] = useState({});
     const [yukleniyor, setYukleniyor] = useState(false);
 
-    const stokGetir = async () => {
-        if (!kullanici?.subeId) return;
-        try {
-            const res = await api.get(`/api/stok/durum?subeId=${kullanici.subeId}`);
-            setStoklar(res.data.data);
-        } catch (err) {
-            toast.error('Stoklar yüklenirken hata oluştu');
-        }
+    const stokGetir = () => {
+        api.get(`/api/stok/durum?subeId=${kullanici?.subeId || ''}`).then(res => setStoklar(res.data.data));
     };
 
-    useEffect(() => {
-        stokGetir();
-    }, [kullanici]); // kullanici değişince tekrar getir
+    useEffect(() => { stokGetir(); }, []);
 
+    // DÜZELTME (buton): Önceden Promise.all kullanılıyordu — birden fazla
+    // kalem gönderildiğinde ilki hata verirse (örn. yetersiz stok gibi bir
+    // durum) Promise.all anında reddediliyor, diğer kalemlerin sonucu
+    // görülmüyor ve hangi kalemin başarılı hangisinin başarısız olduğu
+    // belirsiz kalıyordu. Kullanıcı "kaydet"e bastığında bazı kalemler
+    // aslında kaydedilmiş olabiliyordu ama tek bir genel hata mesajı
+    // gösteriliyordu. Artık Promise.allSettled ile her kalem ayrı ayrı
+    // izleniyor, başarılı olanlar sayımlardan temizleniyor, başarısız
+    // olanlar girişte kalıyor ve hangi kalemlerin hata verdiği ayrı ayrı
+    // bildiriliyor.
     const kaydet = async () => {
-        const girilmis = Object.entries(sayimlar).filter(([_, v]) => v !== '' && !isNaN(Number(v)));
+        const girilmis = Object.entries(sayimlar).filter(([_, v]) => v !== '');
         if (girilmis.length === 0) return toast.error('En az bir stok sayımı girin');
         setYukleniyor(true);
         try {
-            await Promise.all(
+            const sonuclar = await Promise.allSettled(
                 girilmis.map(([stokKartId, sayimMiktari]) =>
                     api.post('/api/stok/ay-sonu-sayim', {
                         stokKartId: Number(stokKartId),
                         subeId: kullanici?.subeId || '',
                         sayimMiktari: Number(sayimMiktari),
                         aciklama: 'Ay sonu sayım'
-                    })
+                    }).then(() => stokKartId)
                 )
             );
-            toast.success(`${girilmis.length} kalem sayım kaydedildi`);
-            setSayimlar({});
+
+            const basarili = [];
+            const basarisiz = [];
+            sonuclar.forEach((sonuc, i) => {
+                const [stokKartId] = girilmis[i];
+                if (sonuc.status === 'fulfilled') {
+                    basarili.push(stokKartId);
+                } else {
+                    const mesaj = sonuc.reason?.response?.data?.mesaj || 'Hata oluştu';
+                    basarisiz.push({ stokKartId, mesaj });
+                }
+            });
+
+            if (basarili.length > 0) {
+                toast.success(`${basarili.length} kalem sayım kaydedildi`);
+                setSayimlar(prev => {
+                    const kalan = { ...prev };
+                    basarili.forEach(id => delete kalan[id]);
+                    return kalan;
+                });
+            }
+
+            if (basarisiz.length > 0) {
+                basarisiz.forEach(({ stokKartId, mesaj }) => {
+                    const stok = stoklar.find(s => String(s.id) === String(stokKartId));
+                    toast.error(`${stok?.ad || stokKartId}: ${mesaj}`);
+                });
+            }
+
             stokGetir();
-        } catch (err) {
-            toast.error(err.response?.data?.mesaj || 'Hata oluştu');
         } finally {
             setYukleniyor(false);
         }
     };
 
-    const girilmisAdet = Object.values(sayimlar).filter(v => v !== '' && !isNaN(Number(v))).length;
+    const girilmisAdet = Object.values(sayimlar).filter(v => v !== '').length;
 
     return (
-        <div className="relative min-h-screen pb-24"> {/* Buton için alt boşluk */}
-            {/* Başlık ve açıklama */}
+        <div>
             <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-5 gap-3">
                 <div>
                     <h1 className="text-xl font-bold text-white">Ay Sonu Sayım</h1>
                     <p className="text-zinc-500 text-sm mt-0.5">Sayım sonuçlarını gir, sistem farkı hesaplayıp stoğu günceller</p>
                 </div>
-                {/* Buton sabit olacağı için buradan kaldırdık */}
+                <button onClick={kaydet} disabled={yukleniyor || girilmisAdet === 0}
+                    className="bg-lime-400 hover:bg-lime-300 disabled:opacity-50 text-black font-bold text-sm px-4 py-2 rounded-lg transition-colors">
+                    {yukleniyor ? 'Kaydediliyor...' : `${girilmisAdet} Kalemi Kaydet`}
+                </button>
             </div>
 
             <div className="bg-zinc-800/50 border border-zinc-700 rounded-xl p-4 mb-5">
                 <p className="text-zinc-400 text-sm">📋 Saydığın miktarı gir. Boş bıraktığın kalemler işlenmez.</p>
             </div>
 
-            {/* Tablo - kaydırılabilir alan */}
             <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
-                <div className="overflow-x-auto max-h-[calc(100vh-320px)] overflow-y-auto">
+                <div className="overflow-x-auto">
                     <table className="w-full">
-                        <thead className="sticky top-0 bg-zinc-900 z-10">
+                        <thead>
                             <tr className="border-b border-zinc-800">
                                 <th className="text-left text-xs text-zinc-500 font-semibold uppercase tracking-wider py-3 px-4">Stok</th>
                                 <th className="text-right text-xs text-zinc-500 font-semibold uppercase tracking-wider py-3 px-4 hidden sm:table-cell">Sistemdeki</th>
@@ -80,11 +108,8 @@ export default function AySonuSayim() {
                         <tbody>
                             {stoklar.map((s) => {
                                 const sayilan = sayimlar[s.id];
-                                const mevcut = Number(s.mevcutStok) || 0;
-                                const girilen = sayilan !== undefined && sayilan !== '' ? Number(sayilan) : null;
-                                const fark = girilen !== null && !isNaN(girilen)
-                                    ? (girilen - mevcut).toFixed(2)
-                                    : null;
+                                const fark = sayilan !== undefined && sayilan !== ''
+                                    ? (Number(sayilan) - s.mevcutStok).toFixed(2) : null;
                                 return (
                                     <tr key={s.id} className="border-b border-zinc-800/50 hover:bg-zinc-800/20 transition-colors">
                                         <td className="py-3 px-4">
@@ -92,23 +117,17 @@ export default function AySonuSayim() {
                                             <div className="text-xs text-zinc-500">{s.kod}</div>
                                         </td>
                                         <td className="py-3 px-4 text-right text-sm font-mono text-zinc-300 hidden sm:table-cell">
-                                            {mevcut.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span className="text-zinc-500">{s.birim?.kisaltma}</span>
+                                            {Number(s.mevcutStok).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span className="text-zinc-500">{s.birim?.kisaltma}</span>
                                         </td>
                                         <td className="py-3 px-4 text-right">
-                                            <input
-                                                type="number"
-                                                value={sayimlar[s.id] || ''}
+                                            <input type="number" value={sayimlar[s.id] || ''}
                                                 onChange={(e) => setSayimlar({ ...sayimlar, [s.id]: e.target.value })}
                                                 placeholder="-"
-                                                className="w-20 bg-zinc-800 border border-zinc-700 text-white rounded-lg px-2 py-1.5 text-sm text-right outline-none focus:border-lime-400 transition-colors"
-                                            />
+                                                className="w-20 bg-zinc-800 border border-zinc-700 text-white rounded-lg px-2 py-1.5 text-sm text-right outline-none focus:border-lime-400 transition-colors" />
                                         </td>
                                         <td className="py-3 px-4 text-right text-sm font-mono">
                                             {fark !== null
-                                                ? <span className={Number(fark) >= 0 ? 'text-lime-400' : 'text-red-400'}>
-                                                    {Number(fark) >= 0 ? '+' : ''}
-                                                    {Number(fark).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                                </span>
+                                                ? <span className={Number(fark) >= 0 ? 'text-lime-400' : 'text-red-400'}>{Number(fark) >= 0 ? '+' : ''}{Number(fark).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                                                 : <span className="text-zinc-600">—</span>
                                             }
                                         </td>
@@ -118,21 +137,6 @@ export default function AySonuSayim() {
                         </tbody>
                     </table>
                 </div>
-            </div>
-
-            {/* SABİT KAYDET BUTONU */}
-            <div className="fixed bottom-6 right-6 z-50">
-                <button
-                    onClick={kaydet}
-                    disabled={yukleniyor || girilmisAdet === 0}
-                    className="bg-lime-400 hover:bg-lime-300 disabled:opacity-50 text-black font-bold text-sm px-6 py-3 rounded-lg shadow-lg transition-colors flex items-center gap-2"
-                >
-                    {yukleniyor ? (
-                        <>⏳ Kaydediliyor...</>
-                    ) : (
-                        <>💾 {girilmisAdet} Kalemi Kaydet</>
-                    )}
-                </button>
             </div>
         </div>
     );

@@ -9,14 +9,22 @@ export default function AySonuSayim() {
     const [sayimlar, setSayimlar] = useState({});
     const [yukleniyor, setYukleniyor] = useState(false);
 
-    const stokGetir = () => {
-        api.get(`/api/stok/durum?subeId=${kullanici?.subeId || ''}`).then(res => setStoklar(res.data.data));
+    const stokGetir = async () => {
+        if (!kullanici?.subeId) return;
+        try {
+            const res = await api.get(`/api/stok/durum?subeId=${kullanici.subeId}`);
+            setStoklar(res.data.data);
+        } catch (err) {
+            toast.error('Stoklar yüklenirken hata oluştu');
+        }
     };
 
-    useEffect(() => { stokGetir(); }, []);
+    useEffect(() => {
+        stokGetir();
+    }, [kullanici]); // kullanici değişince tekrar getir
 
     const kaydet = async () => {
-        const girilmis = Object.entries(sayimlar).filter(([_, v]) => v !== '');
+        const girilmis = Object.entries(sayimlar).filter(([_, v]) => v !== '' && !isNaN(Number(v)));
         if (girilmis.length === 0) return toast.error('En az bir stok sayımı girin');
         setYukleniyor(true);
         try {
@@ -40,29 +48,28 @@ export default function AySonuSayim() {
         }
     };
 
-    const girilmisAdet = Object.values(sayimlar).filter(v => v !== '').length;
+    const girilmisAdet = Object.values(sayimlar).filter(v => v !== '' && !isNaN(Number(v))).length;
 
     return (
-        <div>
+        <div className="relative min-h-screen pb-24"> {/* Buton için alt boşluk */}
+            {/* Başlık ve açıklama */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-5 gap-3">
                 <div>
                     <h1 className="text-xl font-bold text-white">Ay Sonu Sayım</h1>
                     <p className="text-zinc-500 text-sm mt-0.5">Sayım sonuçlarını gir, sistem farkı hesaplayıp stoğu günceller</p>
                 </div>
-                <button onClick={kaydet} disabled={yukleniyor || girilmisAdet === 0}
-                    className="bg-lime-400 hover:bg-lime-300 disabled:opacity-50 text-black font-bold text-sm px-4 py-2 rounded-lg transition-colors">
-                    {yukleniyor ? 'Kaydediliyor...' : `${girilmisAdet} Kalemi Kaydet`}
-                </button>
+                {/* Buton sabit olacağı için buradan kaldırdık */}
             </div>
 
             <div className="bg-zinc-800/50 border border-zinc-700 rounded-xl p-4 mb-5">
                 <p className="text-zinc-400 text-sm">📋 Saydığın miktarı gir. Boş bıraktığın kalemler işlenmez.</p>
             </div>
 
+            {/* Tablo - kaydırılabilir alan */}
             <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto max-h-[calc(100vh-320px)] overflow-y-auto">
                     <table className="w-full">
-                        <thead>
+                        <thead className="sticky top-0 bg-zinc-900 z-10">
                             <tr className="border-b border-zinc-800">
                                 <th className="text-left text-xs text-zinc-500 font-semibold uppercase tracking-wider py-3 px-4">Stok</th>
                                 <th className="text-right text-xs text-zinc-500 font-semibold uppercase tracking-wider py-3 px-4 hidden sm:table-cell">Sistemdeki</th>
@@ -73,8 +80,11 @@ export default function AySonuSayim() {
                         <tbody>
                             {stoklar.map((s) => {
                                 const sayilan = sayimlar[s.id];
-                                const fark = sayilan !== undefined && sayilan !== ''
-                                    ? (Number(sayilan) - s.mevcutStok).toFixed(2) : null;
+                                const mevcut = Number(s.mevcutStok) || 0;
+                                const girilen = sayilan !== undefined && sayilan !== '' ? Number(sayilan) : null;
+                                const fark = girilen !== null && !isNaN(girilen)
+                                    ? (girilen - mevcut).toFixed(2)
+                                    : null;
                                 return (
                                     <tr key={s.id} className="border-b border-zinc-800/50 hover:bg-zinc-800/20 transition-colors">
                                         <td className="py-3 px-4">
@@ -82,17 +92,23 @@ export default function AySonuSayim() {
                                             <div className="text-xs text-zinc-500">{s.kod}</div>
                                         </td>
                                         <td className="py-3 px-4 text-right text-sm font-mono text-zinc-300 hidden sm:table-cell">
-                                            {Number(s.mevcutStok).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span className="text-zinc-500">{s.birim?.kisaltma}</span>
+                                            {mevcut.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span className="text-zinc-500">{s.birim?.kisaltma}</span>
                                         </td>
                                         <td className="py-3 px-4 text-right">
-                                            <input type="number" value={sayimlar[s.id] || ''}
+                                            <input
+                                                type="number"
+                                                value={sayimlar[s.id] || ''}
                                                 onChange={(e) => setSayimlar({ ...sayimlar, [s.id]: e.target.value })}
                                                 placeholder="-"
-                                                className="w-20 bg-zinc-800 border border-zinc-700 text-white rounded-lg px-2 py-1.5 text-sm text-right outline-none focus:border-lime-400 transition-colors" />
+                                                className="w-20 bg-zinc-800 border border-zinc-700 text-white rounded-lg px-2 py-1.5 text-sm text-right outline-none focus:border-lime-400 transition-colors"
+                                            />
                                         </td>
                                         <td className="py-3 px-4 text-right text-sm font-mono">
                                             {fark !== null
-                                                ? <span className={Number(fark) >= 0 ? 'text-lime-400' : 'text-red-400'}>{Number(fark) >= 0 ? '+' : ''}{Number(fark).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                                ? <span className={Number(fark) >= 0 ? 'text-lime-400' : 'text-red-400'}>
+                                                    {Number(fark) >= 0 ? '+' : ''}
+                                                    {Number(fark).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                </span>
                                                 : <span className="text-zinc-600">—</span>
                                             }
                                         </td>
@@ -102,6 +118,21 @@ export default function AySonuSayim() {
                         </tbody>
                     </table>
                 </div>
+            </div>
+
+            {/* SABİT KAYDET BUTONU */}
+            <div className="fixed bottom-6 right-6 z-50">
+                <button
+                    onClick={kaydet}
+                    disabled={yukleniyor || girilmisAdet === 0}
+                    className="bg-lime-400 hover:bg-lime-300 disabled:opacity-50 text-black font-bold text-sm px-6 py-3 rounded-lg shadow-lg transition-colors flex items-center gap-2"
+                >
+                    {yukleniyor ? (
+                        <>⏳ Kaydediliyor...</>
+                    ) : (
+                        <>💾 {girilmisAdet} Kalemi Kaydet</>
+                    )}
+                </button>
             </div>
         </div>
     );

@@ -25,6 +25,20 @@ const maasEkleSchema = z.object({
     tarih: z.string().optional(),
 }).strict();
 
+// Mevcut bir maaş kaydını güncellemek için — tüm alanlar opsiyonel (kısmi
+// güncelleme), ama en az bir tanesi gönderilmeli. personelId burada YOK,
+// çünkü kayıt zaten :id üzerinden bulunuyor ve personel değiştirilemez.
+const maasGuncelleSchema = z.object({
+    yil: z.coerce.number().int('Geçersiz yıl').min(2000).max(2100).optional(),
+    ay: z.coerce.number().int('Geçersiz ay').min(1).max(12).optional(),
+    tutar: z.coerce.number().positive('Tutar 0’dan büyük olmalı').optional(),
+    odendi: z.boolean().optional(),
+    tarih: z.string().optional(),
+}).strict().refine(
+    (data) => Object.keys(data).length > 0,
+    { message: 'Güncellenecek en az bir alan gönderilmeli' }
+);
+
 const avansEkleSchema = z.object({
     personelId: z.coerce.number().int('Geçersiz personel').positive('Geçersiz personel'),
     tutar: z.coerce.number().positive('Tutar 0’dan büyük olmalı'),
@@ -75,6 +89,6 @@ const idParamSchema = z.object({
 });
 
 module.exports = {
-    personelSchema, maasEkleSchema, avansEkleSchema, devamEkleSchema, devamTopluEkleSchema,
+    personelSchema, maasEkleSchema, maasGuncelleSchema, avansEkleSchema, devamEkleSchema, devamTopluEkleSchema,
     idParamSchema, izinKullanimSchema, izinDurumuQuerySchema
 };

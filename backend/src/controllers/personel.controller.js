@@ -76,6 +76,15 @@ const personelController = {
         }
     },
 
+    async maasGuncelle(req, res) {
+        try {
+            const data = await personelService.maasGuncelle(Number(req.params.id), req.body, req.kullanici.tenantId);
+            res.json({ basarili: true, data });
+        } catch (error) {
+            res.status(400).json({ basarili: false, mesaj: error.message });
+        }
+    },
+
     async avansEkle(req, res) {
         try {
             const data = await personelService.avansEkle(req.body, req.kullanici.tenantId);

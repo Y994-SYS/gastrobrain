@@ -43,6 +43,7 @@ export default function Personel() {
     const bugun = new Date().toISOString().split('T')[0];
 
     const [maasForm, setMaasForm] = useState({ yil: buYil, ay: buAy, tutar: '', odendi: false, tarih: bugun });
+    const [maasDuzenleId, setMaasDuzenleId] = useState(null);
     const [avansForm, setAvansForm] = useState({ tutar: '', aciklama: '', tarih: bugun });
 
     const [devamModu, setDevamModu] = useState('tekGun'); // 'tekGun' | 'aralik'
@@ -144,9 +145,66 @@ export default function Personel() {
         }
     };
 
+    // O yıl/ay için zaten kaydedilmiş (geçici olmayan) bir maaş kaydı var mı bul
+    const maasKaydiBul = (yil, ay) =>
+        secili?.maaslar?.find(m => Number(m.yil) === Number(yil) && Number(m.ay) === Number(ay) && !m._gecici);
+
+    // Maaş modalını, seçilen yıl/ay için mevcut kayıt varsa düzenleme moduyla,
+    // yoksa boş/yeni kayıt moduyla açar
+    const maasModalAc = (yil = buYil, ay = buAy) => {
+        const mevcut = maasKaydiBul(yil, ay);
+        if (mevcut) {
+            setMaasForm({ yil: mevcut.yil, ay: mevcut.ay, tutar: mevcut.tutar, odendi: mevcut.odendi, tarih: mevcut.tarih?.split('T')[0] || bugun });
+            setMaasDuzenleId(mevcut.id);
+        } else {
+            setMaasForm({ yil, ay, tutar: '', odendi: false, tarih: bugun });
+            setMaasDuzenleId(null);
+        }
+        setMaasModal(true);
+    };
+
+    // Modal içinde yıl/ay değiştiğinde de aynı kontrolü yapar
+    const maasFormYilAyDegistir = (yeniYil, yeniAy) => {
+        const mevcut = maasKaydiBul(yeniYil, yeniAy);
+        if (mevcut) {
+            setMaasForm({ yil: mevcut.yil, ay: mevcut.ay, tutar: mevcut.tutar, odendi: mevcut.odendi, tarih: mevcut.tarih?.split('T')[0] || bugun });
+            setMaasDuzenleId(mevcut.id);
+        } else {
+            setMaasForm(prev => ({ ...prev, yil: yeniYil, ay: yeniAy }));
+            setMaasDuzenleId(null);
+        }
+    };
+
     const maasKaydet = async () => {
         if (!maasForm.tutar) return toast.error('Tutar zorunlu');
         setYukleniyor(true);
+
+        if (maasDuzenleId) {
+            // Mevcut kaydı güncelle (yeni kayıt oluşturmaz, "bu ay zaten var" hatasını önler)
+            const guncel = { ...maasForm, tutar: Number(maasForm.tutar) };
+            setSecili(prev => ({
+                ...prev,
+                maaslar: prev.maaslar.map(m => m.id === maasDuzenleId ? { ...m, ...guncel } : m)
+            }));
+            setMaasModal(false);
+            try {
+                const res = await api.put(`/api/personel/maas/${maasDuzenleId}`, guncel);
+                setSecili(prev => ({
+                    ...prev,
+                    maaslar: prev.maaslar.map(m => m.id === maasDuzenleId ? res.data.data : m)
+                }));
+                toast.success('Maaş güncellendi');
+            } catch (err) {
+                toast.error(err.response?.data?.mesaj || 'Güncellenemedi');
+                await personelDetayYenile(secili.id);
+            } finally {
+                setYukleniyor(false);
+                setMaasDuzenleId(null);
+            }
+            return;
+        }
+
+        // Yeni kayıt ekle
         const yeniMaas = { id: Date.now(), ...maasForm, tutar: Number(maasForm.tutar), _gecici: true };
         setSecili(prev => ({ ...prev, maaslar: [yeniMaas, ...(prev.maaslar || [])] }));
         setMaasModal(false);
@@ -158,7 +216,9 @@ export default function Personel() {
             setSecili(prev => ({ ...prev, maaslar: prev.maaslar.filter(m => m.id !== yeniMaas.id) }));
             setMaasModal(true);
             toast.error(err.response?.data?.mesaj || 'Hata oluştu');
-        } finally { setYukleniyor(false); }
+        } finally {
+            setYukleniyor(false);
+        }
     };
 
     const avansKaydet = async () => {
@@ -189,7 +249,15 @@ export default function Personel() {
                 setSecili(prev => ({ ...prev, devamlar: [yeniDevam, ...(prev.devamlar || [])] }));
                 setDevamModal(false);
                 try {
-                    const res = await api.post('/api/personel/devam', { ...devamForm, personelId: secili.id });
+                    // devamEkleSchema .strict() olduğu için sadece backend'in
+                    // tanıdığı alanlar gönderilmeli — bitisTarihi burada gitmemeli
+                    const res = await api.post('/api/personel/devam', {
+                        personelId: secili.id,
+                        tarih: devamForm.tarih,
+                        durum: devamForm.durum,
+                        mesai: devamForm.mesai,
+                        aciklama: devamForm.aciklama,
+                    });
                     setSecili(prev => ({ ...prev, devamlar: prev.devamlar.map(d => d.id === yeniDevam.id ? res.data.data : d) }));
                     toast.success('Devam kaydedildi');
                 } catch (err) {
@@ -329,7 +397,7 @@ export default function Personel() {
                                         </div>
                                     </div>
                                     <div className="flex flex-wrap gap-2">
-                                        <button onClick={() => setMaasModal(true)} className="text-xs border border-zinc-700 text-zinc-400 hover:text-lime-400 hover:border-lime-400 px-3 py-1.5 rounded-lg transition-colors">💰 Maaş</button>
+                                        <button onClick={() => maasModalAc()} className="text-xs border border-zinc-700 text-zinc-400 hover:text-lime-400 hover:border-lime-400 px-3 py-1.5 rounded-lg transition-colors">💰 Maaş</button>
                                         <button onClick={() => setAvansModal(true)} className="text-xs border border-zinc-700 text-zinc-400 hover:text-amber-400 hover:border-amber-400 px-3 py-1.5 rounded-lg transition-colors">💳 Avans</button>
                                         <button onClick={devamModalAc} className="text-xs border border-zinc-700 text-zinc-400 hover:text-blue-400 hover:border-blue-400 px-3 py-1.5 rounded-lg transition-colors">📋 Devam</button>
                                         <button onClick={izinModalAc} className="text-xs border border-zinc-700 text-zinc-400 hover:text-lime-400 hover:border-lime-400 px-3 py-1.5 rounded-lg transition-colors">🏖️ Düzeltme</button>
@@ -373,7 +441,11 @@ export default function Personel() {
                             {[
                                 {
                                     baslik: 'Maaş Geçmişi', liste: secili.maaslar, bos: 'Maaş kaydı yok', render: (m) => (
-                                        <div key={m.id} className={`px-4 py-2.5 flex justify-between items-center ${m._gecici ? 'opacity-60' : ''}`}>
+                                        <div
+                                            key={m.id}
+                                            onClick={() => !m._gecici && maasModalAc(m.yil, m.ay)}
+                                            className={`px-4 py-2.5 flex justify-between items-center ${m._gecici ? 'opacity-60' : 'cursor-pointer hover:bg-zinc-800/50 transition-colors'}`}
+                                        >
                                             <div className="flex items-center gap-2">
                                                 <span className="text-sm text-zinc-300">{aylar[m.ay]} {m.yil}</span>
                                                 {m._gecici && <span className="text-xs text-zinc-600">kaydediliyor...</span>}
@@ -481,20 +553,34 @@ export default function Personel() {
             )}
 
             {maasModal && (
-                <Modal baslik="Maaş Kaydı" onKapat={() => setMaasModal(false)}>
+                <Modal baslik={maasDuzenleId ? 'Maaş Kaydını Güncelle' : 'Maaş Kaydı'} onKapat={() => setMaasModal(false)}>
                     <div className="space-y-4">
                         <div className="grid grid-cols-2 gap-3">
                             <div>
                                 <label className="text-zinc-400 text-sm mb-1.5 block">Yıl</label>
-                                <input type="number" value={maasForm.yil} onChange={(e) => setMaasForm({ ...maasForm, yil: e.target.value })} className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-3 py-2.5 text-sm outline-none focus:border-lime-400 transition-colors" />
+                                <input
+                                    type="number"
+                                    value={maasForm.yil}
+                                    onChange={(e) => maasFormYilAyDegistir(e.target.value, maasForm.ay)}
+                                    className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-3 py-2.5 text-sm outline-none focus:border-lime-400 transition-colors"
+                                />
                             </div>
                             <div>
                                 <label className="text-zinc-400 text-sm mb-1.5 block">Ay</label>
-                                <select value={maasForm.ay} onChange={(e) => setMaasForm({ ...maasForm, ay: e.target.value })} className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-3 py-2.5 text-sm outline-none focus:border-lime-400 transition-colors">
+                                <select
+                                    value={maasForm.ay}
+                                    onChange={(e) => maasFormYilAyDegistir(maasForm.yil, e.target.value)}
+                                    className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-3 py-2.5 text-sm outline-none focus:border-lime-400 transition-colors"
+                                >
                                     {aylar.slice(1).map((a, i) => <option key={i + 1} value={i + 1}>{a}</option>)}
                                 </select>
                             </div>
                         </div>
+                        {maasDuzenleId && (
+                            <p className="text-xs text-lime-400 bg-lime-400/10 rounded-lg px-3 py-2">
+                                Bu dönem için zaten bir kayıt var — üzerine kaydedersen mevcut kayıt güncellenecek.
+                            </p>
+                        )}
                         <div>
                             <label className="text-zinc-400 text-sm mb-1.5 block">Tutar (₺)</label>
                             <input type="number" value={maasForm.tutar} onChange={(e) => setMaasForm({ ...maasForm, tutar: e.target.value })} placeholder={secili?.maas} className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-4 py-2.5 text-sm outline-none focus:border-lime-400 transition-colors" />
@@ -504,7 +590,7 @@ export default function Personel() {
                             <label htmlFor="odendi" className="text-zinc-400 text-sm">Ödendi olarak işaretle</label>
                         </div>
                         <button onClick={maasKaydet} disabled={yukleniyor} className="w-full bg-lime-400 hover:bg-lime-300 disabled:opacity-50 text-black font-bold rounded-lg py-2.5 text-sm transition-colors">
-                            {yukleniyor ? 'Kaydediliyor...' : 'Kaydet'}
+                            {yukleniyor ? 'Kaydediliyor...' : (maasDuzenleId ? 'Güncelle' : 'Kaydet')}
                         </button>
                     </div>
                 </Modal>

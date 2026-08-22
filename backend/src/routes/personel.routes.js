@@ -6,6 +6,7 @@ const { validate, validateParams, validateQuery } = require('../middleware/valid
 const {
     personelSchema,
     maasEkleSchema,
+    maasGuncelleSchema,
     avansEkleSchema,
     devamEkleSchema,
     devamTopluEkleSchema,
@@ -26,6 +27,7 @@ router.put('/:id', yonetimRol, validateParams(idParamSchema), validate(personelS
 router.delete('/:id', yonetimRol, validateParams(idParamSchema), personelController.sil);
 
 router.post('/maas', yonetimRol, validate(maasEkleSchema), personelController.maasEkle);
+router.put('/maas/:id', yonetimRol, validateParams(idParamSchema), validate(maasGuncelleSchema), personelController.maasGuncelle);
 router.put('/maas/:id/odendi', yonetimRol, validateParams(idParamSchema), personelController.maasOdendi);
 router.post('/avans', yonetimRol, validate(avansEkleSchema), personelController.avansEkle);
 router.post('/devam', yonetimRol, validate(devamEkleSchema), personelController.devamEkle);

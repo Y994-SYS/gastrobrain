@@ -146,6 +146,56 @@ const personelService = {
         });
     },
 
+    /**
+     * Mevcut bir maaş kaydını (tutar, ödendi durumu, tarih, gerekirse yıl/ay)
+     * günceller. Frontend'de "bu dönem için zaten kayıt var" durumunda
+     * kullanıcı yeni kayıt yerine bunu tetikler, böylece maasEkle'deki
+     * "zaten kayıtlı" hatasına takılmadan üzerine yazılabilir.
+     */
+    async maasGuncelle(id, { yil, ay, tutar, odendi, tarih }, tenantId) {
+        const maas = await prisma.personelMaas.findFirst({
+            where: { id },
+            include: { personel: true }
+        });
+        if (!maas || maas.personel.tenantId !== tenantId) throw new Error('Maaş kaydı bulunamadı');
+
+        // Yıl/ay değiştiriliyorsa, hedef dönemde bu kayıt DIŞINDA başka bir
+        // kayıt olmadığından emin ol (aksi halde iki kayıt aynı döneme düşer)
+        if (
+            (yil !== undefined && Number(yil) !== maas.yil) ||
+            (ay !== undefined && Number(ay) !== maas.ay)
+        ) {
+            const hedefYil = yil !== undefined ? Number(yil) : maas.yil;
+            const hedefAy = ay !== undefined ? Number(ay) : maas.ay;
+
+            const cakisan = await prisma.personelMaas.findFirst({
+                where: {
+                    personelId: maas.personelId,
+                    yil: hedefYil,
+                    ay: hedefAy,
+                    NOT: { id },
+                }
+            });
+            if (cakisan) {
+                throw new Error(
+                    `Bu personel için ${hedefAy}. ay ${hedefYil} maaşı zaten kayıtlı. ` +
+                    `Durum: ${cakisan.odendi ? 'Ödendi' : 'Bekliyor'}`
+                );
+            }
+        }
+
+        return prisma.personelMaas.update({
+            where: { id },
+            data: {
+                yil: yil !== undefined ? Number(yil) : undefined,
+                ay: ay !== undefined ? Number(ay) : undefined,
+                tutar: tutar !== undefined ? Number(tutar) : undefined,
+                odendi: odendi !== undefined ? odendi : undefined,
+                tarih: tarih ? new Date(tarih) : undefined,
+            }
+        });
+    },
+
     async avansEkle({ personelId, tutar, aciklama, tarih }, tenantId) {
         await this.biriniGetir(Number(personelId), tenantId);
         return prisma.personelAvans.create({

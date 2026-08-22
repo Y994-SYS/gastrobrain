@@ -6,6 +6,18 @@ import SubeSecici from '../../components/SubeSecici';
 import useSubeStore from '../../store/subeStore';
 import useAuthStore from '../../store/auth.store';
 
+// Native <input type="number"> bazı tarayıcı/bölge ayarlarında "." veya ","
+// karakterini binlik ayraç sanıp değeri bozabiliyor (örn. "20.000" yazınca
+// tarayıcı bunu ondalık sayı olarak "20" okuyabiliyor). Bunun önüne geçmek
+// için tutar/maaş gibi alanları type="text" yapıp elle temizliyoruz.
+const tamSayiTemizle = (deger) => deger.replace(/[^0-9]/g, '');
+const ondalikSayiTemizle = (deger) => {
+    let temiz = deger.replace(/[^0-9.]/g, '');
+    const parcalar = temiz.split('.');
+    if (parcalar.length > 2) temiz = parcalar[0] + '.' + parcalar.slice(1).join('');
+    return temiz;
+};
+
 const bosPersonel = (subeId = '') => ({
     ad: '', soyad: '', telefon: '',
     baslangicTarihi: new Date().toISOString().split('T')[0],
@@ -514,7 +526,7 @@ export default function Personel() {
                             ))}
                             <div>
                                 <label className="text-zinc-400 text-sm mb-1.5 block">Maaş (₺) *</label>
-                                <input type="number" value={form.maas} onChange={(e) => setForm({ ...form, maas: e.target.value })} className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-3 py-2.5 text-sm outline-none focus:border-lime-400 transition-colors" />
+                                <input type="text" inputMode="numeric" value={form.maas} onChange={(e) => setForm({ ...form, maas: tamSayiTemizle(e.target.value) })} className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-3 py-2.5 text-sm outline-none focus:border-lime-400 transition-colors" />
                             </div>
                         </div>
 
@@ -583,7 +595,7 @@ export default function Personel() {
                         )}
                         <div>
                             <label className="text-zinc-400 text-sm mb-1.5 block">Tutar (₺)</label>
-                            <input type="number" value={maasForm.tutar} onChange={(e) => setMaasForm({ ...maasForm, tutar: e.target.value })} placeholder={secili?.maas} className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-4 py-2.5 text-sm outline-none focus:border-lime-400 transition-colors" />
+                            <input type="text" inputMode="numeric" value={maasForm.tutar} onChange={(e) => setMaasForm({ ...maasForm, tutar: tamSayiTemizle(e.target.value) })} placeholder={secili?.maas} className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-4 py-2.5 text-sm outline-none focus:border-lime-400 transition-colors" />
                         </div>
                         <div className="flex items-center gap-3">
                             <input type="checkbox" id="odendi" checked={maasForm.odendi} onChange={(e) => setMaasForm({ ...maasForm, odendi: e.target.checked })} className="w-4 h-4 accent-lime-400" />
@@ -601,7 +613,7 @@ export default function Personel() {
                     <div className="space-y-4">
                         <div>
                             <label className="text-zinc-400 text-sm mb-1.5 block">Tutar (₺) *</label>
-                            <input type="number" value={avansForm.tutar} onChange={(e) => setAvansForm({ ...avansForm, tutar: e.target.value })} className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-4 py-2.5 text-sm outline-none focus:border-lime-400 transition-colors" />
+                            <input type="text" inputMode="numeric" value={avansForm.tutar} onChange={(e) => setAvansForm({ ...avansForm, tutar: tamSayiTemizle(e.target.value) })} className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-4 py-2.5 text-sm outline-none focus:border-lime-400 transition-colors" />
                         </div>
                         <div>
                             <label className="text-zinc-400 text-sm mb-1.5 block">Açıklama</label>
@@ -674,7 +686,7 @@ export default function Personel() {
                         {devamForm.durum === 'CALISTI' && (
                             <div>
                                 <label className="text-zinc-400 text-sm mb-1.5 block">Mesai (saat{devamModu === 'aralik' ? ' — her gün için' : ''})</label>
-                                <input type="number" value={devamForm.mesai} onChange={(e) => setDevamForm({ ...devamForm, mesai: e.target.value })} placeholder="0" className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-4 py-2.5 text-sm outline-none focus:border-lime-400 transition-colors" />
+                                <input type="text" inputMode="decimal" value={devamForm.mesai} onChange={(e) => setDevamForm({ ...devamForm, mesai: ondalikSayiTemizle(e.target.value) })} placeholder="0" className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-4 py-2.5 text-sm outline-none focus:border-lime-400 transition-colors" />
                             </div>
                         )}
                         {devamForm.durum === 'IZIN' && (
@@ -704,7 +716,17 @@ export default function Personel() {
                         </div>
                         <div>
                             <label className="text-zinc-400 text-sm mb-1.5 block">Düzeltme (gün) *</label>
-                            <input type="number" step="0.5" value={izinForm.kullanilanGun} onChange={(e) => setIzinForm({ ...izinForm, kullanilanGun: e.target.value })} className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-4 py-2.5 text-sm outline-none focus:border-lime-400 transition-colors" />
+                            <input
+                                type="text"
+                                inputMode="decimal"
+                                value={izinForm.kullanilanGun}
+                                onChange={(e) => {
+                                    const negatif = e.target.value.trim().startsWith('-');
+                                    const temiz = ondalikSayiTemizle(e.target.value);
+                                    setIzinForm({ ...izinForm, kullanilanGun: negatif ? `-${temiz}` : temiz });
+                                }}
+                                className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-4 py-2.5 text-sm outline-none focus:border-lime-400 transition-colors"
+                            />
                             <p className="text-xs text-zinc-500 mt-1">
                                 Bu, Devam Kaydı'ndan otomatik sayılan izin gününe <b>eklenecek</b> (veya negatif girilirse <b>çıkarılacak</b>) ek miktardır — toplam kullanılan gün değildir.
                             </p>

@@ -49,7 +49,10 @@ function yillikIzinHakkiHesapla(kidemYili, dogumTarihi, referansTarihi = new Dat
 const personelService = {
 
     async hepsiniGetir(tenantId, subeId = null) {
-        const where = { tenantId, aktif: true };
+        // aktif: true yerine "aktif !== false" mantığı kullanılıyor —
+        // migration/push sonrası eski kayıtlarda aktif alanı NULL kalmışsa
+        // bile bu personeller yanlışlıkla listeden düşmesin diye.
+        const where = { tenantId, aktif: { not: false } };
         if (subeId) where.subeId = Number(subeId);
         return prisma.personel.findMany({
             where,

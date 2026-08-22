@@ -49,7 +49,7 @@ function yillikIzinHakkiHesapla(kidemYili, dogumTarihi, referansTarihi = new Dat
 const personelService = {
 
     async hepsiniGetir(tenantId, subeId = null) {
-        const where = { tenantId };
+        const where = { tenantId, aktif: true };
         if (subeId) where.subeId = Number(subeId);
         return prisma.personel.findMany({
             where,
@@ -101,7 +101,22 @@ const personelService = {
 
     async sil(id, tenantId) {
         await this.biriniGetir(id, tenantId);
-        return prisma.personel.delete({ where: { id } });
+        // Gerçek silme yerine "pasif" işaretleniyor (soft delete). Böylece
+        // maaş/avans/devam gibi geçmiş kayıtlar korunur ve foreign key
+        // hatası yaşanmaz; personel sadece listeden kayboluyor.
+        return prisma.personel.update({
+            where: { id },
+            data: { aktif: false, silinmeTarihi: new Date() }
+        });
+    },
+
+    async geriYukle(id, tenantId) {
+        const personel = await prisma.personel.findFirst({ where: { id, tenantId } });
+        if (!personel) throw new Error('Personel bulunamadı');
+        return prisma.personel.update({
+            where: { id },
+            data: { aktif: true, silinmeTarihi: null }
+        });
     },
 
     async maasEkle({ personelId, yil, ay, tutar, odendi, tarih }, tenantId) {

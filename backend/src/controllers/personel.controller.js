@@ -52,7 +52,16 @@ const personelController = {
     async sil(req, res) {
         try {
             await personelService.sil(Number(req.params.id), req.kullanici.tenantId);
-            res.json({ basarili: true, mesaj: 'Silindi' });
+            res.json({ basarili: true, mesaj: 'Personel pasif hale getirildi' });
+        } catch (error) {
+            res.status(400).json({ basarili: false, mesaj: error.message });
+        }
+    },
+
+    async geriYukle(req, res) {
+        try {
+            const data = await personelService.geriYukle(Number(req.params.id), req.kullanici.tenantId);
+            res.json({ basarili: true, data });
         } catch (error) {
             res.status(400).json({ basarili: false, mesaj: error.message });
         }

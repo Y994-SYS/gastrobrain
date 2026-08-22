@@ -360,6 +360,7 @@ model Personel {
   baslangicTarihi DateTime
   maas            Float
   aktif           Boolean  @default(true)
+  silinmeTarihi  DateTime?
   createdAt       DateTime @default(now())
 
   tenant   Tenant @relation(fields: [tenantId], references: [id])

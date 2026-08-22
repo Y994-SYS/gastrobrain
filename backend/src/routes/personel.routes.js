@@ -25,6 +25,7 @@ router.get('/:id', okumaRol, validateParams(idParamSchema), personelController.b
 router.post('/', yonetimRol, validate(personelSchema), personelController.olustur);
 router.put('/:id', yonetimRol, validateParams(idParamSchema), validate(personelSchema), personelController.guncelle);
 router.delete('/:id', yonetimRol, validateParams(idParamSchema), personelController.sil);
+router.put('/:id/geri-yukle', yonetimRol, validateParams(idParamSchema), personelController.geriYukle);
 
 router.post('/maas', yonetimRol, validate(maasEkleSchema), personelController.maasEkle);
 router.put('/maas/:id', yonetimRol, validateParams(idParamSchema), validate(maasGuncelleSchema), personelController.maasGuncelle);

@@ -21,6 +21,7 @@ const yonetimRol = rolKontrol('TENANT_ADMIN', 'MUDUR');
 const okumaRol = rolKontrol('TENANT_ADMIN', 'MUDUR', 'PERSONEL');
 
 router.get('/', yonetimRol, personelController.hepsiniGetir);
+router.get('/pasif', yonetimRol, personelController.pasifleriGetir);
 router.get('/:id', okumaRol, validateParams(idParamSchema), personelController.biriniGetir);
 router.post('/', yonetimRol, validate(personelSchema), personelController.olustur);
 router.put('/:id', yonetimRol, validateParams(idParamSchema), validate(personelSchema), personelController.guncelle);

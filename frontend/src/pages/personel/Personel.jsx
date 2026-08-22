@@ -65,6 +65,10 @@ export default function Personel() {
     const [izinYukleniyor, setIzinYukleniyor] = useState(false);
     const [izinForm, setIzinForm] = useState({ yil: buYil, kullanilanGun: '', aciklama: '' });
 
+    const [pasifModal, setPasifModal] = useState(false);
+    const [pasifListesi, setPasifListesi] = useState([]);
+    const [pasifYukleniyor, setPasifYukleniyor] = useState(false);
+
     const getir = async () => {
         try {
             const res = await api.get(`/api/personel${subeParam}`);
@@ -102,6 +106,36 @@ export default function Personel() {
     };
 
     useEffect(() => { getir(); }, [seciliSubeId]);
+
+    const pasifleriGetir = async () => {
+        setPasifYukleniyor(true);
+        try {
+            const res = await api.get(`/api/personel/pasif${subeParam}`);
+            setPasifListesi(res.data?.data || []);
+        } catch (err) {
+            console.error('Pasif personel listesi alınamadı:', err);
+            toast.error('Pasif personel listesi alınamadı');
+        } finally {
+            setPasifYukleniyor(false);
+        }
+    };
+
+    const pasifModalAc = () => {
+        setPasifModal(true);
+        pasifleriGetir();
+    };
+
+    const geriYukle = async (p) => {
+        setPasifListesi(prev => prev.filter(x => x.id !== p.id));
+        try {
+            await api.put(`/api/personel/${p.id}/geri-yukle`);
+            toast.success(`${p.ad} ${p.soyad} geri yüklendi`);
+            await getir();
+        } catch (err) {
+            setPasifListesi(prev => [p, ...prev]);
+            toast.error(err.response?.data?.mesaj || 'Geri yüklenemedi');
+        }
+    };
 
     const kaydet = async () => {
         if (!form.ad || !form.soyad || !form.maas) return toast.error('Ad, soyad ve maaş zorunlu');
@@ -356,9 +390,14 @@ export default function Personel() {
                         </span>
                     </p>
                 </div>
-                <button onClick={yeniPersonelModalAc} className="bg-lime-400 hover:bg-lime-300 text-black font-bold text-sm px-4 py-2 rounded-lg transition-colors">
-                    + Yeni Personel
-                </button>
+                <div className="flex gap-2">
+                    <button onClick={pasifModalAc} className="text-xs border border-zinc-700 text-zinc-400 hover:text-white hover:border-zinc-500 px-4 py-2 rounded-lg transition-colors">
+                        Pasif Personeller
+                    </button>
+                    <button onClick={yeniPersonelModalAc} className="bg-lime-400 hover:bg-lime-300 text-black font-bold text-sm px-4 py-2 rounded-lg transition-colors">
+                        + Yeni Personel
+                    </button>
+                </div>
             </div>
 
             <SubeSecici />
@@ -738,6 +777,33 @@ export default function Personel() {
                         <button onClick={izinKaydet} disabled={yukleniyor} className="w-full bg-lime-400 hover:bg-lime-300 disabled:opacity-50 text-black font-bold rounded-lg py-2.5 text-sm transition-colors">
                             {yukleniyor ? 'Kaydediliyor...' : 'Kaydet'}
                         </button>
+                    </div>
+                </Modal>
+            )}
+            {pasifModal && (
+                <Modal baslik="Pasif Personeller" onKapat={() => setPasifModal(false)}>
+                    <div className="space-y-2">
+                        {pasifYukleniyor ? (
+                            <div className="text-center py-8 text-zinc-500 text-sm">Yükleniyor...</div>
+                        ) : pasifListesi.length === 0 ? (
+                            <div className="text-center py-8 text-zinc-500 text-sm">Pasif personel yok</div>
+                        ) : pasifListesi.map((p) => (
+                            <div key={p.id} className="flex justify-between items-center bg-zinc-800/50 rounded-lg px-3.5 py-2.5">
+                                <div>
+                                    <div className="text-sm font-semibold text-white">{p.ad} {p.soyad}</div>
+                                    <div className="text-xs text-zinc-500 mt-0.5">
+                                        {p.sube && `${p.sube.ad} — `}
+                                        {p.silinmeTarihi ? `${new Date(p.silinmeTarihi).toLocaleDateString('tr-TR')} tarihinde pasife alındı` : 'Pasif'}
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={() => geriYukle(p)}
+                                    className="text-xs bg-lime-400 hover:bg-lime-300 text-black font-bold px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap"
+                                >
+                                    Geri Yükle
+                                </button>
+                            </div>
+                        ))}
                     </div>
                 </Modal>
             )}

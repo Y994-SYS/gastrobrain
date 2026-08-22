@@ -61,6 +61,16 @@ const personelService = {
         });
     },
 
+    async pasifleriGetir(tenantId, subeId = null) {
+        const where = { tenantId, aktif: false };
+        if (subeId) where.subeId = Number(subeId);
+        return prisma.personel.findMany({
+            where,
+            include: { sube: true },
+            orderBy: { silinmeTarihi: 'desc' }
+        });
+    },
+
     async biriniGetir(id, tenantId) {
         const personel = await prisma.personel.findFirst({
             where: { id, tenantId },

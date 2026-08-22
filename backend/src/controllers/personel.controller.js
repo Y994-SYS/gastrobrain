@@ -21,6 +21,16 @@ const personelController = {
         }
     },
 
+    async pasifleriGetir(req, res) {
+        try {
+            const subeId = subeIdBelirle(req);
+            const data = await personelService.pasifleriGetir(req.kullanici.tenantId, subeId);
+            res.json({ basarili: true, data });
+        } catch (error) {
+            res.status(500).json({ basarili: false, mesaj: error.message });
+        }
+    },
+
     async biriniGetir(req, res) {
         try {
             const data = await personelService.biriniGetir(Number(req.params.id), req.kullanici.tenantId);

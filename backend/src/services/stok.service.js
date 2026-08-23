@@ -22,6 +22,14 @@ class YetersizStokError extends Error { }
 // AY_SONU_SAYIM özel: fark hareketi olarak kaydedilir.
 // Fark pozitifse miktar pozitif (giriş gibi), negatifse miktar Math.abs() ile
 // kaydedilip negatif işlenmesi gerekir. Acıklama içindeki fark işaretine bakılır.
+//
+// ÖNEMLİ: Bu fonksiyon artık export ediliyor. rapor.controller.js'deki
+// stokRaporu ve excelExport ('stok' tipi) daha önce AY_SONU_SAYIM'ı HER ZAMAN
+// pozitif kabul edip mevcutStok'a ekleyen kendi basit/hatalı kopyalarını
+// kullanıyordu — bu da büyük negatif sayım düzeltmelerinden sonra (örn.
+// 3040 kg'dan 60 kg'a düzeltme) raporlarda devasa yanlış rakamlar
+// gösterilmesine yol açıyordu. Artık her yerde bu TEK doğru fonksiyon
+// kullanılıyor.
 const bakiyeHesapla = (hareketler) => {
     return hareketler.reduce((toplam, h) => {
         if (GIRIS_TIPLER.has(h.tip)) return toplam + h.miktar;
@@ -65,6 +73,7 @@ const getSubeId = async (subeId, tenantId) => {
 const stokService = {
 
     YetersizStokError, // controller'ın `instanceof` ile ayırt edebilmesi için export edildi
+    bakiyeHesapla, // rapor.controller.js gibi diğer modüllerin de AYNI doğru mantığı kullanabilmesi için export edildi
 
     async hareketleriGetir(stokKartId, tenantId) {
         return prisma.stokHareket.findMany({

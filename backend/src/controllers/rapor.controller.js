@@ -1,5 +1,6 @@
 const { PrismaClient } = require('@prisma/client');
 const XLSX = require('xlsx');
+const stokService = require('../services/stok.service');
 const prisma = new PrismaClient();
 
 // Şube ID'sini belirle
@@ -89,11 +90,18 @@ const stokRaporu = async (req, res) => {
         });
 
         const stokDurumlari = stokKartlari.map(kart => {
-            let mevcutStok = 0;
-            for (const h of kart.stokHareketleri) {
-                if (['GIRIS_FATURA', 'SUBE_TRANSFER_IN', 'AY_SONU_SAYIM'].includes(h.tip)) mevcutStok += h.miktar;
-                else mevcutStok -= h.miktar;
-            }
+            // DÜZELTME: Burada daha önce basit bir "AY_SONU_SAYIM her zaman
+            // eklenir" mantığı vardı — ama sayım hareketinde kaydedilen
+            // `miktar` her zaman MUTLAK DEĞER (Math.abs(fark)), gerçek işaret
+            // (artı/eksi) `aciklama` içindeki "fark: ±X" metninde saklanıyor.
+            // Bu yüzden büyük NEGATİF düzeltmeler bile pozitif toplanıp
+            // stok miktarı gerçekte olduğundan katbekat büyük görünüyordu
+            // (örn. 3040 kg'dan 60 kg'a düzeltme sonrası rapor hâlâ ~3040 kg
+            // gösteriyordu). Artık stok.service.js'deki TEK doğru
+            // bakiyeHesapla fonksiyonu kullanılıyor — stok durumu, stok
+            // hareketleri sayfası ve bu rapor artık her zaman aynı sonucu
+            // verecek.
+            const mevcutStok = stokService.bakiyeHesapla(kart.stokHareketleri);
             const sonGiris = kart.stokHareketleri.find(h => h.tip === 'GIRIS_FATURA');
             return {
                 id: kart.id, kod: kart.kod, ad: kart.ad,
@@ -420,12 +428,11 @@ const excelExport = async (req, res) => {
                     }
                 },
             });
+            // DÜZELTME: Aynı AY_SONU_SAYIM işaret hatası burada da vardı —
+            // stokRaporu ile aynı sebepten, artık merkezi bakiyeHesapla
+            // kullanılıyor (bkz. stokRaporu içindeki not).
             const data = stokKartlari.map(kart => {
-                let mevcutStok = 0;
-                for (const h of kart.stokHareketleri) {
-                    if (['GIRIS_FATURA', 'SUBE_TRANSFER_IN', 'AY_SONU_SAYIM'].includes(h.tip)) mevcutStok += h.miktar;
-                    else mevcutStok -= h.miktar;
-                }
+                const mevcutStok = stokService.bakiyeHesapla(kart.stokHareketleri);
                 const sonFiyat = kart.stokHareketleri.find(h => h.tip === 'GIRIS_FATURA')?.birimFiyat || 0;
                 return {
                     'Kod': kart.kod, 'Ad': kart.ad, 'Kategori': kart.kategori.ad,
@@ -563,7 +570,11 @@ const subeKarsilastirmasi = async (req, res) => {
                 .filter(h => h.tip === 'ZAYI')
                 .reduce((t, h) => t + h.miktar, 0);
 
-            // Stok değeri
+            // Stok değeri — NOT: Burada AY_SONU_SAYIM'e hiç dokunulmadığı için
+            // aynı işaret hatasından etkilenmez, sayım hareketleri toplama
+            // hiç dahil edilmiyor (yalnızca GIRIS_FATURA/IADE_FATURA/
+            // SUBE_TRANSFER_IN ve çıkışlar). İstenirse bu da bakiyeHesapla'ya
+            // taşınabilir ama şu anki davranışı bilerek koruyoruz.
             const stokKartlari = new Set(sube.stokHareketleri.map(h => h.stokKartId));
             let toplamStokDegeri = 0;
             for (const hareketId of stokKartlari) {

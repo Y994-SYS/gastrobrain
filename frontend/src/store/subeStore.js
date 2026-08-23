@@ -13,7 +13,14 @@ const useSubeStore = create((set, get) => ({
     subeleriYukle: async () => {
         try {
             const res = await api.get('/api/subeler');
-            set({ subeler: res.data?.data || [] });
+            // DÜZELTME: sube.controller.js'deki hepsiniGetir, projenin geri
+            // kalanındaki { basarili, data } sarmalayıcısını KULLANMIYOR —
+            // diziyi doğrudan res.data olarak döndürüyor. Önceki kod
+            // `res.data?.data` okuduğu için her zaman undefined bulup boş
+            // diziye düşüyordu; bu da subeler her zaman [] kaldığından
+            // SubeSecici'nin (subeler.length <= 1 şartıyla) hiçbir zaman
+            // görünmemesine yol açıyordu.
+            set({ subeler: Array.isArray(res.data) ? res.data : (res.data?.data || []) });
         } catch (err) {
             console.error('Şubeler yüklenemedi:', err);
         }

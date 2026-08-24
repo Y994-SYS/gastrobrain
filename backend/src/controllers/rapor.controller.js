@@ -659,10 +659,11 @@ const excelExport = async (req, res) => {
                 'Personel': s.personelSayisi,
                 'Stok Değeri': s.toplamStokDegeri,
             }));
+            const toplamAdet = subeler.reduce((t, s) => t + s.toplamAdet, 0);
             data.push({
                 'Şube': 'TOPLAM',
                 'Satış': ozet.toplamCiro,
-                'Adet': '',
+                'Adet': toplamAdet,
                 'Maliyet': ozet.toplamMaliyet,
                 'Kâr': ozet.toplamKar,
                 'Kâr %': ozet.ortalamaKarMarji,

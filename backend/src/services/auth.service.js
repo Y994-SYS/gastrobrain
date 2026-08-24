@@ -264,7 +264,19 @@ const authService = {
             const appUrl = process.env.APP_URL || 'https://app.gastrobrain.com.tr';
             const resetUrl = `${appUrl}/sifre-sifirla?token=${token}`;
             const { sifreSifirlamaMailGonder } = require('./mail.service');
-            await sifreSifirlamaMailGonder(email, k.ad, k.tenant?.ad || 'GastroBrain', resetUrl);
+            // DÜZELTME: Bu çağrı öncesinde try/catch içinde DEĞİLDİ. Mail
+            // gönderimi askıda kalır veya başarısız olursa (örn. SMTP zaman
+            // aşımı, bloklu port), tüm istek de sonsuza kadar
+            // "Gönderiliyor..." durumunda kalıyordu — kullanıcı ne hata
+            // görüyor ne de token/link'in aslında oluşturulmuş olduğunu
+            // biliyordu. Artık mail başarısız olsa bile token veritabanında
+            // kayıtlı kalıyor ve istek normal şekilde tamamlanıyor; hata
+            // sadece sunucu logunda görünüyor.
+            try {
+                await sifreSifirlamaMailGonder(email, k.ad, k.tenant?.ad || 'GastroBrain', resetUrl);
+            } catch (e) {
+                console.error('Şifre sıfırlama maili gönderilemedi:', e.message);
+            }
         }
 
         return { mesaj: 'Email gönderildi' };

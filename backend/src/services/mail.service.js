@@ -16,6 +16,15 @@ const htmlKacisla = (str) => String(str ?? '')
 // GÜVENLİK: `tls: { rejectUnauthorized: false }` kaldırıldı — bu ayar SMTP
 // sunucusunun TLS sertifika doğrulamasını tamamen atlıyordu (MITM riski).
 // Nodemailer'ın varsayılan güvenli TLS doğrulaması kullanılıyor.
+//
+// GÜVENİLİRLİK DÜZELTMESİ: Zaman aşımları eklendi. Öncesinde bunlar
+// tanımsızdı, yani bağlantı bir sebeple (örn. hosting sağlayıcısının
+// outbound SMTP portlarını — 587/465/25 — bloke etmesi, çok yaygın bir PaaS
+// kısıtlaması) askıda kalırsa, nodemailer işletim sisteminin çok uzun
+// varsayılan TCP zaman aşımına kadar (dakikalarca) beklerdi. Bu süre
+// boyunca `await transporter.sendMail(...)` hiç dönmediği için, onu çağıran
+// istek (örn. şifre sıfırlama) sonsuza kadar "Gönderiliyor..." durumunda
+// asılı kalıyordu. Artık en geç ~15 saniyede anlamlı bir hata fırlatılıyor.
 const transporter = nodemailer.createTransport({
     host: process.env.SMTP_HOST,
     port: Number(process.env.SMTP_PORT),
@@ -24,6 +33,9 @@ const transporter = nodemailer.createTransport({
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS,
     },
+    connectionTimeout: 10000, // TCP bağlantısı kurulamazsa 10sn'de vazgeç
+    greetingTimeout: 10000,   // SMTP sunucusu selamlaşmazsa 10sn'de vazgeç
+    socketTimeout: 15000,     // Bağlantı kurulduktan sonra veri akmazsa 15sn'de vazgeç
 });
 
 const PLAN_ETIKET = { baslangic: 'Başlangıç', profesyonel: 'Profesyonel', kurumsal: 'Kurumsal' };

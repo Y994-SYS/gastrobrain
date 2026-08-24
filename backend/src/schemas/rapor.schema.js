@@ -1,3 +1,4 @@
+
 const { z } = require('zod');
 
 // Tarih string'leri opsiyonel — boş string gelirse undefined'a çevir
@@ -33,8 +34,13 @@ const maliyetRaporuQuery = z.object({
     subeId: opsiyonelId,
 });
 
+// DÜZELTME: 'sube-karsilastirmasi' ve 'merkezmuhasebesi' eklendi — bu iki
+// rapor için de artık gerçek Excel export var (rapor.controller.js).
+// Öncesinde frontend'deki "Excel İndir" butonu bu sekmelerde de görünüyordu
+// ama şema sadece 4 klasik rapor tipini kabul ettiği için tıklanınca
+// "Invalid option" hatası veriyordu.
 const excelExportQuery = z.object({
-    tip: z.enum(['satis', 'stok', 'cari', 'maliyet'], {
+    tip: z.enum(['satis', 'stok', 'cari', 'maliyet', 'sube-karsilastirmasi', 'merkezmuhasebesi'], {
         errorMap: () => ({ message: 'Geçersiz rapor tipi' })
     }),
     baslangic: opsiyonelTarih,

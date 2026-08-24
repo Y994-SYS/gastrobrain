@@ -90,17 +90,6 @@ const stokRaporu = async (req, res) => {
         });
 
         const stokDurumlari = stokKartlari.map(kart => {
-            // DÜZELTME: Burada daha önce basit bir "AY_SONU_SAYIM her zaman
-            // eklenir" mantığı vardı — ama sayım hareketinde kaydedilen
-            // `miktar` her zaman MUTLAK DEĞER (Math.abs(fark)), gerçek işaret
-            // (artı/eksi) `aciklama` içindeki "fark: ±X" metninde saklanıyor.
-            // Bu yüzden büyük NEGATİF düzeltmeler bile pozitif toplanıp
-            // stok miktarı gerçekte olduğundan katbekat büyük görünüyordu
-            // (örn. 3040 kg'dan 60 kg'a düzeltme sonrası rapor hâlâ ~3040 kg
-            // gösteriyordu). Artık stok.service.js'deki TEK doğru
-            // bakiyeHesapla fonksiyonu kullanılıyor — stok durumu, stok
-            // hareketleri sayfası ve bu rapor artık her zaman aynı sonucu
-            // verecek.
             const mevcutStok = stokService.bakiyeHesapla(kart.stokHareketleri);
             const sonGiris = kart.stokHareketleri.find(h => h.tip === 'GIRIS_FATURA');
             return {
@@ -132,7 +121,6 @@ const cariRaporu = async (req, res) => {
         const { cariKartId, baslangic, bitis } = req.query;
         const tenantId = req.kullanici.tenantId;
 
-        // Cari hesap tenant bazlı — şube filtresi yok (tedarikçi tüm şubelerle çalışabilir)
         const where = { cariKart: { tenantId } };
         if (cariKartId) where.cariKartId = parseInt(cariKartId);
         if (baslangic || bitis) {
@@ -242,11 +230,6 @@ const maliyetRaporu = async (req, res) => {
 };
 
 // ─── KÂR-ZARAR RAPORU (Gelir - Gider) ──────────────────────────
-// Not: Maliyet (COGS) hesabı bilinçli olarak subeKarsilastirmasi'ndaki
-// BASİTLEŞTİRİLMİŞ formülle aynı tutulmuştur (birimFiyat * kalem.miktar * satis.adet),
-// satis.service.js'deki gerçek stok düşüm formülü (carpan/bölen/porsiyon oranlı)
-// KULLANILMAMIŞTIR — amaç, "Raporlar" sayfasındaki Maliyet/Kâr rakamlarıyla
-// birebir tutarlı kalmaktır.
 const karZararRaporu = async (req, res) => {
     try {
         const { baslangic, bitis } = req.query;
@@ -263,7 +246,6 @@ const karZararRaporu = async (req, res) => {
             return res.status(400).json({ hata: 'Geçersiz tarih aralığı' });
         }
 
-        // ── GELİR: Satışlar ──────────────────────────────────────────
         const satisWhere = { sube: { tenantId }, tarih: { gte: baslangicTarihi, lte: bitisTarihi } };
         if (subeId) satisWhere.subeId = subeId;
 
@@ -292,7 +274,6 @@ const karZararRaporu = async (req, res) => {
 
         const toplamGelir = satislar.reduce((t, s) => t + s.toplam, 0);
 
-        // ── MALİYET (COGS) ────────────────────────────────────────────
         let toplamMaliyet = 0;
         for (const satis of satislar) {
             for (const kalem of satis.recete.kalemler) {
@@ -301,12 +282,6 @@ const karZararRaporu = async (req, res) => {
             }
         }
 
-        // ── PERSONEL MAAŞ (sadece FİİLEN ÖDENMİŞ olanlar — nakit çıkışı) ─
-        // Avanslar bilinçli olarak DAHİL EDİLMEMİŞTİR: avans daha sonra
-        // maaştan kesiliyorsa aynı tutar iki kez sayılmış olurdu. Bu
-        // ilişkiyi kesin olarak izleyecek bir mekanizma bulunmadığından
-        // (personelMaas ile personelAvans arasında bağlantı yok), çifte
-        // sayım riskini almamak için avans bu raporun dışında tutulmuştur.
         const maaslar = await prisma.personelMaas.findMany({
             where: {
                 odendi: true,
@@ -316,7 +291,6 @@ const karZararRaporu = async (req, res) => {
         });
         const toplamMaas = maaslar.reduce((t, m) => t + m.tutar, 0);
 
-        // ── TEDARİKÇİ ÖDEMELERİ (cari — tenant bazlı, şubeye bölünemez) ─
         const odemeler = await prisma.cariHareket.findMany({
             where: {
                 tip: 'ODEME',
@@ -326,7 +300,6 @@ const karZararRaporu = async (req, res) => {
         });
         const toplamTedarikciOdeme = odemeler.reduce((t, o) => t + o.tutar, 0);
 
-        // ── ZAYİ GİDERİ (miktar × son giriş fiyatı) ───────────────────
         const zayiWhere = {
             tip: 'ZAYI',
             tarih: { gte: baslangicTarihi, lte: bitisTarihi },
@@ -349,7 +322,6 @@ const karZararRaporu = async (req, res) => {
             toplamZayiGideri += sonFiyat * h.miktar;
         }
 
-        // ── ÖZET ────────────────────────────────────────────────────
         const brutKar = toplamGelir - toplamMaliyet;
         const toplamGider = toplamMaliyet + toplamMaas + toplamTedarikciOdeme + toplamZayiGideri;
         const netKar = toplamGelir - toplamGider;
@@ -375,7 +347,6 @@ const karZararRaporu = async (req, res) => {
                 netKarMarji: toplamGelir > 0 ? Math.round((netKar / toplamGelir) * 10000) / 100 : 0,
             },
             notlar: {
-                // Frontend bu bayrakları kullanıcıya açıklayıcı not olarak gösterebilir
                 cariTumIsletmeGeneli: true,
                 avansDahilDegil: true,
             },
@@ -383,6 +354,179 @@ const karZararRaporu = async (req, res) => {
     } catch (err) {
         res.status(500).json({ hata: err.message });
     }
+};
+
+// ─── ŞUBE KARŞILAŞTIRMASI — ORTAK HESAPLAMA ─────────────────────
+// subeKarsilastirmasi (JSON) ve excelExport ('sube-karsilastirmasi') AYNI
+// bu fonksiyonu kullanır — iki yerde ayrı ayrı hesaplanırsa zamanla
+// birbirinden sapabilirdi (tıpkı daha önce merkezmuhasebesi'nde yaşanan
+// ODEME/TAHSILAT tutarsızlığı gibi). Tek kaynak, iki tüketici.
+const hesaplaSubeKarsilastirmasi = async (tenantId) => {
+    const subeler = await prisma.sube.findMany({
+        where: { tenantId, aktif: true },
+        include: {
+            satislar: {
+                include: {
+                    recete: {
+                        include: {
+                            kalemler: {
+                                include: {
+                                    stokKart: {
+                                        include: {
+                                            stokHareketleri: {
+                                                where: { tip: 'GIRIS_FATURA' },
+                                                orderBy: { tarih: 'desc' },
+                                                take: 1
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            stokHareketleri: true,
+            personeller: { where: { aktif: true } }
+        }
+    });
+
+    const subeAnaliz = subeler.map(sube => {
+        const toplamSatis = sube.satislar.reduce((t, s) => t + s.toplam, 0);
+        const toplamAdet = sube.satislar.reduce((t, s) => t + s.adet, 0);
+
+        let toplamMaliyet = 0;
+        for (const satis of sube.satislar) {
+            for (const kalem of satis.recete.kalemler) {
+                const birimFiyat = kalem.stokKart.stokHareketleri[0]?.birimFiyat || 0;
+                toplamMaliyet += birimFiyat * kalem.miktar * satis.adet;
+            }
+        }
+
+        const kar = toplamSatis - toplamMaliyet;
+        const karMarji = toplamSatis > 0 ? (kar / toplamSatis) * 100 : 0;
+
+        const zayiMiktar = sube.stokHareketleri
+            .filter(h => h.tip === 'ZAYI')
+            .reduce((t, h) => t + h.miktar, 0);
+
+        const stokKartlari = new Set(sube.stokHareketleri.map(h => h.stokKartId));
+        let toplamStokDegeri = 0;
+        for (const hareketId of stokKartlari) {
+            const hareketler = sube.stokHareketleri.filter(h => h.stokKartId === hareketId);
+            let bakiye = 0;
+            for (const h of hareketler) {
+                if (['GIRIS_FATURA', 'IADE_FATURA', 'SUBE_TRANSFER_IN'].includes(h.tip)) bakiye += h.miktar;
+                else bakiye -= h.miktar;
+            }
+            const sonFiyat = hareketler.find(h => h.tip === 'GIRIS_FATURA')?.birimFiyat || 0;
+            toplamStokDegeri += sonFiyat * Math.max(bakiye, 0);
+        }
+
+        return {
+            id: sube.id,
+            ad: sube.ad,
+            toplamSatis: Math.round(toplamSatis * 100) / 100,
+            toplamAdet,
+            toplamMaliyet: Math.round(toplamMaliyet * 100) / 100,
+            kar: Math.round(kar * 100) / 100,
+            karMarji: Math.round(karMarji * 100) / 100,
+            zayiMiktar: Math.round(zayiMiktar * 1000) / 1000,
+            zayiOrani: toplamSatis > 0 ? Math.round((zayiMiktar / toplamAdet) * 100 * 100) / 100 : 0,
+            personelSayisi: sube.personeller.length,
+            toplamStokDegeri: Math.round(toplamStokDegeri * 100) / 100,
+        };
+    });
+
+    const enYuksekSatis = Math.max(...subeAnaliz.map(s => s.toplamSatis), 0);
+    const enYuksekKar = Math.max(...subeAnaliz.map(s => s.karMarji), 0);
+    const enDusukZayi = Math.min(...subeAnaliz.map(s => s.zayiOrani), Infinity);
+
+    return {
+        subeler: subeAnaliz.sort((a, b) => b.toplamSatis - a.toplamSatis),
+        ozet: {
+            toplamSubeSayisi: subeAnaliz.length,
+            toplamCiro: Math.round(subeAnaliz.reduce((t, s) => t + s.toplamSatis, 0) * 100) / 100,
+            toplamMaliyet: Math.round(subeAnaliz.reduce((t, s) => t + s.toplamMaliyet, 0) * 100) / 100,
+            toplamKar: Math.round(subeAnaliz.reduce((t, s) => t + s.kar, 0) * 100) / 100,
+            ortalamaKarMarji: subeAnaliz.length
+                ? Math.round(subeAnaliz.reduce((t, s) => t + s.karMarji, 0) / subeAnaliz.length * 100) / 100
+                : 0,
+            toplamPersonel: subeAnaliz.reduce((t, s) => t + s.personelSayisi, 0),
+        },
+        enIyi: {
+            enYuksekSatisSube: subeAnaliz.find(s => s.toplamSatis === enYuksekSatis)?.ad,
+            enYuksekKarSube: subeAnaliz.find(s => s.karMarji === enYuksekKar)?.ad,
+            enDusukZayiSube: subeAnaliz.find(s => s.zayiOrani === enDusukZayi)?.ad,
+        },
+    };
+};
+
+// ─── MERKEZ MUHASEBESİ — ORTAK HESAPLAMA ─────────────────────
+// merkezMuhasebesi (JSON) ve excelExport ('merkezmuhasebesi') AYNI bu
+// fonksiyonu kullanır — bkz. yukarıdaki not.
+const hesaplaMerkezMuhasebesi = async (tenantId) => {
+    const cariKartlar = await prisma.cariKart.findMany({
+        where: { tenantId },
+        include: {
+            hareketler: {
+                include: {
+                    kalemler: { include: { stokKart: true } }
+                }
+            }
+        }
+    });
+
+    const tedarikciAnaliz = cariKartlar.map(cari => {
+        let toplamBorc = 0;
+        let toplamAlacak = 0;
+
+        for (const hareket of cari.hareketler) {
+            if (hareket.tip === 'BORC') {
+                toplamBorc += hareket.tutar;
+            } else if (['ALACAK', 'ODEME'].includes(hareket.tip)) {
+                toplamAlacak += hareket.tutar;
+            }
+        }
+
+        const netBakiye = toplamAlacak - toplamBorc;
+
+        return {
+            id: cari.id,
+            kod: cari.kod,
+            ad: cari.ad,
+            telefon: cari.telefon,
+            email: cari.email,
+            adres: cari.adres,
+            toplamBorc: Math.round(toplamBorc * 100) / 100,
+            toplamAlacak: Math.round(toplamAlacak * 100) / 100,
+            netBakiye: Math.round(netBakiye * 100) / 100,
+            durum: netBakiye < 0 ? 'BORÇLU' : netBakiye > 0 ? 'ALACAKLI' : 'SIFIR',
+            hareketSayisi: cari.hareketler.length
+        };
+    });
+
+    const toplamBorc = tedarikciAnaliz
+        .filter(t => t.netBakiye < 0)
+        .reduce((t, c) => t + Math.abs(c.netBakiye), 0);
+    const toplamAlacak = tedarikciAnaliz
+        .filter(t => t.netBakiye > 0)
+        .reduce((t, c) => t + c.netBakiye, 0);
+    const netToplam = toplamAlacak - toplamBorc;
+
+    return {
+        tedarikciler: tedarikciAnaliz
+            .filter(t => t.toplamBorc > 0 || t.toplamAlacak > 0)
+            .sort((a, b) => Math.abs(b.netBakiye) - Math.abs(a.netBakiye)),
+        ozet: {
+            toplamTedarikci: cariKartlar.length,
+            borcletedarikci: tedarikciAnaliz.filter(t => t.durum === 'BORÇLU').length,
+            alacakliTedarikci: tedarikciAnaliz.filter(t => t.durum === 'ALACAKLI').length,
+            toplamBorc: Math.round(toplamBorc * 100) / 100,
+            toplamAlacak: Math.round(toplamAlacak * 100) / 100,
+            netToplam: Math.round(netToplam * 100) / 100,
+        }
+    };
 };
 
 // ─── EXCEL EXPORT ──────────────────────────────────────────────
@@ -428,9 +572,6 @@ const excelExport = async (req, res) => {
                     }
                 },
             });
-            // DÜZELTME: Aynı AY_SONU_SAYIM işaret hatası burada da vardı —
-            // stokRaporu ile aynı sebepten, artık merkezi bakiyeHesapla
-            // kullanılıyor (bkz. stokRaporu içindeki not).
             const data = stokKartlari.map(kart => {
                 const mevcutStok = stokService.bakiyeHesapla(kart.stokHareketleri);
                 const sonFiyat = kart.stokHareketleri.find(h => h.tip === 'GIRIS_FATURA')?.birimFiyat || 0;
@@ -501,6 +642,60 @@ const excelExport = async (req, res) => {
                 };
             });
             XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data), 'Maliyet Analizi');
+
+        } else if (tip === 'sube-karsilastirmasi') {
+            // Ekrandaki "Şube Karşılaştırması" tablosuyla BİREBİR aynı veriden
+            // üretilir (hesaplaSubeKarsilastirmasi ortak fonksiyonu).
+            const { subeler, ozet } = await hesaplaSubeKarsilastirmasi(tenantId);
+            const data = subeler.map(s => ({
+                'Şube': s.ad,
+                'Satış': s.toplamSatis,
+                'Adet': s.toplamAdet,
+                'Maliyet': s.toplamMaliyet,
+                'Kâr': s.kar,
+                'Kâr %': s.karMarji,
+                'Zayi Miktar': s.zayiMiktar,
+                'Zayi %': s.zayiOrani,
+                'Personel': s.personelSayisi,
+                'Stok Değeri': s.toplamStokDegeri,
+            }));
+            data.push({
+                'Şube': 'TOPLAM',
+                'Satış': ozet.toplamCiro,
+                'Adet': '',
+                'Maliyet': ozet.toplamMaliyet,
+                'Kâr': ozet.toplamKar,
+                'Kâr %': ozet.ortalamaKarMarji,
+                'Zayi Miktar': '',
+                'Zayi %': '',
+                'Personel': ozet.toplamPersonel,
+                'Stok Değeri': '',
+            });
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data), 'Şube Karşılaştırması');
+
+        } else if (tip === 'merkezmuhasebesi') {
+            // Ekrandaki "Merkez Muhasebesi" tablosuyla BİREBİR aynı veriden
+            // üretilir (hesaplaMerkezMuhasebesi ortak fonksiyonu).
+            const { tedarikciler, ozet } = await hesaplaMerkezMuhasebesi(tenantId);
+            const data = tedarikciler.map(t => ({
+                'Kod': t.kod,
+                'Tedarikçi Adı': t.ad,
+                'Telefon': t.telefon || '',
+                'Borç': t.toplamBorc,
+                'Alacak': t.toplamAlacak,
+                'Net Bakiye': t.netBakiye,
+                'Durum': t.durum,
+            }));
+            data.push({
+                'Kod': '',
+                'Tedarikçi Adı': 'TOPLAM',
+                'Telefon': '',
+                'Borç': ozet.toplamBorc,
+                'Alacak': ozet.toplamAlacak,
+                'Net Bakiye': ozet.netToplam,
+                'Durum': ozet.netToplam < 0 ? 'BORÇLU' : ozet.netToplam > 0 ? 'ALACAKLI' : 'SIFIR',
+            });
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data), 'Merkez Muhasebesi');
         }
 
         const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
@@ -512,209 +707,24 @@ const excelExport = async (req, res) => {
         res.status(500).json({ hata: err.message });
     }
 };
-// ─── ŞUBELER KARŞILAŞTIRMASI RAPORU ─────────────────────
+
+// ─── ŞUBELER KARŞILAŞTIRMASI RAPORU (JSON) ─────────────────────
 const subeKarsilastirmasi = async (req, res) => {
     try {
         const tenantId = req.kullanici.tenantId;
-
-        // Tüm şubeleri getir
-        const subeler = await prisma.sube.findMany({
-            where: { tenantId, aktif: true },
-            include: {
-                satislar: {
-                    include: {
-                        recete: {
-                            include: {
-                                kalemler: {
-                                    include: {
-                                        stokKart: {
-                                            include: {
-                                                stokHareketleri: {
-                                                    where: { tip: 'GIRIS_FATURA' },
-                                                    orderBy: { tarih: 'desc' },
-                                                    take: 1
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                },
-                stokHareketleri: true,
-                personeller: { where: { aktif: true } }
-            }
-        });
-
-        // Her şube için analiz
-        const subeAnaliz = subeler.map(sube => {
-            // Satış metrikleri
-            const toplamSatis = sube.satislar.reduce((t, s) => t + s.toplam, 0);
-            const toplamAdet = sube.satislar.reduce((t, s) => t + s.adet, 0);
-
-            // Maliyet hesabı
-            let toplamMaliyet = 0;
-            for (const satis of sube.satislar) {
-                for (const kalem of satis.recete.kalemler) {
-                    const birimFiyat = kalem.stokKart.stokHareketleri[0]?.birimFiyat || 0;
-                    toplamMaliyet += birimFiyat * kalem.miktar * satis.adet;
-                }
-            }
-
-            const kar = toplamSatis - toplamMaliyet;
-            const karMarji = toplamSatis > 0 ? (kar / toplamSatis) * 100 : 0;
-
-            // Zayi hesabı
-            const zayiMiktar = sube.stokHareketleri
-                .filter(h => h.tip === 'ZAYI')
-                .reduce((t, h) => t + h.miktar, 0);
-
-            // Stok değeri — NOT: Burada AY_SONU_SAYIM'e hiç dokunulmadığı için
-            // aynı işaret hatasından etkilenmez, sayım hareketleri toplama
-            // hiç dahil edilmiyor (yalnızca GIRIS_FATURA/IADE_FATURA/
-            // SUBE_TRANSFER_IN ve çıkışlar). İstenirse bu da bakiyeHesapla'ya
-            // taşınabilir ama şu anki davranışı bilerek koruyoruz.
-            const stokKartlari = new Set(sube.stokHareketleri.map(h => h.stokKartId));
-            let toplamStokDegeri = 0;
-            for (const hareketId of stokKartlari) {
-                const hareketler = sube.stokHareketleri.filter(h => h.stokKartId === hareketId);
-                let bakiye = 0;
-                for (const h of hareketler) {
-                    if (['GIRIS_FATURA', 'IADE_FATURA', 'SUBE_TRANSFER_IN'].includes(h.tip)) bakiye += h.miktar;
-                    else bakiye -= h.miktar;
-                }
-                // Son fiyat (simplify — real: DB'den çekmek gerekir)
-                const sonFiyat = hareketler.find(h => h.tip === 'GIRIS_FATURA')?.birimFiyat || 0;
-                toplamStokDegeri += sonFiyat * Math.max(bakiye, 0);
-            }
-
-            return {
-                id: sube.id,
-                ad: sube.ad,
-                toplamSatis: Math.round(toplamSatis * 100) / 100,
-                toplamAdet,
-                toplamMaliyet: Math.round(toplamMaliyet * 100) / 100,
-                kar: Math.round(kar * 100) / 100,
-                karMarji: Math.round(karMarji * 100) / 100,
-                zayiMiktar: Math.round(zayiMiktar * 1000) / 1000,
-                zayiOrani: toplamSatis > 0 ? Math.round((zayiMiktar / toplamAdet) * 100 * 100) / 100 : 0, // Satışa göre zayi %
-                personelSayisi: sube.personeller.length,
-                toplamStokDegeri: Math.round(toplamStokDegeri * 100) / 100,
-            };
-        });
-
-        // En iyi şubeyi bul
-        const enYuksekSatis = Math.max(...subeAnaliz.map(s => s.toplamSatis), 0);
-        const enYuksekKar = Math.max(...subeAnaliz.map(s => s.karMarji), 0);
-        const enDusukZayi = Math.min(...subeAnaliz.map(s => s.zayiOrani), Infinity);
-
-        res.json({
-            subeler: subeAnaliz.sort((a, b) => b.toplamSatis - a.toplamSatis),
-            ozet: {
-                toplamSubeSayisi: subeAnaliz.length,
-                toplamCiro: Math.round(subeAnaliz.reduce((t, s) => t + s.toplamSatis, 0) * 100) / 100,
-                toplamMaliyet: Math.round(subeAnaliz.reduce((t, s) => t + s.toplamMaliyet, 0) * 100) / 100,
-                toplamKar: Math.round(subeAnaliz.reduce((t, s) => t + s.kar, 0) * 100) / 100,
-                ortalamaKarMarji: subeAnaliz.length
-                    ? Math.round(subeAnaliz.reduce((t, s) => t + s.karMarji, 0) / subeAnaliz.length * 100) / 100
-                    : 0,
-                toplamPersonel: subeAnaliz.reduce((t, s) => t + s.personelSayisi, 0),
-            },
-            enIyi: {
-                enYuksekSatisSube: subeAnaliz.find(s => s.toplamSatis === enYuksekSatis)?.ad,
-                enYuksekKarSube: subeAnaliz.find(s => s.karMarji === enYuksekKar)?.ad,
-                enDusukZayiSube: subeAnaliz.find(s => s.zayiOrani === enDusukZayi)?.ad,
-            },
-        });
+        const veri = await hesaplaSubeKarsilastirmasi(tenantId);
+        res.json(veri);
     } catch (err) {
         res.status(500).json({ hata: err.message });
     }
 };
-// ─── MERKEZ MUHASEBESİ RAPORU ──────────────────────────
+
+// ─── MERKEZ MUHASEBESİ RAPORU (JSON) ──────────────────────
 const merkezMuhasebesi = async (req, res) => {
     try {
         const tenantId = req.kullanici.tenantId;
-
-        // Tüm cari kartları ve hareketlerini getir
-        const cariKartlar = await prisma.cariKart.findMany({
-            where: { tenantId },
-            include: {
-                hareketler: {
-                    include: {
-                        kalemler: {
-                            include: {
-                                stokKart: true
-                            }
-                        }
-                    }
-                }
-            }
-        });
-
-        // Her tedarikçi için şube bazlı borç/alacak hesapla
-        const tedarikciAnaliz = cariKartlar.map(cari => {
-            let toplamBorc = 0;
-            let toplamAlacak = 0;
-
-            for (const hareket of cari.hareketler) {
-                if (hareket.tip === 'BORC') {
-                    toplamBorc += hareket.tutar;
-                } else if (['ALACAK', 'ODEME'].includes(hareket.tip)) {
-                    // DÜZELTME: Bu alanda daha önce 'TAHSILAT' aranıyordu — bu
-                    // enum değeri sistemde hiç kullanılmıyor (gerçek kayıt tipi
-                    // 'ODEME'), bu yüzden yapılan tüm ödemeler borçtan hiç
-                    // düşülmüyordu ve Merkez Muhasebesi raporu borcu olduğundan
-                    // çok daha yüksek gösteriyordu. cariRaporu ile aynı enum'a
-                    // (ODEME) çekildi.
-                    toplamAlacak += hareket.tutar;
-                }
-            }
-
-            const netBakiye = toplamAlacak - toplamBorc;
-
-            return {
-                id: cari.id,
-                kod: cari.kod,
-                ad: cari.ad,
-                telefon: cari.telefon,
-                email: cari.email,
-                adres: cari.adres,
-                toplamBorc: Math.round(toplamBorc * 100) / 100,
-                toplamAlacak: Math.round(toplamAlacak * 100) / 100,
-                netBakiye: Math.round(netBakiye * 100) / 100,
-                durum: netBakiye < 0 ? 'BORÇLU' : netBakiye > 0 ? 'ALACAKLI' : 'SIFIR',
-                hareketSayisi: cari.hareketler.length
-            };
-        });
-
-        // ÖZET KARTLAR — Cari Raporu ile AYNI mantık kullanılır: ham BORC /
-        // (ÖDEME+ALACAK) bileşen toplamları DEĞİL, sadece her tedarikçinin
-        // NET BAKİYESİ toplanır. Önceki hesap (ham bileşen toplamı) kapanmış
-        // hesapları da (örn. borcu tamamen ödenmiş bir tedarikçi) "Toplam
-        // Borç" kartına dahil ediyordu — bu da alttaki "Net Durum" özetiyle
-        // çelişen, yanıltıcı derecede büyük bir rakam üretiyordu.
-        const toplamBorc = tedarikciAnaliz
-            .filter(t => t.netBakiye < 0)
-            .reduce((t, c) => t + Math.abs(c.netBakiye), 0);
-        const toplamAlacak = tedarikciAnaliz
-            .filter(t => t.netBakiye > 0)
-            .reduce((t, c) => t + c.netBakiye, 0);
-        const netToplam = toplamAlacak - toplamBorc;
-
-        res.json({
-            tedarikciler: tedarikciAnaliz
-                .filter(t => t.toplamBorc > 0 || t.toplamAlacak > 0)
-                .sort((a, b) => Math.abs(b.netBakiye) - Math.abs(a.netBakiye)),
-            ozet: {
-                toplamTedarikci: cariKartlar.length,
-                borcletedarikci: tedarikciAnaliz.filter(t => t.durum === 'BORÇLU').length,
-                alacakliTedarikci: tedarikciAnaliz.filter(t => t.durum === 'ALACAKLI').length,
-                toplamBorc: Math.round(toplamBorc * 100) / 100,
-                toplamAlacak: Math.round(toplamAlacak * 100) / 100,
-                netToplam: Math.round(netToplam * 100) / 100,
-            }
-        });
+        const veri = await hesaplaMerkezMuhasebesi(tenantId);
+        res.json(veri);
     } catch (err) {
         res.status(500).json({ hata: err.message });
     }

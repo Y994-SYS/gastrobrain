@@ -309,6 +309,13 @@ export default function SuperAdmin() {
             });
             toast.success('Lisans güncellendi');
             veriGetir();
+            // DÜZELTME: hizliUzat (+1 Ay / +1 Yıl) kayıttan sonra `secili`'yi
+            // yeniden çekiyordu ama bu fonksiyon çekmiyordu — bu yüzden
+            // manuel tarih girip kaydedince veritabanı doğru güncellenmiş
+            // olsa bile sağdaki detay paneli hâlâ ESKİ (bir önceki hizliUzat
+            // çağrısından kalma) tarihi göstermeye devam ediyordu.
+            const res = await api.get(`/api/super-admin/tenantlar/${secili.id}`);
+            setSecili(res.data.data);
         } catch {
             toast.error('Güncelleme başarısız');
         }

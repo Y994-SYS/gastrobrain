@@ -1,43 +1,47 @@
-// mail.service.js (GÜNCELLENMİŞ)
-const nodemailer = require('nodemailer');
+// mail.service.js (RESEND API ile GÜNCELLENMİŞ — SMTP yerine HTTPS kullanır,
+// Render'ın ücretsiz planındaki outbound SMTP port kısıtlamasını (587/465/25)
+// bypass eder çünkü Resend'e istek normal HTTPS (443) üzerinden atılır.)
 
 // GÜVENLİK: E-posta HTML injection önlemi — kullanıcı kontrolündeki serbest
 // metin alanları (firma adı, admin adı, ödeme notu vb.) HTML'e gömülmeden
-// önce kaçışlanır. Özellikle odemeBildirimMailGonder'daki `not` ve `firmaAd`
-// alanları tenant kullanıcıları tarafından serbestçe girilebiliyor ve
-// kaçışlanmadan admin'e giden maile gömülüyordu — bu, kimliği doğrulanmış
-// bir tenant'ın admin'in e-posta istemcisine (phishing linki, sahte buton
-// vb.) içerik enjekte edebilmesine izin veriyordu.
+// önce kaçışlanır.
 const htmlKacisla = (str) => String(str ?? '')
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;');
 
-// GÜVENLİK: `tls: { rejectUnauthorized: false }` kaldırıldı — bu ayar SMTP
-// sunucusunun TLS sertifika doğrulamasını tamamen atlıyordu (MITM riski).
-// Nodemailer'ın varsayılan güvenli TLS doğrulaması kullanılıyor.
-//
-// GÜVENİLİRLİK DÜZELTMESİ: Zaman aşımları eklendi. Öncesinde bunlar
-// tanımsızdı, yani bağlantı bir sebeple (örn. hosting sağlayıcısının
-// outbound SMTP portlarını — 587/465/25 — bloke etmesi, çok yaygın bir PaaS
-// kısıtlaması) askıda kalırsa, nodemailer işletim sisteminin çok uzun
-// varsayılan TCP zaman aşımına kadar (dakikalarca) beklerdi. Bu süre
-// boyunca `await transporter.sendMail(...)` hiç dönmediği için, onu çağıran
-// istek (örn. şifre sıfırlama) sonsuza kadar "Gönderiliyor..." durumunda
-// asılı kalıyordu. Artık en geç ~15 saniyede anlamlı bir hata fırlatılıyor.
-const transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port: Number(process.env.SMTP_PORT),
-    secure: false,
-    family: 4,
-    auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
-    },
-    connectionTimeout: 10000, // TCP bağlantısı kurulamazsa 10sn'de vazgeç
-    greetingTimeout: 10000,   // SMTP sunucusu selamlaşmazsa 10sn'de vazgeç
-    socketTimeout: 15000,     // Bağlantı kurulduktan sonra veri akmazsa 15sn'de vazgeç
-});
+const RESEND_API_KEY = process.env.RESEND_API_KEY;
+// Domain doğrulanana kadar test için: 'onboarding@resend.dev'
+// Domain doğrulandıktan sonra: 'GastroBrain <bildirim@gastrobrain.com.tr>' gibi
+const GONDEREN = process.env.MAIL_FROM || 'GastroBrain <onboarding@resend.dev>';
+
+// Ortak gönderim fonksiyonu — Resend REST API'sine HTTPS üzerinden istek atar.
+async function mailGonder({ to, subject, html }) {
+    if (!RESEND_API_KEY) {
+        throw new Error('RESEND_API_KEY tanımlı değil (env variable eksik)');
+    }
+
+    const response = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${RESEND_API_KEY}`,
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            from: GONDEREN,
+            to: [to],
+            subject,
+            html,
+        }),
+    });
+
+    if (!response.ok) {
+        const hataMetni = await response.text().catch(() => '');
+        throw new Error(`Resend API hatası (${response.status}): ${hataMetni}`);
+    }
+
+    return response.json();
+}
 
 const PLAN_ETIKET = { baslangic: 'Başlangıç', profesyonel: 'Profesyonel', kurumsal: 'Kurumsal' };
 const PERIYOT_ETIKET = { aylik: 'Aylık', yillik: 'Yıllık' };
@@ -47,8 +51,7 @@ const mailService = {
         const bitisStr = new Date(lisansBitis).toLocaleDateString('tr-TR');
         const firmaAdGuvenli = htmlKacisla(firmaAd);
         const adminAdGuvenli = htmlKacisla(adminAd);
-        await transporter.sendMail({
-            from: `"GastroBrain" <${process.env.SMTP_USER}>`,
+        await mailGonder({
             to: email,
             subject: `GastroBrain'e Hoş Geldiniz — ${firmaAdGuvenli}`,
             html: `
@@ -86,8 +89,7 @@ const mailService = {
     async lisansBitisUyariGonder(email, firmaAd, kalanGun, lisansBitis) {
         const bitisStr = new Date(lisansBitis).toLocaleDateString('tr-TR');
         const firmaAdGuvenli = htmlKacisla(firmaAd);
-        await transporter.sendMail({
-            from: `"GastroBrain" <${process.env.SMTP_USER}>`,
+        await mailGonder({
             to: email,
             subject: `⚠️ Lisansınız ${kalanGun} gün içinde bitiyor — ${firmaAdGuvenli}`,
             html: `
@@ -127,8 +129,7 @@ const mailService = {
     async sifreSifirlamaMailGonder(email, ad, firmaAd, resetUrl) {
         const adGuvenli = htmlKacisla(ad);
         const firmaAdGuvenli = htmlKacisla(firmaAd);
-        await transporter.sendMail({
-            from: `"GastroBrain" <${process.env.SMTP_USER}>`,
+        await mailGonder({
             to: email,
             subject: `GastroBrain — Şifre Sıfırlama`,
             html: `
@@ -163,8 +164,7 @@ const mailService = {
         const firmaAdGuvenli = htmlKacisla(firmaAd);
         const notGuvenli = not ? htmlKacisla(not) : null;
 
-        await transporter.sendMail({
-            from: `"GastroBrain" <${process.env.SMTP_USER}>`,
+        await mailGonder({
             to: adminEmail,
             subject: `💰 Yeni Ödeme Bildirimi — ${firmaAdGuvenli}`,
             html: `
@@ -205,8 +205,7 @@ const mailService = {
             </tr>
         `).join('');
 
-        await transporter.sendMail({
-            from: `"GastroBrain" <${process.env.SMTP_USER}>`,
+        await mailGonder({
             to: email,
             subject: `🚨 Kritik Stok Uyarısı — ${firmaAdGuvenli} (${kritikStoklar.length} ürün)`,
             html: `
@@ -270,8 +269,7 @@ const mailService = {
             </tr>
         `).join('');
 
-        await transporter.sendMail({
-            from: `"GastroBrain" <${process.env.SMTP_USER}>`,
+        await mailGonder({
             to: email,
             subject: `📊 Günlük Stok Raporu — ${firmaAdGuvenli}`,
             html: `

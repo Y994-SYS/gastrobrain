@@ -2,7 +2,8 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.jsx'
-
+import { pwaGuncellemeyiBaslat } from './pwaUpdate';
+pwaGuncellemeyiBaslat();
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <App />

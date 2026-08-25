@@ -3,14 +3,20 @@ const stokService = require('../services/stok.service');
 const auditLog = require('../services/auditLog.service');
 const prisma = new PrismaClient();
 
-// Şube ID'sini belirle — MUDUR kendi şubesini görür, ADMIN query'den alır
+// Şube ID'sini belirle — MUDUR/DEPO/KASA/PERSONEL her zaman kendi şubesini
+// görür. TENANT_ADMIN query'den subeId gelirse onu kullanır, gelmezse
+// null döner (= "Tüm Şubeler" — tumStokDurumu bu durumda filtrelemeden
+// tüm hareketleri toplu hesaplıyor). Önceki hâlde bu son durumda
+// req.kullanici.subeId'ye (adminin kendi atanmış şubesine) düşülüyordu,
+// bu da "Tüm Şubeler" seçiliyken tek bir şubenin rakamının gösterilip
+// diğer şubelerin hiç toplanmamasına yol açıyordu.
 const subeIdBelirle = (req) => {
     const rol = req.kullanici.rol;
     if (rol === 'MUDUR' || rol === 'DEPO' || rol === 'KASA' || rol === 'PERSONEL') {
         return req.kullanici.subeId;
     }
     // TENANT_ADMIN — query'den gelirse onu kullan, gelmezse null (tüm şubeler)
-    return req.query.subeId ? Number(req.query.subeId) : req.kullanici.subeId;
+    return req.query.subeId ? Number(req.query.subeId) : null;
 };
 
 // Stok yetersizliğini bilerek geçebilecek roller — satis.service.js ile aynı liste.

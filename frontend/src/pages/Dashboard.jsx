@@ -42,18 +42,24 @@ function SkeletonListe({ satir = 3 }) {
     );
 }
 
+// ─── Özet Kart ──────────────────────────────────────────────────────────────
+// NOT: min-w-0 + truncate + kademeli font boyutu, dar ekranlarda büyük
+// rakamların (₺30.550,00 gibi) kutuyu taşırmasını engelliyor. min-w-0
+// olmadan flex/grid içindeki içerik kutuyu genişletmeye zorlar.
 function OzetKart({ baslik, deger, alt, renk, tikla }) {
     return (
         <div
             onClick={tikla}
             className={[
-                'bg-zinc-900 border border-zinc-800 rounded-xl p-4 transition-colors',
+                'bg-zinc-900 border border-zinc-800 rounded-xl p-4 transition-colors min-w-0',
                 tikla ? 'cursor-pointer hover:border-zinc-700 active:scale-[0.98]' : ''
             ].join(' ')}
         >
-            <div className="text-xs text-zinc-500 mb-1">{baslik}</div>
-            <div className={`text-2xl font-black ${renk}`}>{deger}</div>
-            <div className="text-xs text-zinc-500 mt-0.5">{alt}</div>
+            <div className="text-xs text-zinc-500 mb-1 truncate">{baslik}</div>
+            <div className={`text-lg sm:text-xl md:text-2xl font-black truncate ${renk}`} title={String(deger)}>
+                {deger}
+            </div>
+            <div className="text-xs text-zinc-500 mt-0.5 truncate">{alt}</div>
         </div>
     );
 }
@@ -125,7 +131,7 @@ function SubeOzetiPanel() {
                         <div
                             key={sube.id}
                             onClick={() => navigate(`/tanimlamalar/subeler/${sube.id}`)}
-                            className="bg-zinc-900 border border-zinc-800 hover:border-zinc-600 rounded-xl p-3.5 cursor-pointer transition-all active:scale-[0.98]"
+                            className="bg-zinc-900 border border-zinc-800 hover:border-zinc-600 rounded-xl p-3.5 cursor-pointer transition-all active:scale-[0.98] min-w-0"
                         >
                             {/* Şube adı + durum */}
                             <div className="flex items-center justify-between mb-2.5">
@@ -136,8 +142,8 @@ function SubeOzetiPanel() {
                             </div>
 
                             {/* Ana metrik - günlük ciro (pozitif = yeşil) */}
-                            <div className="mb-2.5">
-                                <div className="text-2xl font-black text-lime-400">₺{fmt(sube.gunlukCiro)}</div>
+                            <div className="mb-2.5 min-w-0">
+                                <div className="text-lg sm:text-xl md:text-2xl font-black text-lime-400 truncate">₺{fmt(sube.gunlukCiro)}</div>
                                 <div className="text-xs text-zinc-500 mt-0.5">
                                     {sube.satisSayisi > 0 ? `${sube.satisSayisi} işlem` : 'Bugün satış yok'}
                                 </div>

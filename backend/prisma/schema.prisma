@@ -106,6 +106,7 @@ model Sube {
   adres     String?
   telefon   String?
   aktif     Boolean  @default(true)
+  merkezMi Boolean @default(false)
   createdAt DateTime @default(now())
 
   tenant   Tenant @relation(fields: [tenantId], references: [id])

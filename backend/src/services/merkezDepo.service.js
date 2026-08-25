@@ -19,6 +19,23 @@ const bakiyeHesapla = async (subeId, stokKartId) => {
     }, 0);
 };
 
+// Tenant'ın merkez şubesini bul. Bulunamazsa net bir hata fırlatır
+// (artık "ID 1" varsayımı yok — Sube.merkezMi alanına bakılıyor).
+const merkezSubeGetir = async (tenantId) => {
+    const merkezSube = await prisma.sube.findFirst({
+        where: { tenantId, merkezMi: true, aktif: true }
+    });
+
+    if (!merkezSube) {
+        throw new Error(
+            'Merkez depo olarak işaretlenmiş bir şube bulunamadı. ' +
+            'Lütfen Şubeler bölümünden bir şubeyi "Merkez Depo" olarak işaretleyin.'
+        );
+    }
+
+    return merkezSube;
+};
+
 const merkezDepoService = {
     // Merkez depo tanımını oluştur/güncelle
     async tanımlaEkle({ tenantId, stokKartId, minStokSeviyesi, otomatiDagit, aciklama }) {
@@ -63,6 +80,10 @@ const merkezDepoService = {
 
     // Manual dağıtım yap
     async manuelDagit({ tenantId, merkezDepoId, hedefSubeId, miktar, aciklama }) {
+        if (!(miktar > 0)) {
+            throw new Error('Miktar sıfırdan büyük olmalıdır');
+        }
+
         // Merkez depo tanımı kontrol et
         const tanim = await prisma.merkezDepo.findFirst({
             where: { id: merkezDepoId, tenantId },
@@ -71,6 +92,9 @@ const merkezDepoService = {
 
         if (!tanim) throw new Error('Merkez depo tanımı bulunamadı');
 
+        // Merkez şubeyi bul (artık hardcode değil)
+        const merkezSube = await merkezSubeGetir(tenantId);
+
         // Hedef şubenin var olduğunu kontrol et
         const hedefSube = await prisma.sube.findFirst({
             where: { id: hedefSubeId, tenantId }
@@ -78,22 +102,33 @@ const merkezDepoService = {
 
         if (!hedefSube) throw new Error('Hedef şube bulunamadı');
 
+        // Merkez şube kendi kendine hedef olamaz
+        if (hedefSubeId === merkezSube.id) {
+            throw new Error('Hedef şube, merkez depo ile aynı olamaz');
+        }
+
+        // Kaynak (merkez) şubede yeterli stok var mı kontrol et
+        const merkezBakiye = await bakiyeHesapla(merkezSube.id, tanim.stokKartId);
+        if (merkezBakiye < miktar) {
+            throw new Error(
+                `Merkez depoda yeterli stok yok. Mevcut: ${merkezBakiye}, istenen: ${miktar}`
+            );
+        }
+
         // Stok hareketi oluştur ve dağıtım kaydını tut
         const dagitim = await prisma.$transaction(async (tx) => {
-            // Merkez deposu temsilen "0" şube ID'si kullan
-            // (veya gerçek merkez şube ID'si varsa onu kullan)
-            const cikisHareket = await tx.stokHareket.create({
+            await tx.stokHareket.create({
                 data: {
                     tip: 'SUBE_TRANSFER_OUT',
                     miktar,
                     aciklama: `[MERKEZ DEPO] ${aciklama || 'Manuel dağıtım'}`,
                     tarih: new Date(),
                     stokKartId: tanim.stokKartId,
-                    subeId: 1, // Merkez şube (çoğunlukla ID: 1)
+                    subeId: merkezSube.id,
                 }
             });
 
-            const girisHareket = await tx.stokHareket.create({
+            await tx.stokHareket.create({
                 data: {
                     tip: 'SUBE_TRANSFER_IN',
                     miktar,
@@ -121,6 +156,8 @@ const merkezDepoService = {
 
     // Otomatik dağıtım yap (Cron job tarafından çağrılır)
     async otomatiDagitimYap(tenantId) {
+        const merkezSube = await merkezSubeGetir(tenantId);
+
         const tanimlar = await prisma.merkezDepo.findMany({
             where: { tenantId, otomatiDagit: true },
             include: {
@@ -132,7 +169,8 @@ const merkezDepoService = {
         const sonuclar = [];
 
         for (const tanim of tanimlar) {
-            const subeler = tanim.tenant.subeler;
+            // Merkez şubeyi hedef listesinden çıkar — kendi kendine transfer olmasın
+            const subeler = tanim.tenant.subeler.filter(s => s.id !== merkezSube.id);
 
             for (const sube of subeler) {
                 // Şubenin mevcut bakiyesini hesapla
@@ -143,7 +181,7 @@ const merkezDepoService = {
                     const gerekenMiktar = tanim.minStokSeviyesi - mevcut;
 
                     try {
-                        // Dağıtım yap
+                        // Dağıtım yap (manuelDagit içinde merkez stok kontrolü de yapılıyor)
                         const dagitim = await this.manuelDagit({
                             tenantId,
                             merkezDepoId: tanim.id,
@@ -160,6 +198,8 @@ const merkezDepoService = {
                             dagitimId: dagitim.id
                         });
                     } catch (err) {
+                        // Örn: merkez depoda yeterli stok yok — akış durmaz, diğer
+                        // şubeler/tanımlar için devam eder, hata kaydedilir.
                         sonuclar.push({
                             basarili: false,
                             tanim: tanim.stokKart.ad,
@@ -192,6 +232,8 @@ const merkezDepoService = {
 
     // Merkez depo durum özeti
     async durumuGetir(tenantId) {
+        const merkezSube = await merkezSubeGetir(tenantId);
+
         const tanimlar = await prisma.merkezDepo.findMany({
             where: { tenantId },
             include: {
@@ -203,7 +245,8 @@ const merkezDepoService = {
         const ozet = [];
 
         for (const tanim of tanimlar) {
-            const subeler = tanim.tenant.subeler;
+            // Merkez şube kendi durumunda "aşağıda" sayılmasın
+            const subeler = tanim.tenant.subeler.filter(s => s.id !== merkezSube.id);
             let altındaSayisi = 0;
 
             for (const sube of subeler) {
@@ -213,12 +256,15 @@ const merkezDepoService = {
                 }
             }
 
+            const merkezBakiye = await bakiyeHesapla(merkezSube.id, tanim.stokKartId);
+
             ozet.push({
                 tanim: tanim.stokKart.ad,
                 toplamSube: subeler.length,
                 altındaSayisi,
                 minStokSeviyesi: tanim.minStokSeviyesi,
                 otomatiDagit: tanim.otomatiDagit,
+                merkezBakiye,
                 durum: altındaSayisi > 0 ? 'UYARI' : 'NORMAL'
             });
         }

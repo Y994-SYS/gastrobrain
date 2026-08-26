@@ -6,7 +6,6 @@ const prisma = new PrismaClient();
 // ÖNEMLİ: Bakiye hesaplama burada YENİDEN yazılmıyor — stok.service.js'deki
 // mevcutStokHesapla/bakiyeHesapla TEK doğru kaynak (IADE_FATURA'nın ÇIKIŞ
 // sayılması ve AY_SONU_SAYIM'ın "fark: ±X" mantığı orada doğru işleniyor).
-// Merkez depo da diğer her modül gibi onu kullanıyor.
 const stokService = require('./stok.service');
 
 // Tenant'ın merkez şubesini bul.
@@ -96,7 +95,7 @@ const merkezDepoService = {
         return await prisma.merkezDepo.delete({ where: { id } });
     },
 
-    // Manual dağıtım yap (tek kalem)
+    // Manual dağıtım yap (tek kalem) — YAZMA işlemi, bilerek sıralı/atomik.
     async manuelDagit({ tenantId, merkezDepoId, hedefSubeId, miktar, aciklama }) {
         if (!(miktar > 0)) {
             throw new Error('Miktar sıfırdan büyük olmalıdır');
@@ -168,11 +167,10 @@ const merkezDepoService = {
         return dagitim;
     },
 
-    // Toplu dağıtım: aynı hedef şubeye birden fazla kalemi tek seferde
-    // gönder. Her kalem manuelDagit üzerinden bağımsız işlenir — biri
-    // yetersiz stok gibi bir sebeple başarısız olsa bile diğerleri
-    // etkilenmez (otomatiDagitimYap'taki desenle aynı yaklaşım).
-    // kalemler: [{ merkezDepoId, miktar, aciklama? }]
+    // Toplu dağıtım — YAZMA işlemleri, bilerek sıralı. Her kalem merkez
+    // stokunu tükettiği için paralel çalıştırılırsa aynı anda başlayan iki
+    // istek merkez bakiyesini "yeterli" görüp stoku negatife düşürebilir
+    // (TOCTOU) — bu yüzden burası bilinçli olarak for...of + await.
     async topluDagit({ tenantId, hedefSubeId, kalemler }) {
         if (!Array.isArray(kalemler) || kalemler.length === 0) {
             throw new Error('En az bir kalem seçilmeli');
@@ -198,7 +196,11 @@ const merkezDepoService = {
         return sonuclar;
     },
 
-    // Otomatik dağıtım yap (Cron job tarafından çağrılır)
+    // Otomatik dağıtım yap (Cron job tarafından çağrılır).
+    // PERFORMANS: Hangi şubelerin dağıtıma ihtiyacı olduğunu belirlemek için
+    // gereken OKUMA işlemleri (bakiye hesaplama) artık tanım × şube bazında
+    // paralel (Promise.all) yapılıyor — önceden tamamen sıralıydı. Asıl
+    // dağıtım (YAZMA) adımı ise TOCTOU riski nedeniyle bilerek sıralı kaldı.
     async otomatiDagitimYap(tenantId) {
         const merkezSube = await merkezSubeGetir(tenantId);
 
@@ -210,42 +212,50 @@ const merkezDepoService = {
             }
         });
 
+        // 1. Adım: Tüm ihtiyaç durumlarını PARALEL oku (yazma yok, güvenli)
+        const ihtiyacListesi = (await Promise.all(
+            tanimlar.map(async (tanim) => {
+                const subeler = tanim.tenant.subeler.filter(s => s.id !== merkezSube.id);
+
+                const bakiyeler = await Promise.all(
+                    subeler.map(sube => stokService.mevcutStokGetir(tanim.stokKartId, sube.id, tenantId))
+                );
+
+                return subeler
+                    .map((sube, i) => ({ tanim, sube, mevcut: bakiyeler[i] }))
+                    .filter(({ mevcut }) => mevcut < tanim.minStokSeviyesi);
+            })
+        )).flat();
+
+        // 2. Adım: Gerçek dağıtımları SIRALI yap (her biri merkez stokunu
+        // tükettiği için paralel yapılamaz)
         const sonuclar = [];
+        for (const { tanim, sube, mevcut } of ihtiyacListesi) {
+            const gerekenMiktar = tanim.minStokSeviyesi - mevcut;
 
-        for (const tanim of tanimlar) {
-            const subeler = tanim.tenant.subeler.filter(s => s.id !== merkezSube.id);
+            try {
+                const dagitim = await this.manuelDagit({
+                    tenantId,
+                    merkezDepoId: tanim.id,
+                    hedefSubeId: sube.id,
+                    miktar: gerekenMiktar,
+                    aciklama: `Otomatik dağıtım (Min stok aşağında)`
+                });
 
-            for (const sube of subeler) {
-                const mevcut = await stokService.mevcutStokGetir(tanim.stokKartId, sube.id, tenantId);
-
-                if (mevcut < tanim.minStokSeviyesi) {
-                    const gerekenMiktar = tanim.minStokSeviyesi - mevcut;
-
-                    try {
-                        const dagitim = await this.manuelDagit({
-                            tenantId,
-                            merkezDepoId: tanim.id,
-                            hedefSubeId: sube.id,
-                            miktar: gerekenMiktar,
-                            aciklama: `Otomatik dağıtım (Min stok aşağında)`
-                        });
-
-                        sonuclar.push({
-                            basarili: true,
-                            tanim: tanim.stokKart.ad,
-                            sube: sube.ad,
-                            miktar: gerekenMiktar,
-                            dagitimId: dagitim.id
-                        });
-                    } catch (err) {
-                        sonuclar.push({
-                            basarili: false,
-                            tanim: tanim.stokKart.ad,
-                            sube: sube.ad,
-                            hata: err.message
-                        });
-                    }
-                }
+                sonuclar.push({
+                    basarili: true,
+                    tanim: tanim.stokKart.ad,
+                    sube: sube.ad,
+                    miktar: gerekenMiktar,
+                    dagitimId: dagitim.id
+                });
+            } catch (err) {
+                sonuclar.push({
+                    basarili: false,
+                    tanim: tanim.stokKart.ad,
+                    sube: sube.ad,
+                    hata: err.message
+                });
             }
         }
 
@@ -268,7 +278,14 @@ const merkezDepoService = {
         });
     },
 
-    // Merkez depo durum özeti
+    // Merkez depo durum özeti.
+    // PERFORMANS: Bu, kullanıcının 20 saniyelik yavaşlığını bildirdiği
+    // fonksiyondu. Önceden her tanım için her şube TEK TEK, sırayla
+    // (await ile bloklayarak) sorgulanıyordu — 22 tanım × 2 şube = 44 art
+    // arda bekleyen sorgu. Artık her tanımın kendi içindeki şube bakiyeleri
+    // Promise.all ile paralel çekiliyor, tanımların kendisi de Promise.all
+    // ile paralel işleniyor. Bu salt okuma (yazma yok) olduğu için tamamen
+    // güvenli. Toplam veritabanı yükü aynı ama bekleme süresi ciddi düşer.
     async durumuGetir(tenantId) {
         const merkezSube = await merkezSubeGetir(tenantId);
 
@@ -280,22 +297,17 @@ const merkezDepoService = {
             }
         });
 
-        const ozet = [];
-
-        for (const tanim of tanimlar) {
+        const ozet = await Promise.all(tanimlar.map(async (tanim) => {
             const subeler = tanim.tenant.subeler.filter(s => s.id !== merkezSube.id);
-            let altındaSayisi = 0;
 
-            for (const sube of subeler) {
-                const mevcut = await stokService.mevcutStokGetir(tanim.stokKartId, sube.id, tenantId);
-                if (mevcut < tanim.minStokSeviyesi) {
-                    altındaSayisi++;
-                }
-            }
+            const [bakiyeler, merkezBakiye] = await Promise.all([
+                Promise.all(subeler.map(sube => stokService.mevcutStokGetir(tanim.stokKartId, sube.id, tenantId))),
+                stokService.mevcutStokGetir(tanim.stokKartId, merkezSube.id, tenantId)
+            ]);
 
-            const merkezBakiye = await stokService.mevcutStokGetir(tanim.stokKartId, merkezSube.id, tenantId);
+            const altındaSayisi = bakiyeler.filter(mevcut => mevcut < tanim.minStokSeviyesi).length;
 
-            ozet.push({
+            return {
                 tanim: tanim.stokKart.ad,
                 toplamSube: subeler.length,
                 altındaSayisi,
@@ -303,8 +315,8 @@ const merkezDepoService = {
                 otomatiDagit: tanim.otomatiDagit,
                 merkezBakiye,
                 durum: altındaSayisi > 0 ? 'UYARI' : 'NORMAL'
-            });
-        }
+            };
+        }));
 
         return ozet;
     }

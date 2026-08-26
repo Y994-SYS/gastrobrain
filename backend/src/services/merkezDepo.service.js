@@ -3,14 +3,9 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
-// ÖNEMLİ: Bakiye hesaplama burada YENİDEN yazılmıyor. Daha önce bu dosyada
-// kendi (hatalı) bakiyeHesapla kopyamız vardı:
-//   - IADE_FATURA yanlışlıkla GİRİŞ sayılıyordu (doğrusu: ÇIKIŞ — tedarikçiye
-//     iade stoktan düşer)
-//   - AY_SONU_SAYIM hiç özel işlenmiyordu, "fark: ±X" açıklaması parse
-//     edilmediği için büyük sayım düzeltmelerinde bakiye tamamen yanlış
-//     çıkıyordu (örn. -2990 gibi anlamsız değerler)
-// stok.service.js'deki mevcutStokHesapla/bakiyeHesapla TEK doğru kaynak.
+// ÖNEMLİ: Bakiye hesaplama burada YENİDEN yazılmıyor — stok.service.js'deki
+// mevcutStokHesapla/bakiyeHesapla TEK doğru kaynak (IADE_FATURA'nın ÇIKIŞ
+// sayılması ve AY_SONU_SAYIM'ın "fark: ±X" mantığı orada doğru işleniyor).
 // Merkez depo da diğer her modül gibi onu kullanıyor.
 const stokService = require('./stok.service');
 
@@ -50,9 +45,7 @@ const merkezDepoService = {
     },
 
     // Tüm stok kartlarını, StokKart.minStok değerini varsayılan alarak toplu
-    // tanımla. Kullanıcının 100+ ürünü tek tek elle girmesini önler — zaten
-    // stok kartında tanımlı olan min seviye tekrar sorulmaz. Sadece henüz
-    // merkez depo tanımı olmayan kartlar eklenir; var olanlara dokunulmaz.
+    // tanımla. Sadece henüz tanımı olmayan kartlar eklenir.
     async tumunuEkle(tenantId) {
         const stokKartlari = await prisma.stokKart.findMany({ where: { tenantId } });
 
@@ -72,7 +65,7 @@ const merkezDepoService = {
             data: eklenecekler.map(k => ({
                 tenantId,
                 stokKartId: k.id,
-                minStokSeviyesi: k.minStok || 0, // stok kartındaki mevcut min seviye
+                minStokSeviyesi: k.minStok || 0,
                 otomatiDagit: true,
             }))
         });
@@ -103,13 +96,12 @@ const merkezDepoService = {
         return await prisma.merkezDepo.delete({ where: { id } });
     },
 
-    // Manual dağıtım yap
+    // Manual dağıtım yap (tek kalem)
     async manuelDagit({ tenantId, merkezDepoId, hedefSubeId, miktar, aciklama }) {
         if (!(miktar > 0)) {
             throw new Error('Miktar sıfırdan büyük olmalıdır');
         }
 
-        // Merkez depo tanımı kontrol et
         const tanim = await prisma.merkezDepo.findFirst({
             where: { id: merkezDepoId, tenantId },
             include: { stokKart: true }
@@ -117,33 +109,27 @@ const merkezDepoService = {
 
         if (!tanim) throw new Error('Merkez depo tanımı bulunamadı');
 
-        // Merkez şubeyi bul
         const merkezSube = await merkezSubeGetir(tenantId);
 
-        // Hedef şubenin var olduğunu kontrol et
         const hedefSube = await prisma.sube.findFirst({
             where: { id: hedefSubeId, tenantId }
         });
 
         if (!hedefSube) throw new Error('Hedef şube bulunamadı');
 
-        // Merkez şube kendi kendine hedef olamaz
         if (hedefSubeId === merkezSube.id) {
             throw new Error('Hedef şube, merkez depo ile aynı olamaz');
         }
 
-        // Kaynak (merkez) şubede yeterli stok var mı — TEK doğru bakiye
-        // kaynağından (stok.service.js) oku, kendi kopyamızı hesaplama.
         const merkezBakiye = await stokService.mevcutStokGetir(
             tanim.stokKartId, merkezSube.id, tenantId
         );
         if (merkezBakiye < miktar) {
             throw new Error(
-                `Merkez depoda yeterli stok yok. Mevcut: ${merkezBakiye.toFixed(2)}, istenen: ${miktar}`
+                `${tanim.stokKart.ad}: Merkez depoda yeterli stok yok. Mevcut: ${merkezBakiye.toFixed(2)}, istenen: ${miktar}`
             );
         }
 
-        // Stok hareketi oluştur ve dağıtım kaydını tut
         const dagitim = await prisma.$transaction(async (tx) => {
             await tx.stokHareket.create({
                 data: {
@@ -182,6 +168,36 @@ const merkezDepoService = {
         return dagitim;
     },
 
+    // Toplu dağıtım: aynı hedef şubeye birden fazla kalemi tek seferde
+    // gönder. Her kalem manuelDagit üzerinden bağımsız işlenir — biri
+    // yetersiz stok gibi bir sebeple başarısız olsa bile diğerleri
+    // etkilenmez (otomatiDagitimYap'taki desenle aynı yaklaşım).
+    // kalemler: [{ merkezDepoId, miktar, aciklama? }]
+    async topluDagit({ tenantId, hedefSubeId, kalemler }) {
+        if (!Array.isArray(kalemler) || kalemler.length === 0) {
+            throw new Error('En az bir kalem seçilmeli');
+        }
+
+        const sonuclar = [];
+
+        for (const kalem of kalemler) {
+            try {
+                const dagitim = await this.manuelDagit({
+                    tenantId,
+                    merkezDepoId: Number(kalem.merkezDepoId),
+                    hedefSubeId: Number(hedefSubeId),
+                    miktar: Number(kalem.miktar),
+                    aciklama: kalem.aciklama
+                });
+                sonuclar.push({ basarili: true, merkezDepoId: kalem.merkezDepoId, dagitimId: dagitim.id });
+            } catch (err) {
+                sonuclar.push({ basarili: false, merkezDepoId: kalem.merkezDepoId, hata: err.message });
+            }
+        }
+
+        return sonuclar;
+    },
+
     // Otomatik dağıtım yap (Cron job tarafından çağrılır)
     async otomatiDagitimYap(tenantId) {
         const merkezSube = await merkezSubeGetir(tenantId);
@@ -197,7 +213,6 @@ const merkezDepoService = {
         const sonuclar = [];
 
         for (const tanim of tanimlar) {
-            // Merkez şubeyi hedef listesinden çıkar — kendi kendine transfer olmasın
             const subeler = tanim.tenant.subeler.filter(s => s.id !== merkezSube.id);
 
             for (const sube of subeler) {

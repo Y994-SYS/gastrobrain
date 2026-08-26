@@ -16,6 +16,11 @@ router.post('/tanim', yonetimRol, paketKontrol('merkezDepo'), validate(tanımEkl
 router.post('/tanim/tumu', yonetimRol, paketKontrol('merkezDepo'), merkezDepoController.tanimTumunuEkle);
 router.delete('/tanim/:id', yonetimRol, paketKontrol('merkezDepo'), merkezDepoController.taninmSil);
 router.post('/dagit', yonetimRol, paketKontrol('merkezDepo'), validate(manuelDagitSchema), merkezDepoController.manuelDagit);
+// NOT: Toplu dağıtım şimdilik ayrı bir Joi/Zod şeması olmadan çalışıyor —
+// kalemler dizisinin her elemanı manuelDagit() içinde zaten doğrulanıyor
+// (miktar > 0, tanım/şube var mı vb.). İstersen buraya da manuelDagitSchema
+// benzeri bir dizi-şeması ekleyebiliriz.
+router.post('/dagit/toplu', yonetimRol, paketKontrol('merkezDepo'), merkezDepoController.topluDagit);
 router.get('/gecmis', yonetimRol, paketKontrol('merkezDepo'), validateQuery(gecmisQuerySchema), merkezDepoController.dagitimGecmisiGetir);
 
 module.exports = router;

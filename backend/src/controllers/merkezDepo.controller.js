@@ -30,8 +30,6 @@ const merkezDepoController = {
         }
     },
 
-    // Tüm stok kartlarını, kendi minStok değerleriyle toplu tanımla.
-    // Yalnızca henüz tanımlı olmayan kartlar eklenir.
     async tanimTumunuEkle(req, res) {
         try {
             const tenantId = req.kullanici.tenantId;
@@ -104,6 +102,37 @@ const merkezDepoController = {
             });
 
             res.status(201).json({ mesaj: 'Dağıtım yapıldı', dagitim: sonuc });
+        } catch (err) {
+            res.status(400).json({ hata: err.message });
+        }
+    },
+
+    // Toplu dağıtım: aynı hedef şubeye birden fazla kalem tek istekte.
+    // Kısmi başarı mümkündür — hangi kalemlerin başarılı/başarısız olduğu
+    // sonuç dizisinde ayrı ayrı dönülür, frontend her biri için ayrı
+    // toast gösterir.
+    async topluDagit(req, res) {
+        try {
+            const tenantId = req.kullanici.tenantId;
+            const { hedefSubeId, kalemler } = req.body;
+
+            const sonuclar = await merkezDepoService.topluDagit({
+                tenantId,
+                hedefSubeId: Number(hedefSubeId),
+                kalemler
+            });
+
+            const basariliSayisi = sonuclar.filter(s => s.basarili).length;
+
+            await auditLog.kaydet({
+                eylem: 'MERKEZ_DEPO_TOPLU_DAGIT',
+                detay: { hedefSubeId, kalemSayisi: kalemler.length, basariliSayisi },
+                kullaniciId: req.kullanici.id,
+                tenantId,
+                ip: req.ip
+            });
+
+            res.status(201).json({ sonuclar, basariliSayisi, toplamKalem: kalemler.length });
         } catch (err) {
             res.status(400).json({ hata: err.message });
         }

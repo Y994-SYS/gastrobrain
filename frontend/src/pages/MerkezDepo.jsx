@@ -31,12 +31,12 @@ export default function MerkezDepo() {
         aciklama: ''
     });
 
-    const [dagitForm, setDagitForm] = useState({
-        merkezDepoId: '',
-        hedefSubeId: '',
-        miktar: '',
-        aciklama: ''
-    });
+    // ── Toplu Dağıtım Formu ─────────────────────────────────────
+    // Tek bir hedef şube seçilir, ardından tanımlar listesinden istenen
+    // kalemler işaretlenip her birine miktar girilir. Tek "Dağıtımı
+    // Gerçekleştir" butonu hepsini tek istekte gönderir.
+    const [topluHedefSube, setTopluHedefSube] = useState('');
+    const [secimler, setSecimler] = useState({}); // { merkezDepoId: { secili: bool, miktar: string } }
 
     // ── Paket Kontrolü ────────────────────────────────────────
     useEffect(() => {
@@ -64,10 +64,6 @@ export default function MerkezDepo() {
     }, [navigate]);
 
     // ── Verileri Yükle ────────────────────────────────────────
-    // NOT: Promise.all yerine Promise.allSettled kullanılıyor. Tek bir
-    // endpoint (örn. durum) hata verirse eskiden TÜM veriler (stok kartları
-    // dahil) hiç yüklenmiyordu. Artık her istek bağımsız değerlendiriliyor;
-    // biri başarısız olsa bile diğerleri sayfaya yansır.
     const verileriYukle = async () => {
         if (yetkisiz) return;
         setYukleniyor(true);
@@ -133,9 +129,6 @@ export default function MerkezDepo() {
     };
 
     // ── Tüm Stok Kartlarını Toplu Ekle ─────────────────────────
-    // Her stok kartında zaten tanımlı olan minStok değerini kullanır —
-    // kullanıcıya aynı bilgiyi ikinci kez sordurmaz. 100+ ürünlü
-    // işletmelerde tek tek ekleme yükünü ortadan kaldırır.
     const tumunuEkle = async () => {
         if (!confirm('Tüm stok kartları, mevcut min stok seviyeleriyle merkez depo tanımına eklensin mi?')) return;
         if (tumuEkleniyor) return;
@@ -173,23 +166,68 @@ export default function MerkezDepo() {
         }
     };
 
-    // ── Manual Dağıtım ────────────────────────────────────────
-    const manuelDagit = async () => {
-        if (!dagitForm.merkezDepoId) { toast.error('Merkez depo seçin'); return; }
-        if (!dagitForm.hedefSubeId) { toast.error('Hedef şube seçin'); return; }
-        if (!dagitForm.miktar) { toast.error('Miktar girin'); return; }
+    // ── Toplu Dağıtım: seçim yardımcıları ──────────────────────
+    const secimiDegistir = (merkezDepoId, alan, deger) => {
+        setSecimler(prev => ({
+            ...prev,
+            [merkezDepoId]: { ...prev[merkezDepoId], [alan]: deger }
+        }));
+    };
+
+    const tumunuSec = () => {
+        const yeni = {};
+        tanimlar.forEach(t => {
+            yeni[t.id] = { secili: true, miktar: secimler[t.id]?.miktar || String(t.minStokSeviyesi) };
+        });
+        setSecimler(yeni);
+    };
+
+    const secimiTemizle = () => setSecimler({});
+
+    const seciliKalemler = tanimlar.filter(t => secimler[t.id]?.secili);
+    const gonderilecekKalemSayisi = seciliKalemler.filter(t => Number(secimler[t.id]?.miktar) > 0).length;
+
+    // ── Toplu Dağıtımı Gerçekleştir ─────────────────────────────
+    const topluDagit = async () => {
+        if (!topluHedefSube) { toast.error('Hedef şube seçin'); return; }
+
+        const kalemler = seciliKalemler
+            .filter(t => Number(secimler[t.id]?.miktar) > 0)
+            .map(t => ({ merkezDepoId: t.id, miktar: Number(secimler[t.id].miktar) }));
+
+        if (kalemler.length === 0) { toast.error('En az bir kalemi işaretleyip miktar girin'); return; }
         if (dagitimYapiliyor) return;
 
         setDagitimYapiliyor(true);
         try {
-            await api.post('/api/merkezdepo/dagit', {
-                merkezDepoId: parseInt(dagitForm.merkezDepoId),
-                hedefSubeId: parseInt(dagitForm.hedefSubeId),
-                miktar: parseFloat(dagitForm.miktar),
-                aciklama: dagitForm.aciklama
+            const res = await api.post('/api/merkezdepo/dagit/toplu', {
+                hedefSubeId: parseInt(topluHedefSube),
+                kalemler
             });
-            toast.success('✅ Dağıtım yapıldı');
-            setDagitForm({ merkezDepoId: '', hedefSubeId: '', miktar: '', aciklama: '' });
+
+            const { sonuclar, basariliSayisi, toplamKalem } = res.data;
+
+            if (basariliSayisi > 0) {
+                toast.success(`✅ ${basariliSayisi}/${toplamKalem} kalem dağıtıldı`);
+            }
+
+            const basarisizlar = sonuclar.filter(s => !s.basarili);
+            if (basarisizlar.length > 0) {
+                basarisizlar.forEach(s => {
+                    const tanim = tanimlar.find(t => t.id === s.merkezDepoId);
+                    toast.error(`${tanim?.stokKart?.ad || 'Ürün'}: ${s.hata}`);
+                });
+            }
+
+            // Sadece başarılı olan kalemleri seçim listesinden temizle,
+            // başarısızlar tekrar denenebilsin diye kalsın.
+            const basariliIdSet = new Set(sonuclar.filter(s => s.basarili).map(s => s.merkezDepoId));
+            setSecimler(prev => {
+                const kalan = { ...prev };
+                basariliIdSet.forEach(id => delete kalan[id]);
+                return kalan;
+            });
+
             verileriYukle();
         } catch (err) {
             toast.error(err.response?.data?.hata || 'Hata oluştu');
@@ -199,7 +237,6 @@ export default function MerkezDepo() {
     };
 
     // ─── Render Guard'ları (DOĞRU SIRA) ──────────────────────
-    // 1. Paket bilgisi henüz yüklenmedi
     if (paketYukleniyor) {
         return (
             <div className="flex items-center justify-center h-screen">
@@ -208,7 +245,6 @@ export default function MerkezDepo() {
         );
     }
 
-    // 2. BASLANGIC paketi → yetkisiz (dikkat gerektiren durum = amber)
     if (yetkisiz) {
         return (
             <div className="flex items-center justify-center h-screen bg-zinc-900">
@@ -230,7 +266,6 @@ export default function MerkezDepo() {
         );
     }
 
-    // 3. Veriler yükleniyor
     if (yukleniyor) {
         return (
             <div className="flex items-center justify-center h-64">
@@ -249,7 +284,7 @@ export default function MerkezDepo() {
                 </p>
             </div>
 
-            {/* Durum Özeti — kırmızı: kritik/uyarı, lime: pozitif/normal */}
+            {/* Durum Özeti */}
             {durum.length > 0 && (
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                     {durum.map((d, i) => (
@@ -294,7 +329,6 @@ export default function MerkezDepo() {
             {/* TAB: Tanımlar */}
             {aktifTab === 'tanimlar' && (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-                    {/* Tanım Ekleme Formu */}
                     <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 space-y-3.5">
                         <div className="flex items-center justify-between">
                             <h2 className="text-white font-semibold">Yeni Tanım</h2>
@@ -359,7 +393,6 @@ export default function MerkezDepo() {
                             />
                         </div>
 
-                        {/* Tanım Ekle butonu */}
                         <button
                             onClick={taninmEkle}
                             disabled={!tanımForm.stokKartId || !tanımForm.minStokSeviyesi || tanimEkleniyor}
@@ -369,7 +402,6 @@ export default function MerkezDepo() {
                         </button>
                     </div>
 
-                    {/* Tanımlar Listesi */}
                     <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 space-y-3">
                         <h2 className="text-white font-semibold">Aktif Tanımlar</h2>
 
@@ -382,7 +414,7 @@ export default function MerkezDepo() {
                                 </p>
                             </div>
                         ) : (
-                            <div className="space-y-2">
+                            <div className="space-y-2 max-h-[500px] overflow-y-auto pr-1">
                                 {tanimlar.map(t => (
                                     <div key={t.id} className="bg-zinc-800 rounded-lg p-3 flex justify-between items-start">
                                         <div className="flex-1">
@@ -392,7 +424,6 @@ export default function MerkezDepo() {
                                                 {t.otomatiDagit && ' • 🔄 Otomatik'}
                                             </p>
                                         </div>
-                                        {/* Sil butonu */}
                                         <button
                                             onClick={() => taninmSil(t.id)}
                                             disabled={siliyor === t.id}
@@ -409,10 +440,10 @@ export default function MerkezDepo() {
                 </div>
             )}
 
-            {/* TAB: Manual Dağıtım */}
+            {/* TAB: Manual Dağıtım — artık checklist + toplu gönderim */}
             {aktifTab === 'dagit' && (
-                <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 space-y-3.5 max-w-2xl">
-                    <h2 className="text-white font-semibold">Manual Dağıtım Yap</h2>
+                <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 space-y-4">
+                    <h2 className="text-white font-semibold">Toplu Dağıtım Yap</h2>
 
                     {tanimlar.length === 0 ? (
                         <div className="text-zinc-400 text-sm py-6 text-center bg-zinc-800 rounded-lg p-5">
@@ -426,66 +457,88 @@ export default function MerkezDepo() {
                         </div>
                     ) : (
                         <>
-                            <div className="grid grid-cols-2 gap-3">
-                                <div>
-                                    <label className="text-zinc-400 text-xs block mb-1">Merkez Depo *</label>
-                                    <select
-                                        value={dagitForm.merkezDepoId}
-                                        onChange={e => setDagitForm(f => ({ ...f, merkezDepoId: e.target.value }))}
-                                        className="w-full bg-zinc-800 text-white px-3 py-2 rounded-lg text-sm border border-zinc-700 focus:outline-none focus:border-lime-400"
-                                    >
-                                        <option value="">Seçin...</option>
-                                        {tanimlar.map(t => (
-                                            <option key={t.id} value={t.id}>{t.stokKart?.ad}</option>
-                                        ))}
-                                    </select>
-                                </div>
-
-                                <div>
-                                    <label className="text-zinc-400 text-xs block mb-1">Hedef Şube *</label>
-                                    <select
-                                        value={dagitForm.hedefSubeId}
-                                        onChange={e => setDagitForm(f => ({ ...f, hedefSubeId: e.target.value }))}
-                                        className="w-full bg-zinc-800 text-white px-3 py-2 rounded-lg text-sm border border-zinc-700 focus:outline-none focus:border-lime-400"
-                                    >
-                                        <option value="">Seçin...</option>
-                                        {subeler.map(s => (
-                                            <option key={s.id} value={s.id}>{s.ad}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                            </div>
-
-                            <div>
-                                <label className="text-zinc-400 text-xs block mb-1">Miktar *</label>
-                                <input
-                                    type="number"
-                                    step="0.01"
-                                    value={dagitForm.miktar}
-                                    onChange={e => setDagitForm(f => ({ ...f, miktar: e.target.value }))}
+                            {/* Hedef şube — tüm işaretli kalemler bu şubeye gidecek */}
+                            <div className="max-w-sm">
+                                <label className="text-zinc-400 text-xs block mb-1">Hedef Şube *</label>
+                                <select
+                                    value={topluHedefSube}
+                                    onChange={e => setTopluHedefSube(e.target.value)}
                                     className="w-full bg-zinc-800 text-white px-3 py-2 rounded-lg text-sm border border-zinc-700 focus:outline-none focus:border-lime-400"
-                                    placeholder="0"
-                                />
+                                >
+                                    <option value="">Seçin...</option>
+                                    {subeler.map(s => (
+                                        <option key={s.id} value={s.id}>{s.ad}</option>
+                                    ))}
+                                </select>
                             </div>
 
-                            <div>
-                                <label className="text-zinc-400 text-xs block mb-1">Açıklama</label>
-                                <input
-                                    type="text"
-                                    value={dagitForm.aciklama}
-                                    onChange={e => setDagitForm(f => ({ ...f, aciklama: e.target.value }))}
-                                    className="w-full bg-zinc-800 text-white px-3 py-2 rounded-lg text-sm border border-zinc-700 focus:outline-none focus:border-lime-400"
-                                    placeholder="İsteğe bağlı..."
-                                />
+                            {/* Hızlı seçim yardımcıları */}
+                            <div className="flex items-center gap-3 flex-wrap">
+                                <button
+                                    onClick={tumunuSec}
+                                    className="text-xs text-lime-400 hover:text-lime-300 font-semibold"
+                                >
+                                    ☑ Tümünü Seç (min seviyeyle doldur)
+                                </button>
+                                <button
+                                    onClick={secimiTemizle}
+                                    className="text-xs text-zinc-400 hover:text-zinc-300 font-semibold"
+                                >
+                                    ✕ Seçimi Temizle
+                                </button>
+                                {gonderilecekKalemSayisi > 0 && (
+                                    <span className="text-xs text-zinc-500">
+                                        {gonderilecekKalemSayisi} kalem gönderilecek
+                                    </span>
+                                )}
                             </div>
 
-                            {/* Dağıtım butonu */}
+                            {/* Kalem listesi — checkbox + miktar */}
+                            <div className="border border-zinc-800 rounded-lg overflow-hidden">
+                                <div className="max-h-[420px] overflow-y-auto divide-y divide-zinc-800">
+                                    {tanimlar.map(t => {
+                                        const secim = secimler[t.id] || {};
+                                        return (
+                                            <div
+                                                key={t.id}
+                                                className={`flex items-center gap-3 p-3 transition-colors ${secim.secili ? 'bg-lime-400/5' : 'bg-zinc-900'
+                                                    }`}
+                                            >
+                                                <input
+                                                    type="checkbox"
+                                                    checked={!!secim.secili}
+                                                    onChange={e => secimiDegistir(t.id, 'secili', e.target.checked)}
+                                                    className="rounded accent-lime-400 shrink-0"
+                                                />
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-white text-sm font-medium truncate">{t.stokKart?.ad}</p>
+                                                    <p className="text-zinc-500 text-xs">
+                                                        Min: {t.minStokSeviyesi} {t.stokKart?.birim?.kisaltma}
+                                                    </p>
+                                                </div>
+                                                <input
+                                                    type="number"
+                                                    step="0.01"
+                                                    value={secim.miktar || ''}
+                                                    onChange={e => secimiDegistir(t.id, 'miktar', e.target.value)}
+                                                    onFocus={() => !secim.secili && secimiDegistir(t.id, 'secili', true)}
+                                                    placeholder="Miktar"
+                                                    className="w-28 bg-zinc-800 text-white px-2 py-1.5 rounded-lg text-sm border border-zinc-700 focus:outline-none focus:border-lime-400 text-right shrink-0"
+                                                />
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+
                             <button
-                                onClick={manuelDagit}
-                                disabled={dagitimYapiliyor}
-                                className="w-full bg-lime-400 text-zinc-900 py-2 rounded-lg text-sm font-semibold hover:bg-lime-300 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                                onClick={topluDagit}
+                                disabled={dagitimYapiliyor || gonderilecekKalemSayisi === 0 || !topluHedefSube}
+                                className="w-full bg-lime-400 text-zinc-900 py-2.5 rounded-lg text-sm font-semibold hover:bg-lime-300 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                             >
-                                {dagitimYapiliyor ? '⏳ Dağıtılıyor...' : 'Dağıtımı Gerçekleştir'}
+                                {dagitimYapiliyor
+                                    ? '⏳ Dağıtılıyor...'
+                                    : `Dağıtımı Gerçekleştir${gonderilecekKalemSayisi > 0 ? ` (${gonderilecekKalemSayisi} kalem)` : ''}`}
                             </button>
                         </>
                     )}

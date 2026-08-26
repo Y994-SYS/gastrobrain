@@ -3,24 +3,18 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
-const GIRIS_TIPLER = new Set(['GIRIS_FATURA', 'IADE_FATURA', 'SUBE_TRANSFER_IN']);
+// ÖNEMLİ: Bakiye hesaplama artık burada YENİDEN yazılmıyor. Daha önce bu
+// dosyada kendi (hatalı) bakiyeHesapla kopyamız vardı:
+//   - IADE_FATURA yanlışlıkla GİRİŞ sayılıyordu (doğrusu: ÇIKIŞ — tedarikçiye
+//     iade stoktan düşer)
+//   - AY_SONU_SAYIM hiç özel işlenmiyordu, "fark: ±X" açıklaması parse
+//     edilmediği için büyük sayım düzeltmelerinde bakiye tamamen yanlış
+//     çıkıyordu (örn. -2990 gibi anlamsız değerler)
+// stok.service.js'deki mevcutStokHesapla/bakiyeHesapla TEK doğru kaynak.
+// Merkez depo da diğer her modül gibi onu kullanıyor.
+const stokService = require('./stok.service');
 
-// Belirli bir şubede bir stok kartının bakiyesini hesapla
-const bakiyeHesapla = async (subeId, stokKartId) => {
-    const hareketler = await prisma.stokHareket.groupBy({
-        by: ['tip'],
-        where: { subeId, stokKartId },
-        _sum: { miktar: true },
-    });
-
-    return hareketler.reduce((toplam, h) => {
-        const miktar = h._sum.miktar || 0;
-        return toplam + (GIRIS_TIPLER.has(h.tip) ? miktar : -miktar);
-    }, 0);
-};
-
-// Tenant'ın merkez şubesini bul. Bulunamazsa net bir hata fırlatır
-// (artık "ID 1" varsayımı yok — Sube.merkezMi alanına bakılıyor).
+// Tenant'ın merkez şubesini bul.
 const merkezSubeGetir = async (tenantId) => {
     const merkezSube = await prisma.sube.findFirst({
         where: { tenantId, merkezMi: true, aktif: true }
@@ -92,7 +86,7 @@ const merkezDepoService = {
 
         if (!tanim) throw new Error('Merkez depo tanımı bulunamadı');
 
-        // Merkez şubeyi bul (artık hardcode değil)
+        // Merkez şubeyi bul
         const merkezSube = await merkezSubeGetir(tenantId);
 
         // Hedef şubenin var olduğunu kontrol et
@@ -107,11 +101,14 @@ const merkezDepoService = {
             throw new Error('Hedef şube, merkez depo ile aynı olamaz');
         }
 
-        // Kaynak (merkez) şubede yeterli stok var mı kontrol et
-        const merkezBakiye = await bakiyeHesapla(merkezSube.id, tanim.stokKartId);
+        // Kaynak (merkez) şubede yeterli stok var mı — TEK doğru bakiye
+        // kaynağından (stok.service.js) oku, kendi kopyamızı hesaplama.
+        const merkezBakiye = await stokService.mevcutStokGetir(
+            tanim.stokKartId, merkezSube.id, tenantId
+        );
         if (merkezBakiye < miktar) {
             throw new Error(
-                `Merkez depoda yeterli stok yok. Mevcut: ${merkezBakiye}, istenen: ${miktar}`
+                `Merkez depoda yeterli stok yok. Mevcut: ${merkezBakiye.toFixed(2)}, istenen: ${miktar}`
             );
         }
 
@@ -173,15 +170,12 @@ const merkezDepoService = {
             const subeler = tanim.tenant.subeler.filter(s => s.id !== merkezSube.id);
 
             for (const sube of subeler) {
-                // Şubenin mevcut bakiyesini hesapla
-                const mevcut = await bakiyeHesapla(sube.id, tanim.stokKartId);
+                const mevcut = await stokService.mevcutStokGetir(tanim.stokKartId, sube.id, tenantId);
 
-                // Min stok seviyesinin altında mı?
                 if (mevcut < tanim.minStokSeviyesi) {
                     const gerekenMiktar = tanim.minStokSeviyesi - mevcut;
 
                     try {
-                        // Dağıtım yap (manuelDagit içinde merkez stok kontrolü de yapılıyor)
                         const dagitim = await this.manuelDagit({
                             tenantId,
                             merkezDepoId: tanim.id,
@@ -198,8 +192,6 @@ const merkezDepoService = {
                             dagitimId: dagitim.id
                         });
                     } catch (err) {
-                        // Örn: merkez depoda yeterli stok yok — akış durmaz, diğer
-                        // şubeler/tanımlar için devam eder, hata kaydedilir.
                         sonuclar.push({
                             basarili: false,
                             tanim: tanim.stokKart.ad,
@@ -245,18 +237,17 @@ const merkezDepoService = {
         const ozet = [];
 
         for (const tanim of tanimlar) {
-            // Merkez şube kendi durumunda "aşağıda" sayılmasın
             const subeler = tanim.tenant.subeler.filter(s => s.id !== merkezSube.id);
             let altındaSayisi = 0;
 
             for (const sube of subeler) {
-                const mevcut = await bakiyeHesapla(sube.id, tanim.stokKartId);
+                const mevcut = await stokService.mevcutStokGetir(tanim.stokKartId, sube.id, tenantId);
                 if (mevcut < tanim.minStokSeviyesi) {
                     altındaSayisi++;
                 }
             }
 
-            const merkezBakiye = await bakiyeHesapla(merkezSube.id, tanim.stokKartId);
+            const merkezBakiye = await stokService.mevcutStokGetir(tanim.stokKartId, merkezSube.id, tenantId);
 
             ozet.push({
                 tanim: tanim.stokKart.ad,

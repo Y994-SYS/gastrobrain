@@ -3,8 +3,8 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
-// ÖNEMLİ: Bakiye hesaplama artık burada YENİDEN yazılmıyor. Daha önce bu
-// dosyada kendi (hatalı) bakiyeHesapla kopyamız vardı:
+// ÖNEMLİ: Bakiye hesaplama burada YENİDEN yazılmıyor. Daha önce bu dosyada
+// kendi (hatalı) bakiyeHesapla kopyamız vardı:
 //   - IADE_FATURA yanlışlıkla GİRİŞ sayılıyordu (doğrusu: ÇIKIŞ — tedarikçiye
 //     iade stoktan düşer)
 //   - AY_SONU_SAYIM hiç özel işlenmiyordu, "fark: ±X" açıklaması parse
@@ -47,6 +47,37 @@ const merkezDepoService = {
         return await prisma.merkezDepo.create({
             data: { tenantId, stokKartId, minStokSeviyesi, otomatiDagit, aciklama }
         });
+    },
+
+    // Tüm stok kartlarını, StokKart.minStok değerini varsayılan alarak toplu
+    // tanımla. Kullanıcının 100+ ürünü tek tek elle girmesini önler — zaten
+    // stok kartında tanımlı olan min seviye tekrar sorulmaz. Sadece henüz
+    // merkez depo tanımı olmayan kartlar eklenir; var olanlara dokunulmaz.
+    async tumunuEkle(tenantId) {
+        const stokKartlari = await prisma.stokKart.findMany({ where: { tenantId } });
+
+        const mevcutTanimlar = await prisma.merkezDepo.findMany({
+            where: { tenantId },
+            select: { stokKartId: true }
+        });
+        const mevcutIdSet = new Set(mevcutTanimlar.map(t => t.stokKartId));
+
+        const eklenecekler = stokKartlari.filter(k => !mevcutIdSet.has(k.id));
+
+        if (eklenecekler.length === 0) {
+            return { eklenen: 0, mesaj: 'Tüm stok kartları zaten tanımlı' };
+        }
+
+        await prisma.merkezDepo.createMany({
+            data: eklenecekler.map(k => ({
+                tenantId,
+                stokKartId: k.id,
+                minStokSeviyesi: k.minStok || 0, // stok kartındaki mevcut min seviye
+                otomatiDagit: true,
+            }))
+        });
+
+        return { eklenen: eklenecekler.length };
     },
 
     // Tüm merkez depo tanımlarını getir

@@ -30,6 +30,27 @@ const merkezDepoController = {
         }
     },
 
+    // Tüm stok kartlarını, kendi minStok değerleriyle toplu tanımla.
+    // Yalnızca henüz tanımlı olmayan kartlar eklenir.
+    async tanimTumunuEkle(req, res) {
+        try {
+            const tenantId = req.kullanici.tenantId;
+            const sonuc = await merkezDepoService.tumunuEkle(tenantId);
+
+            await auditLog.kaydet({
+                eylem: 'MERKEZ_DEPO_TANIM_TOPLU_EKLE',
+                detay: { eklenen: sonuc.eklenen },
+                kullaniciId: req.kullanici.id,
+                tenantId,
+                ip: req.ip
+            });
+
+            res.status(201).json(sonuc);
+        } catch (err) {
+            res.status(400).json({ hata: err.message });
+        }
+    },
+
     async tanimlarGetir(req, res) {
         try {
             const tenantId = req.kullanici.tenantId;

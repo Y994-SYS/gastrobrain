@@ -13,6 +13,7 @@ const yonetimRol = rolKontrol('TENANT_ADMIN', 'MUDUR');
 router.get('/durum', yonetimRol, paketKontrol('merkezDepo'), merkezDepoController.durumuGetir);
 router.get('/tanimlar', yonetimRol, paketKontrol('merkezDepo'), merkezDepoController.tanimlarGetir);
 router.post('/tanim', yonetimRol, paketKontrol('merkezDepo'), validate(tanımEkleSchema), merkezDepoController.taninmEkle);
+router.post('/tanim/tumu', yonetimRol, paketKontrol('merkezDepo'), merkezDepoController.tanimTumunuEkle);
 router.delete('/tanim/:id', yonetimRol, paketKontrol('merkezDepo'), merkezDepoController.taninmSil);
 router.post('/dagit', yonetimRol, paketKontrol('merkezDepo'), validate(manuelDagitSchema), merkezDepoController.manuelDagit);
 router.get('/gecmis', yonetimRol, paketKontrol('merkezDepo'), validateQuery(gecmisQuerySchema), merkezDepoController.dagitimGecmisiGetir);

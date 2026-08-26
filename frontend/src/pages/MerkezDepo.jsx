@@ -20,6 +20,7 @@ export default function MerkezDepo() {
     const [yukleniyor, setYukleniyor] = useState(false);
     const [aktifTab, setAktifTab] = useState('tanimlar');
     const [tanimEkleniyor, setTanimEkleniyor] = useState(false);
+    const [tumuEkleniyor, setTumuEkleniyor] = useState(false);
     const [dagitimYapiliyor, setDagitimYapiliyor] = useState(false);
     const [siliyor, setSiliyor] = useState(null);
 
@@ -63,11 +64,15 @@ export default function MerkezDepo() {
     }, [navigate]);
 
     // ── Verileri Yükle ────────────────────────────────────────
+    // NOT: Promise.all yerine Promise.allSettled kullanılıyor. Tek bir
+    // endpoint (örn. durum) hata verirse eskiden TÜM veriler (stok kartları
+    // dahil) hiç yüklenmiyordu. Artık her istek bağımsız değerlendiriliyor;
+    // biri başarısız olsa bile diğerleri sayfaya yansır.
     const verileriYukle = async () => {
         if (yetkisiz) return;
         setYukleniyor(true);
         try {
-            const [tanimRes, durumRes, gecmisRes, subeRes, stokRes] = await Promise.all([
+            const [tanimRes, durumRes, gecmisRes, subeRes, stokRes] = await Promise.allSettled([
                 api.get('/api/merkezdepo/tanimlar'),
                 api.get('/api/merkezdepo/durum'),
                 api.get('/api/merkezdepo/gecmis'),
@@ -76,13 +81,19 @@ export default function MerkezDepo() {
             ]);
 
             const toArray = (data) => Array.isArray(data) ? data : data?.data || [];
+            const veri = (sonuc) => sonuc.status === 'fulfilled' ? toArray(sonuc.value.data) : [];
 
-            setTanimlar(toArray(tanimRes.data));
-            setDurum(toArray(durumRes.data));
-            setGecmis(toArray(gecmisRes.data));
-            setSubeler(toArray(subeRes.data).filter(s => s.aktif));
-            setStokKartlari(toArray(stokRes.data));
+            setTanimlar(veri(tanimRes));
+            setDurum(veri(durumRes));
+            setGecmis(veri(gecmisRes));
+            setSubeler(veri(subeRes).filter(s => s.aktif));
+            setStokKartlari(veri(stokRes));
 
+            const basarisizlar = [tanimRes, durumRes, gecmisRes, subeRes, stokRes].filter(r => r.status === 'rejected');
+            if (basarisizlar.length > 0) {
+                const ilkHata = basarisizlar[0].reason?.response?.data?.hata;
+                toast.error(ilkHata || 'Bazı veriler yüklenemedi');
+            }
         } catch (err) {
             toast.error('Veriler yüklenemedi');
             console.error(err);
@@ -118,6 +129,30 @@ export default function MerkezDepo() {
             toast.error(err.response?.data?.hata || 'Hata oluştu');
         } finally {
             setTanimEkleniyor(false);
+        }
+    };
+
+    // ── Tüm Stok Kartlarını Toplu Ekle ─────────────────────────
+    // Her stok kartında zaten tanımlı olan minStok değerini kullanır —
+    // kullanıcıya aynı bilgiyi ikinci kez sordurmaz. 100+ ürünlü
+    // işletmelerde tek tek ekleme yükünü ortadan kaldırır.
+    const tumunuEkle = async () => {
+        if (!confirm('Tüm stok kartları, mevcut min stok seviyeleriyle merkez depo tanımına eklensin mi?')) return;
+        if (tumuEkleniyor) return;
+
+        setTumuEkleniyor(true);
+        try {
+            const res = await api.post('/api/merkezdepo/tanim/tumu');
+            if (res.data.eklenen > 0) {
+                toast.success(`✅ ${res.data.eklenen} ürün eklendi`);
+            } else {
+                toast('Tüm ürünler zaten tanımlı', { icon: 'ℹ️' });
+            }
+            verileriYukle();
+        } catch (err) {
+            toast.error(err.response?.data?.hata || 'Hata oluştu');
+        } finally {
+            setTumuEkleniyor(false);
         }
     };
 
@@ -261,7 +296,16 @@ export default function MerkezDepo() {
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
                     {/* Tanım Ekleme Formu */}
                     <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 space-y-3.5">
-                        <h2 className="text-white font-semibold">Yeni Tanım</h2>
+                        <div className="flex items-center justify-between">
+                            <h2 className="text-white font-semibold">Yeni Tanım</h2>
+                            <button
+                                onClick={tumunuEkle}
+                                disabled={tumuEkleniyor || stokKartlari.length === 0}
+                                className="text-xs text-lime-400 hover:text-lime-300 font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
+                            >
+                                {tumuEkleniyor ? '⏳ Ekleniyor...' : '📦 Tüm Stok Kartlarını Ekle'}
+                            </button>
+                        </div>
 
                         <div>
                             <label className="text-zinc-400 text-xs block mb-1">Stok Kartı *</label>
@@ -333,7 +377,8 @@ export default function MerkezDepo() {
                             <div className="text-zinc-400 text-sm py-6 text-center">
                                 <p className="mb-3">📦 Henüz merkez depo tanımı yok</p>
                                 <p className="text-xs text-zinc-500">
-                                    Sol taraftaki formdan yeni tanım ekleyerek başlayın
+                                    Sol taraftaki formdan yeni tanım ekleyerek başlayın,
+                                    ya da "Tüm Stok Kartlarını Ekle" ile hepsini birden içeri alın
                                 </p>
                             </div>
                         ) : (

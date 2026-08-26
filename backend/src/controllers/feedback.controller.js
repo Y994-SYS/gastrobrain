@@ -1,32 +1,14 @@
-const nodemailer = require('nodemailer');
+const mailService = require('../services/mail.service');
 
-// E-posta HTML injection önlemi — kullanıcıdan gelen serbest metni
-// HTML'e gömmeden önce kaçışlıyoruz (<script> veya <img onerror=...> gibi
-// içerik e-posta istemcisinde render edilmesin diye)
-const htmlKacisla = (str) => String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
+// GÜVENLİK/HTML-INJECTION kaçışlama mail.service.js içinde yapılıyor,
+// burada tekrar etmiyoruz.
 
-// GÜVENLİK DÜZELTMESİ: `tls: { rejectUnauthorized: false }` kaldırıldı.
-// Bu ayar SMTP sunucusunun TLS sertifikasının doğrulanmasını tamamen
-// atlıyordu — bir saldırganın araya girip (MITM) SMTP kimlik bilgilerini
-// veya gönderilen e-posta içeriğini ele geçirmesini teorik olarak mümkün
-// kılıyordu. Nodemailer'ın varsayılan (güvenli) TLS doğrulaması kullanılıyor.
-// Eğer SMTP sağlayıcısı gerçekten geçersiz/self-signed bir sertifika
-// kullanıyorsa, bağlantı hata verecektir — bu durumda sertifikayı sağlayıcı
-// tarafında düzeltmek (ya da CA'yı `ca:` ile açıkça belirtmek), TLS
-// doğrulamasını tamamen kapatmaktan çok daha güvenlidir.
-const transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port: Number(process.env.SMTP_PORT),
-    secure: false,
-    auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
-    },
-});
-
+// DÜZELTME: Bu controller daha önce doğrudan nodemailer + SMTP
+// (transporter.sendMail) kullanıyordu. Render'ın ücretsiz planı outbound
+// SMTP portlarını (587/465/25) engellediği için istek hiç sonuçlanmıyor,
+// `await` sonsuza dek bekliyor, response hiç gönderilmiyordu — frontend'de
+// "Gönderiliyor..." butonunun takılı kalmasının sebebi buydu. Artık diğer
+// tüm mailler gibi mail.service.js üzerinden Resend HTTPS API'sine gidiyor.
 const feedbackController = {
     async gonder(req, res) {
         try {
@@ -37,28 +19,7 @@ const feedbackController = {
                 return res.status(400).json({ basarili: false, mesaj: 'Mesaj boş olamaz' });
             }
 
-            const tipEtiket = {
-                oneri: '💡 Öneri',
-                hata: '🐛 Hata Bildirimi',
-                diger: '💬 Diğer',
-            }[tip] || '💬 Geri Bildirim';
-
-            await transporter.sendMail({
-                from: `"GastroBrain Feedback" <${process.env.SMTP_USER}>`,
-                to: process.env.FEEDBACK_EMAIL,
-                subject: `${tipEtiket} — ${ad} (Tenant: ${tenantId})`,
-                html: `
-                    <div style="font-family: sans-serif; max-width: 600px;">
-                        <h2 style="color: #a3e635;">${tipEtiket}</h2>
-                        <table style="width:100%; border-collapse: collapse; margin-bottom: 20px;">
-                            <tr><td style="padding: 8px; color: #666;">Kullanıcı</td><td style="padding: 8px;"><b>${htmlKacisla(ad)}</b></td></tr>
-                            <tr><td style="padding: 8px; color: #666;">Email</td><td style="padding: 8px;">${htmlKacisla(email)}</td></tr>
-                            <tr><td style="padding: 8px; color: #666;">Tenant ID</td><td style="padding: 8px;">${tenantId}</td></tr>
-                        </table>
-                        <div style="background: #f4f4f4; padding: 16px; border-radius: 8px; white-space: pre-wrap;">${htmlKacisla(mesaj)}</div>
-                    </div>
-                `,
-            });
+            await mailService.geriBildirimMailGonder({ tip, mesaj, ad, email, tenantId });
 
             res.json({ basarili: true, mesaj: 'Geri bildiriminiz iletildi, teşekkürler!' });
         } catch (err) {

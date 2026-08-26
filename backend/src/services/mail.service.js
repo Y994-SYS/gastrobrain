@@ -326,6 +326,41 @@ const mailService = {
                 </div>
             `
         });
+    },
+
+    // ── Geri Bildirim Maili ──────────────────────────────────────────────────
+    // NOT: feedback.controller.js daha önce ayrı bir nodemailer/SMTP
+    // transporter kullanıyordu — bu, mail.service.js'in başında bahsedilen
+    // aynı Render SMTP port kısıtlaması (587/465/25) yüzünden isteğin hiç
+    // sonuçlanmamasına (await'in sonsuza dek beklemesine) yol açıyordu.
+    // Artık diğer tüm mailler gibi Resend HTTPS API'si üzerinden gönderiliyor.
+    async geriBildirimMailGonder({ tip, mesaj, ad, email, tenantId }) {
+        const adminEmail = process.env.FEEDBACK_EMAIL || process.env.SMTP_USER;
+        const tipEtiket = {
+            oneri: '💡 Öneri',
+            hata: '🐛 Hata Bildirimi',
+            diger: '💬 Diğer',
+        }[tip] || '💬 Geri Bildirim';
+
+        const adGuvenli = htmlKacisla(ad);
+        const emailGuvenli = htmlKacisla(email);
+        const mesajGuvenli = htmlKacisla(mesaj);
+
+        await mailGonder({
+            to: adminEmail,
+            subject: `${tipEtiket} — ${adGuvenli} (Tenant: ${tenantId})`,
+            html: `
+                <div style="font-family: sans-serif; max-width: 600px;">
+                    <h2 style="color: #a3e635;">${tipEtiket}</h2>
+                    <table style="width:100%; border-collapse: collapse; margin-bottom: 20px;">
+                        <tr><td style="padding: 8px; color: #666;">Kullanıcı</td><td style="padding: 8px;"><b>${adGuvenli}</b></td></tr>
+                        <tr><td style="padding: 8px; color: #666;">Email</td><td style="padding: 8px;">${emailGuvenli}</td></tr>
+                        <tr><td style="padding: 8px; color: #666;">Tenant ID</td><td style="padding: 8px;">${tenantId}</td></tr>
+                    </table>
+                    <div style="background: #f4f4f4; padding: 16px; border-radius: 8px; white-space: pre-wrap;">${mesajGuvenli}</div>
+                </div>
+            `,
+        });
     }
 };
 

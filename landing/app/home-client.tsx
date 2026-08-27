@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
+import ContactForm from '../components/ContactForm';
 
 const APP_URL = 'https://app.gastrobrain.com.tr/kayit';
 
-// TODO: gerçek WhatsApp/telefon numaranla değiştir (örn. '905XXXXXXXXX')
 const WHATSAPP_NUMARA = '905102232885';
 const WHATSAPP_URL = `https://wa.me/${WHATSAPP_NUMARA}?text=${encodeURIComponent('Merhaba, GastroBrain hakkında bilgi almak istiyorum.')}`;
 
@@ -172,7 +172,7 @@ function MobilMenu({ acik, kapat }: { acik: boolean; kapat: () => void }) {
                 padding: '2rem 1.5rem', display: 'flex', flexDirection: 'column', gap: '1.5rem',
             }} onClick={e => e.stopPropagation()}>
                 <button onClick={kapat} style={{ alignSelf: 'flex-end', background: 'none', border: 'none', color: '#71717a', fontSize: '1.5rem', cursor: 'pointer' }}>✕</button>
-                {['#ozellikler:Özellikler', '#nasil-calisir:Nasıl çalışır', '#fiyatlar:Fiyatlar', '#sss:SSS', '/rehber:Rehber'].map(item => {
+                {['#ozellikler:Özellikler', '#nasil-calisir:Nasıl çalışır', '#fiyatlar:Fiyatlar', '#sss:SSS', '#iletisim:İletişim', '/rehber:Rehber'].map(item => {
                     const [href, label] = item.split(':');
                     return (
                         <a key={href} href={href} onClick={kapat} style={{ color: '#a1a1aa', textDecoration: 'none', fontSize: '1rem', fontWeight: 500 }}>
@@ -330,7 +330,7 @@ export default function HomeClient() {
         .seo-block h2 { font-size: 1.25rem; color: #fff; margin-bottom: 1rem; }
         .seo-block p { margin-bottom: 1rem; }
 
-        /* İletişim şeridi */
+        /* İletişim şeridi (WhatsApp/email hızlı linkler — form ayrı bölümde) */
         .contact-row { display: flex; gap: 0.75rem; justify-content: center; flex-wrap: wrap; margin-top: 1.5rem; }
         .contact-btn { display: inline-flex; align-items: center; gap: 0.5rem; font-size: 0.875rem; color: #fff; background: #27272a; padding: 0.6rem 1.1rem; border-radius: 10px; text-decoration: none; transition: background 0.2s; }
         .contact-btn:hover { background: #3f3f46; }
@@ -380,6 +380,7 @@ export default function HomeClient() {
                         <a href="#nasil-calisir">Nasıl çalışır</a>
                         <a href="#fiyatlar">Fiyatlar</a>
                         <a href="#sss">SSS</a>
+                        <a href="#iletisim">İletişim</a>
                         <a href="/rehber">Rehber</a>
                         <a href="https://app.gastrobrain.com.tr/giris">Giriş Yap</a>
                         <a href={APP_URL} className="nav-cta">1 Ay Ücretsiz Dene</a>
@@ -466,9 +467,6 @@ export default function HomeClient() {
                 <hr className="divider" />
 
                 {/* DÜRÜST SOSYAL KANIT / ERKEN ERİŞİM ŞERİDİ */}
-                {/* NOT: Sahte müşteri logosu/yorumu eklemedim — henüz referans yoksa
-            bu bölüm dürüst bir "erken erişim" konumlandırması sağlıyor.
-            İlk gerçek müşteri yorumların geldikçe bu bölümü onlarla değiştir. */}
                 <section style={{ paddingTop: '3rem', paddingBottom: '3rem' }}>
                     <div className="early-strip">
                         <h3>🚀 Erken erişim aşamasındayız</h3>
@@ -553,7 +551,7 @@ export default function HomeClient() {
                                         {p.ozellikler.map(o => <li key={o}>{o}</li>)}
                                     </ul>
                                     <a
-                                        href={p.aylik === 'Teklif Al' ? WHATSAPP_URL : APP_URL}
+                                        href={p.aylik === 'Teklif Al' ? '#iletisim' : APP_URL}
                                         className="plan-btn"
                                         style={{ background: p.populer ? '#a3e635' : '#27272a', color: p.populer ? '#000' : '#fff' }}
                                     >
@@ -568,9 +566,6 @@ export default function HomeClient() {
                 <hr className="divider" />
 
                 {/* SEO İÇERİK BLOĞU */}
-                {/* Arama motorları için ilgili anahtar kelimeleri doğal cümlelerle
-            içeren kısa bir blok. Zamanla /rehber altında ayrı makalelere
-            (restoranda fire azaltma, reçete maliyeti hesaplama vb.) bölünebilir. */}
                 <section>
                     <div className="seo-block">
                         <h2>Restoran stok takip ve reçete maliyet hesaplama programı</h2>
@@ -605,6 +600,28 @@ export default function HomeClient() {
 
                 <hr className="divider" />
 
+                {/* İLETİŞİM — form + hızlı WhatsApp/email linkleri */}
+                <section id="iletisim">
+                    <div className="container">
+                        <div className="section-label">İletişim</div>
+                        <h2 className="section-title">Sorularınız mı var?</h2>
+                        <p className="section-sub">
+                            Formu doldurun, size en kısa sürede dönüş yapalım — ya da doğrudan WhatsApp'tan yazın.
+                        </p>
+                        <ContactForm />
+                        <div className="contact-row">
+                            <a href={WHATSAPP_URL} className="contact-btn whatsapp" target="_blank" rel="noopener noreferrer">
+                                💬 WhatsApp'tan Sor
+                            </a>
+                            <a href="mailto:alkan.yazilim.dev@gmail.com" className="contact-btn">
+                                ✉️ Email Gönder
+                            </a>
+                        </div>
+                    </div>
+                </section>
+
+                <hr className="divider" />
+
                 {/* CTA */}
                 <section>
                     <div className="container">
@@ -614,14 +631,6 @@ export default function HomeClient() {
                             <a href={APP_URL} className="btn-primary" style={{ display: 'inline-block' }}>
                                 Hemen Ücretsiz Başla
                             </a>
-                            <div className="contact-row">
-                                <a href={WHATSAPP_URL} className="contact-btn whatsapp" target="_blank" rel="noopener noreferrer">
-                                    💬 WhatsApp'tan Sor
-                                </a>
-                                <a href="mailto:alkan.yazilim.dev@gmail.com" className="contact-btn">
-                                    ✉️ Email Gönder
-                                </a>
-                            </div>
                         </div>
                     </div>
                 </section>
@@ -637,12 +646,12 @@ export default function HomeClient() {
                             <a href="#ozellikler">Özellikler</a>
                             <a href="#fiyatlar">Fiyatlar</a>
                             <a href="#sss">SSS</a>
+                            <a href="#iletisim">İletişim</a>
                             <a href="/gizlilik">Gizlilik Politikası</a>
                             <a href="/kullanim-kosullari">Kullanım Koşulları</a>
                             <a href="/mesafeli-satis">Mesafeli Satış Sözleşmesi</a>
                             <a href="/rehber">Kullanım Kılavuzu</a>
                             <a href={WHATSAPP_URL} target="_blank" rel="noopener noreferrer">WhatsApp</a>
-                            <a href="mailto:alkan.yazilim.dev@gmail.com">İletişim</a>
                         </div>
                         <p className="footer-copy">© 2026 GastroBrain. Tüm hakları saklıdır.</p>
                     </div>

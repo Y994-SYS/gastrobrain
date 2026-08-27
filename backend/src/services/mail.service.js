@@ -361,6 +361,47 @@ const mailService = {
                 </div>
             `,
         });
+    },
+
+    // ── İletişim Formu Maili (landing page'den) ─────────────────────────────
+    // Landing page (gastrobrain.com.tr) üzerindeki iletişim formundan gelen
+    // mesajları admin mailine iletir. Giriş yapmamış herkese açık bir uçtan
+    // (iletisim.controller.js) çağrılır, bu yüzden ad/email/mesaj HTML'e
+    // gömülmeden önce htmlKacisla ile kaçışlanıyor.
+    async iletisimFormuMailGonder({ ad, email, telefon, mesaj }) {
+        const adminEmail = process.env.FEEDBACK_EMAIL || process.env.SMTP_USER;
+        const adGuvenli = htmlKacisla(ad);
+        const emailGuvenli = htmlKacisla(email);
+        const telefonGuvenli = telefon ? htmlKacisla(telefon) : null;
+        const mesajGuvenli = htmlKacisla(mesaj).replace(/\n/g, '<br>');
+
+        await mailGonder({
+            to: adminEmail,
+            subject: `📩 Yeni İletişim Formu Mesajı — ${adGuvenli}`,
+            html: `
+                <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+                    <div style="background: #0a0a0a; padding: 24px 32px;">
+                        <h1 style="color: #a3e635; font-size: 24px; margin: 0;">GastroBrain</h1>
+                        <p style="color: #888; font-size: 13px; margin: 4px 0 0;">Landing Page İletişim Formu</p>
+                    </div>
+                    <div style="padding: 32px; background: #f9f9f9;">
+                        <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+                            <tr><td style="padding: 6px 0; color: #71717a; width: 100px;">İsim:</td><td style="padding: 6px 0; font-weight: 600;">${adGuvenli}</td></tr>
+                            <tr><td style="padding: 6px 0; color: #71717a;">E-posta:</td><td style="padding: 6px 0;"><a href="mailto:${emailGuvenli}" style="color: #65a30d;">${emailGuvenli}</a></td></tr>
+                            ${telefonGuvenli ? `<tr><td style="padding: 6px 0; color: #71717a;">Telefon:</td><td style="padding: 6px 0;">${telefonGuvenli}</td></tr>` : ''}
+                        </table>
+                        <div style="background: #fff; border: 1px solid #e5e5e5; border-radius: 8px; padding: 16px; line-height: 1.6; color: #333;">
+                            ${mesajGuvenli}
+                        </div>
+                        <p style="margin-top: 20px;">
+                            <a href="mailto:${emailGuvenli}" style="background: #a3e635; color: #18181b; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: 600;">
+                                Yanıtla →
+                            </a>
+                        </p>
+                    </div>
+                </div>
+            `
+        });
     }
 };
 

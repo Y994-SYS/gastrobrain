@@ -37,6 +37,10 @@ const odemeRoutes = require('./routes/odeme.routes');
 const exportRoutes = require('./routes/export.routes');
 const merkezDepoRoutes = require('./routes/merkezDepo.route');
 const planliTransferRoutes = require('./routes/planliTransfer.route');
+// YENİ: Landing page iletişim formu — bilerek authMiddleware'siz, herkese
+// açık bir route dosyası (iletisim.routes.js). Giriş yapmamış ziyaretçiler
+// tarafından çağrılacağı için diğer route'lardan farklı, dikkatli mount et.
+const iletisimRoutes = require('./routes/iletisim.routes');
 
 const { PrismaClient } = require('@prisma/client');
 
@@ -81,6 +85,15 @@ app.get('/', (req, res) => {
 });
 
 // ── CORS — sadece kendi domaininden istek kabul et ────────────────────────────
+// ⚠️ KRİTİK: İletişim formu artık landing page'den (gastrobrain.com.tr)
+// bu API'ye (app.gastrobrain.com.tr) istek atıyor. ALLOWED_ORIGINS env
+// değişkeni şu an muhtemelen sadece 'https://app.gastrobrain.com.tr'
+// içeriyor (aşağıdaki default değere bak). Render'daki (veya nerede
+// barındırıyorsan) ortam değişkenlerinden ALLOWED_ORIGINS'e
+// 'https://gastrobrain.com.tr' (ve www'lu hâli varsa onu da) EKLEMEZSEN,
+// form tarayıcıda CORS hatasıyla sessizce başarısız olur — 500 bile
+// dönmez, istek backend'e hiç ulaşmadan tarayıcı tarafından engellenir.
+// Örnek: ALLOWED_ORIGINS=https://app.gastrobrain.com.tr,https://gastrobrain.com.tr,https://www.gastrobrain.com.tr
 const izinliOriginler = (process.env.ALLOWED_ORIGINS || 'https://app.gastrobrain.com.tr')
     .split(',')
     .map(o => o.trim());
@@ -109,6 +122,15 @@ app.use(express.json({ limit: '1mb' }));  // büyük payload saldırısı önlem
 app.use(hpp());
 
 // ── XSS koruması — sadece string değerleri temizle, / encode etme ────────────
+// NOT: Bu middleware TÜM /api isteklerindeki string body alanlarını
+// (iletişim formu dahil) route handler'a ulaşmadan ÖNCE HTML-escape ediyor
+// (< > " ' → entity). iletisim.controller.js → mail.service.js'deki
+// iletisimFormuMailGonder de kendi htmlKacisla'sını ayrıca uyguluyor —
+// bu ÇİFT escape anlamına gelir (örn. bir kesme işareti mailde &#x27;
+// yerine &amp;#x27; gibi görünebilir). Güvenlik açısından zararsız (fazladan
+// escape asla açık kapı bırakmaz) ama kozmetik bir sorun. İstersen mail
+// tarafındaki htmlKacisla çağrısını iletişim formu alanları için kaldırıp
+// sadece bu global middleware'e güvenebiliriz — şimdilik dokunmadım.
 app.use((req, res, next) => {
     if (req.body) {
         const temizle = (obj) => {
@@ -150,6 +172,10 @@ app.use('/api/stok', kritikLimit);
 app.use('/api/satislar', kritikLimit);
 
 // Genel limit — tüm API
+// NOT: /api/iletisim de bu genel limitin altına giriyor (app.use('/api', ...)
+// tüm alt path'leri kapsıyor), yani public/auth'suz olmasına rağmen zaten
+// IP bazlı bir rate limit koruması var — ayrıca özel bir limiter eklemeye
+// gerek yok.
 app.use('/api', genelLimit);
 
 // ── Routes ────────────────────────────────────────────────────────────────────
@@ -175,6 +201,7 @@ app.use('/api/odeme', odemeRoutes);
 app.use('/api/export', exportRoutes);
 app.use('/api/merkezdepo', merkezDepoRoutes);
 app.use('/api/planli-transfer', planliTransferRoutes);
+app.use('/api/iletisim', iletisimRoutes);
 
 // ── 404 ───────────────────────────────────────────────────────────────────────
 app.use((req, res) => {
@@ -274,4 +301,3 @@ new CronJob('* * * * *', async () => {
 app.listen(PORT, () => {
     logger.info(`Server http://localhost:${PORT} adresinde çalışıyor`);
 });
-

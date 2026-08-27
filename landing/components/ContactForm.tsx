@@ -2,10 +2,10 @@
 
 import { useState } from 'react';
 
-// GastroBrain backend'i farklı bir subdomain'de (app.gastrobrain.com.tr)
+// GastroBrain backend'i farklı bir subdomain'de (api.gastrobrain.com.tr)
 // çalıştığı için bu, cross-origin bir istek. Backend'de CORS ayarının
 // gastrobrain.com.tr origin'ine izin verdiğinden emin ol.
-const ILETISIM_API_URL = 'https://app.gastrobrain.com.tr/api/iletisim';
+const ILETISIM_API_URL = 'https://api.gastrobrain.com.tr/api/iletisim';
 
 type Durum = 'bekliyor' | 'gonderiliyor' | 'basarili' | 'hata';
 

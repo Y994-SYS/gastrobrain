@@ -1,15 +1,19 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import toast from 'react-hot-toast';
+import { usePaketDurumu, SaltOkunurUyari } from '../components/PlanKilidi';
 
 const fmt = (n) => Number(n || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 export default function MerkezDepo() {
-    const navigate = useNavigate();
-    const [paket, setPaket] = useState(null);
-    const [paketYukleniyor, setPaketYukleniyor] = useState(true);
-    const [yetkisiz, setYetkisiz] = useState(false);
+    // Paket/deneme bilgisi artık kendi fetch'iyle değil, App.jsx'teki
+    // <PrivateRoute planOzellik="merkezDepo"> tarafından sağlanan
+    // <PaketProvider> context'inden geliyor. Eski hâlde bu sayfa kendi
+    // '/api/auth/beni-getir' çağrısını yapıp paket yetersizse sayfayı
+    // TAMAMEN bir "yetkisiz" ekranıyla değiştiriyordu — artık öyle değil:
+    // sayfa her zaman açılıyor, sadece yazma butonları (Tanım Ekle, Tüm
+    // Stok Kartlarını Ekle, Dağıtımı Gerçekleştir) tamErisim yoksa gizleniyor.
+    const { tamErisim } = usePaketDurumu();
 
     const [tanimlar, setTanimlar] = useState([]);
     const [durum, setDurum] = useState([]);
@@ -17,7 +21,7 @@ export default function MerkezDepo() {
     const [subeler, setSubeler] = useState([]);
     const [stokKartlari, setStokKartlari] = useState([]);
 
-    const [yukleniyor, setYukleniyor] = useState(false);
+    const [yukleniyor, setYukleniyor] = useState(true);
     const [aktifTab, setAktifTab] = useState('tanimlar');
     const [tanimEkleniyor, setTanimEkleniyor] = useState(false);
     const [tumuEkleniyor, setTumuEkleniyor] = useState(false);
@@ -31,41 +35,11 @@ export default function MerkezDepo() {
         aciklama: ''
     });
 
-    // ── Toplu Dağıtım Formu ─────────────────────────────────────
-    // Tek bir hedef şube seçilir, ardından tanımlar listesinden istenen
-    // kalemler işaretlenip her birine miktar girilir. Tek "Dağıtımı
-    // Gerçekleştir" butonu hepsini tek istekte gönderir.
     const [topluHedefSube, setTopluHedefSube] = useState('');
-    const [secimler, setSecimler] = useState({}); // { merkezDepoId: { secili: bool, miktar: string } }
-
-    // ── Paket Kontrolü ────────────────────────────────────────
-    useEffect(() => {
-        const paketKontrol = async () => {
-            try {
-                const res = await api.get('/api/auth/beni-getir');
-                const tenantPaket = res.data.tenant?.plan;
-                setPaket(tenantPaket);
-
-                if (tenantPaket === 'BASLANGIC') {
-                    setYetkisiz(true);
-                    setTimeout(() => {
-                        navigate('/abonelik?reason=merkezDepo');
-                    }, 2000);
-                }
-
-                setPaketYukleniyor(false);
-            } catch (err) {
-                console.error('Paket kontrolü hatası:', err);
-                setPaketYukleniyor(false);
-            }
-        };
-
-        paketKontrol();
-    }, [navigate]);
+    const [secimler, setSecimler] = useState({});
 
     // ── Verileri Yükle ────────────────────────────────────────
     const verileriYukle = async () => {
-        if (yetkisiz) return;
         setYukleniyor(true);
         try {
             const [tanimRes, durumRes, gecmisRes, subeRes, stokRes] = await Promise.allSettled([
@@ -98,11 +72,7 @@ export default function MerkezDepo() {
         }
     };
 
-    useEffect(() => {
-        if (!yetkisiz && !paketYukleniyor) {
-            verileriYukle();
-        }
-    }, [yetkisiz, paketYukleniyor]);
+    useEffect(() => { verileriYukle(); }, []);
 
     // ── Tanım Ekle ────────────────────────────────────────────
     const taninmEkle = async () => {
@@ -219,8 +189,6 @@ export default function MerkezDepo() {
                 });
             }
 
-            // Sadece başarılı olan kalemleri seçim listesinden temizle,
-            // başarısızlar tekrar denenebilsin diye kalsın.
             const basariliIdSet = new Set(sonuclar.filter(s => s.basarili).map(s => s.merkezDepoId));
             setSecimler(prev => {
                 const kalan = { ...prev };
@@ -236,36 +204,10 @@ export default function MerkezDepo() {
         }
     };
 
-    // ─── Render Guard'ları (DOĞRU SIRA) ──────────────────────
-    if (paketYukleniyor) {
-        return (
-            <div className="flex items-center justify-center h-screen">
-                <p className="text-zinc-400">Yükleniyor...</p>
-            </div>
-        );
-    }
-
-    if (yetkisiz) {
-        return (
-            <div className="flex items-center justify-center h-screen bg-zinc-900">
-                <div className="text-center p-6 border-2 border-amber-400 rounded-xl bg-zinc-800 shadow-lg max-w-md">
-                    <h2 className="text-2xl font-bold text-amber-400 mb-3">
-                        ⚠️ Merkez Depo PROFESYONEL Paketinde
-                    </h2>
-                    <p className="text-gray-300 mb-5">
-                        Bu özelliği kullanmak için paketinizi yükseltmeniz gerekiyor.
-                    </p>
-                    <button
-                        onClick={() => navigate('/abonelik')}
-                        className="bg-lime-400 hover:bg-lime-500 text-zinc-900 font-bold py-2 px-6 rounded-lg transition-colors"
-                    >
-                        Paket Yükseltin →
-                    </button>
-                </div>
-            </div>
-        );
-    }
-
+    // ─── Render Guard ──────────────────────────────────────────
+    // Artık sadece veri yüklenirken bekletiyoruz — paket yetersizliği
+    // sayfayı hiç engellemiyor, SaltOkunurUyari + gizlenen butonlarla
+    // yönetiliyor.
     if (yukleniyor) {
         return (
             <div className="flex items-center justify-center h-64">
@@ -283,6 +225,8 @@ export default function MerkezDepo() {
                     Şubeler arası otomatik stok dağıtımını yönetin
                 </p>
             </div>
+
+            <SaltOkunurUyari />
 
             {/* Durum Özeti */}
             {durum.length > 0 && (
@@ -329,89 +273,95 @@ export default function MerkezDepo() {
             {/* TAB: Tanımlar */}
             {aktifTab === 'tanimlar' && (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-                    <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 space-y-3.5">
-                        <div className="flex items-center justify-between">
-                            <h2 className="text-white font-semibold">Yeni Tanım</h2>
+                    {/* Yeni Tanım formu — yazma işlemi, salt okunurda gizli */}
+                    {tamErisim && (
+                        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 space-y-3.5">
+                            <div className="flex items-center justify-between">
+                                <h2 className="text-white font-semibold">Yeni Tanım</h2>
+                                <button
+                                    onClick={tumunuEkle}
+                                    disabled={tumuEkleniyor || stokKartlari.length === 0}
+                                    className="text-xs text-lime-400 hover:text-lime-300 font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
+                                >
+                                    {tumuEkleniyor ? '⏳ Ekleniyor...' : '📦 Tüm Stok Kartlarını Ekle'}
+                                </button>
+                            </div>
+
+                            <div>
+                                <label className="text-zinc-400 text-xs block mb-1">Stok Kartı *</label>
+                                <select
+                                    value={tanımForm.stokKartId}
+                                    onChange={e => setTanımForm(f => ({ ...f, stokKartId: e.target.value }))}
+                                    className="w-full bg-zinc-800 text-white px-3 py-2 rounded-lg text-sm border border-zinc-700 focus:outline-none focus:border-lime-400"
+                                >
+                                    <option value="">
+                                        {stokKartlari.length === 0 ? 'Stok kartı yok — önce stok kartı ekleyin' : 'Seçin...'}
+                                    </option>
+                                    {stokKartlari.map(k => (
+                                        <option key={k.id} value={k.id}>{k.ad}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div>
+                                <label className="text-zinc-400 text-xs block mb-1">Min. Stok Seviyesi *</label>
+                                <input
+                                    type="number"
+                                    step="0.01"
+                                    value={tanımForm.minStokSeviyesi}
+                                    onChange={e => setTanımForm(f => ({ ...f, minStokSeviyesi: e.target.value }))}
+                                    className="w-full bg-zinc-800 text-white px-3 py-2 rounded-lg text-sm border border-zinc-700 focus:outline-none focus:border-lime-400"
+                                    placeholder="0"
+                                />
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                                <input
+                                    type="checkbox"
+                                    id="otomati"
+                                    checked={tanımForm.otomatiDagit}
+                                    onChange={e => setTanımForm(f => ({ ...f, otomatiDagit: e.target.checked }))}
+                                    className="rounded accent-lime-400"
+                                />
+                                <label htmlFor="otomati" className="text-zinc-300 text-sm">
+                                    Otomatik Dağıtım Açık
+                                </label>
+                            </div>
+
+                            <div>
+                                <label className="text-zinc-400 text-xs block mb-1">Açıklama</label>
+                                <input
+                                    type="text"
+                                    value={tanımForm.aciklama}
+                                    onChange={e => setTanımForm(f => ({ ...f, aciklama: e.target.value }))}
+                                    className="w-full bg-zinc-800 text-white px-3 py-2 rounded-lg text-sm border border-zinc-700 focus:outline-none focus:border-lime-400"
+                                    placeholder="İsteğe bağlı..."
+                                />
+                            </div>
+
                             <button
-                                onClick={tumunuEkle}
-                                disabled={tumuEkleniyor || stokKartlari.length === 0}
-                                className="text-xs text-lime-400 hover:text-lime-300 font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
+                                onClick={taninmEkle}
+                                disabled={!tanımForm.stokKartId || !tanımForm.minStokSeviyesi || tanimEkleniyor}
+                                className="w-full bg-lime-400 text-zinc-900 py-2 rounded-lg text-sm font-semibold hover:bg-lime-300 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                             >
-                                {tumuEkleniyor ? '⏳ Ekleniyor...' : '📦 Tüm Stok Kartlarını Ekle'}
+                                {tanimEkleniyor ? '⏳ Ekleniyor...' : 'Tanım Ekle'}
                             </button>
                         </div>
+                    )}
 
-                        <div>
-                            <label className="text-zinc-400 text-xs block mb-1">Stok Kartı *</label>
-                            <select
-                                value={tanımForm.stokKartId}
-                                onChange={e => setTanımForm(f => ({ ...f, stokKartId: e.target.value }))}
-                                className="w-full bg-zinc-800 text-white px-3 py-2 rounded-lg text-sm border border-zinc-700 focus:outline-none focus:border-lime-400"
-                            >
-                                <option value="">
-                                    {stokKartlari.length === 0 ? 'Stok kartı yok — önce stok kartı ekleyin' : 'Seçin...'}
-                                </option>
-                                {stokKartlari.map(k => (
-                                    <option key={k.id} value={k.id}>{k.ad}</option>
-                                ))}
-                            </select>
-                        </div>
-
-                        <div>
-                            <label className="text-zinc-400 text-xs block mb-1">Min. Stok Seviyesi *</label>
-                            <input
-                                type="number"
-                                step="0.01"
-                                value={tanımForm.minStokSeviyesi}
-                                onChange={e => setTanımForm(f => ({ ...f, minStokSeviyesi: e.target.value }))}
-                                className="w-full bg-zinc-800 text-white px-3 py-2 rounded-lg text-sm border border-zinc-700 focus:outline-none focus:border-lime-400"
-                                placeholder="0"
-                            />
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                            <input
-                                type="checkbox"
-                                id="otomati"
-                                checked={tanımForm.otomatiDagit}
-                                onChange={e => setTanımForm(f => ({ ...f, otomatiDagit: e.target.checked }))}
-                                className="rounded accent-lime-400"
-                            />
-                            <label htmlFor="otomati" className="text-zinc-300 text-sm">
-                                Otomatik Dağıtım Açık
-                            </label>
-                        </div>
-
-                        <div>
-                            <label className="text-zinc-400 text-xs block mb-1">Açıklama</label>
-                            <input
-                                type="text"
-                                value={tanımForm.aciklama}
-                                onChange={e => setTanımForm(f => ({ ...f, aciklama: e.target.value }))}
-                                className="w-full bg-zinc-800 text-white px-3 py-2 rounded-lg text-sm border border-zinc-700 focus:outline-none focus:border-lime-400"
-                                placeholder="İsteğe bağlı..."
-                            />
-                        </div>
-
-                        <button
-                            onClick={taninmEkle}
-                            disabled={!tanımForm.stokKartId || !tanımForm.minStokSeviyesi || tanimEkleniyor}
-                            className="w-full bg-lime-400 text-zinc-900 py-2 rounded-lg text-sm font-semibold hover:bg-lime-300 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                        >
-                            {tanimEkleniyor ? '⏳ Ekleniyor...' : 'Tanım Ekle'}
-                        </button>
-                    </div>
-
+                    {/* Tanımlar Listesi — her zaman görünür (okuma serbest) */}
                     <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 space-y-3">
                         <h2 className="text-white font-semibold">Aktif Tanımlar</h2>
 
                         {tanimlar.length === 0 ? (
                             <div className="text-zinc-400 text-sm py-6 text-center">
                                 <p className="mb-3">📦 Henüz merkez depo tanımı yok</p>
-                                <p className="text-xs text-zinc-500">
-                                    Sol taraftaki formdan yeni tanım ekleyerek başlayın,
-                                    ya da "Tüm Stok Kartlarını Ekle" ile hepsini birden içeri alın
-                                </p>
+                                {tamErisim && (
+                                    <p className="text-xs text-zinc-500">
+                                        Sol taraftaki formdan yeni tanım ekleyerek başlayın,
+                                        ya da "Tüm Stok Kartlarını Ekle" ile hepsini birden içeri alın
+                                    </p>
+                                )}
                             </div>
                         ) : (
                             <div className="space-y-2 max-h-[500px] overflow-y-auto pr-1">
@@ -424,14 +374,16 @@ export default function MerkezDepo() {
                                                 {t.otomatiDagit && ' • 🔄 Otomatik'}
                                             </p>
                                         </div>
-                                        <button
-                                            onClick={() => taninmSil(t.id)}
-                                            disabled={siliyor === t.id}
-                                            className={`text-xs font-bold ml-2 transition-colors ${siliyor === t.id ? 'text-zinc-600 cursor-not-allowed' : 'text-red-400 hover:text-red-300'
-                                                }`}
-                                        >
-                                            {siliyor === t.id ? '⏳' : 'Sil'}
-                                        </button>
+                                        {tamErisim && (
+                                            <button
+                                                onClick={() => taninmSil(t.id)}
+                                                disabled={siliyor === t.id}
+                                                className={`text-xs font-bold ml-2 transition-colors ${siliyor === t.id ? 'text-zinc-600 cursor-not-allowed' : 'text-red-400 hover:text-red-300'
+                                                    }`}
+                                            >
+                                                {siliyor === t.id ? '⏳' : 'Sil'}
+                                            </button>
+                                        )}
                                     </div>
                                 ))}
                             </div>
@@ -440,12 +392,16 @@ export default function MerkezDepo() {
                 </div>
             )}
 
-            {/* TAB: Manual Dağıtım — artık checklist + toplu gönderim */}
+            {/* TAB: Manual Dağıtım — checklist + toplu gönderim (yazma işlemi) */}
             {aktifTab === 'dagit' && (
                 <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 space-y-4">
                     <h2 className="text-white font-semibold">Toplu Dağıtım Yap</h2>
 
-                    {tanimlar.length === 0 ? (
+                    {!tamErisim ? (
+                        <div className="text-zinc-400 text-sm py-6 text-center bg-zinc-800 rounded-lg p-5">
+                            Dağıtım yapabilmek için planınızı yükseltmeniz gerekiyor. Yukarıdaki uyarıdan devam edebilirsiniz.
+                        </div>
+                    ) : tanimlar.length === 0 ? (
                         <div className="text-zinc-400 text-sm py-6 text-center bg-zinc-800 rounded-lg p-5">
                             <p className="mb-3">⚠️ Dağıtım yapabilmek için önce merkez depo tanımı ekleyin</p>
                             <button
@@ -457,7 +413,6 @@ export default function MerkezDepo() {
                         </div>
                     ) : (
                         <>
-                            {/* Hedef şube — tüm işaretli kalemler bu şubeye gidecek */}
                             <div className="max-w-sm">
                                 <label className="text-zinc-400 text-xs block mb-1">Hedef Şube *</label>
                                 <select
@@ -472,7 +427,6 @@ export default function MerkezDepo() {
                                 </select>
                             </div>
 
-                            {/* Hızlı seçim yardımcıları */}
                             <div className="flex items-center gap-3 flex-wrap">
                                 <button
                                     onClick={tumunuSec}
@@ -493,7 +447,6 @@ export default function MerkezDepo() {
                                 )}
                             </div>
 
-                            {/* Kalem listesi — checkbox + miktar */}
                             <div className="border border-zinc-800 rounded-lg overflow-hidden">
                                 <div className="max-h-[420px] overflow-y-auto divide-y divide-zinc-800">
                                     {tanimlar.map(t => {
@@ -545,7 +498,7 @@ export default function MerkezDepo() {
                 </div>
             )}
 
-            {/* TAB: Dağıtım Geçmişi */}
+            {/* TAB: Dağıtım Geçmişi — okuma, her zaman serbest */}
             {aktifTab === 'gecmis' && (
                 <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
                     <h2 className="text-white font-semibold mb-3.5">Dağıtım Geçmişi</h2>

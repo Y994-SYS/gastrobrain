@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../../services/api';
 import toast from 'react-hot-toast';
+import useAuthStore from '../../store/auth.store';
 
 const para = (n) => Number(n || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const miktar = (n) => Number(n || 0).toLocaleString('tr-TR', { maximumFractionDigits: 3 });
@@ -35,25 +36,65 @@ const SEKMELER = [
 export default function SubeDetay() {
     const { id } = useParams();
     const navigate = useNavigate();
+    const { kullanici } = useAuthStore();
     const [veri, setVeri] = useState(null);
     const [yukleniyor, setYukleniyor] = useState(true);
     const [aktifSekme, setAktifSekme] = useState('stok');
     const [stokArama, setStokArama] = useState('');
+    const [merkezIsleniyor, setMerkezIsleniyor] = useState(false);
 
-    useEffect(() => {
-        const getir = async () => {
-            try {
-                const res = await api.get(`/api/subeler/${id}/detay`);
-                setVeri(res.data);
-            } catch {
-                toast.error('Şube detayı yüklenemedi');
-                navigate('/tanimlamalar/subeler');
-            } finally {
-                setYukleniyor(false);
-            }
-        };
-        getir();
-    }, [id]);
+    const getir = async () => {
+        try {
+            const res = await api.get(`/api/subeler/${id}/detay`);
+            setVeri(res.data);
+        } catch {
+            toast.error('Şube detayı yüklenemedi');
+            navigate('/tanimlamalar/subeler');
+        } finally {
+            setYukleniyor(false);
+        }
+    };
+
+    useEffect(() => { getir(); }, [id]);
+
+    // ── Merkez depo işaretleme/kaldırma ─────────────────────────────────────
+    // Bir şubeyi merkez yapmak, Merkez Depo modülündeki tüm dağıtımların
+    // kaynağını değiştirir — bu yüzden özellikle "yap" işleminde açık bir
+    // onay istiyoruz. Sadece TENANT_ADMIN görebilir/kullanabilir (backend de
+    // aynı şekilde kısıtlıyor).
+    const merkezYap = async () => {
+        if (!confirm(
+            `${veri.sube.ad} şubesi merkez depo olarak işaretlenecek. ` +
+            `Varsa önceki merkez şube bu unvanı kaybedecek ve Merkez Depo ` +
+            `modülündeki tüm dağıtımlar artık bu şubeden yapılacak. Devam edilsin mi?`
+        )) return;
+
+        setMerkezIsleniyor(true);
+        try {
+            await api.patch(`/api/subeler/${id}/merkez-yap`);
+            toast.success('✅ Merkez depo olarak işaretlendi');
+            getir();
+        } catch (err) {
+            toast.error(err.response?.data?.hata || 'Hata oluştu');
+        } finally {
+            setMerkezIsleniyor(false);
+        }
+    };
+
+    const merkezKaldir = async () => {
+        if (!confirm('Bu şubenin merkez depo işareti kaldırılsın mı? Merkez Depo modülü, yeni bir şube işaretlenene kadar çalışmayacak.')) return;
+
+        setMerkezIsleniyor(true);
+        try {
+            await api.patch(`/api/subeler/${id}/merkez-kaldir`);
+            toast.success('Merkez depo işareti kaldırıldı');
+            getir();
+        } catch (err) {
+            toast.error(err.response?.data?.hata || 'Hata oluştu');
+        } finally {
+            setMerkezIsleniyor(false);
+        }
+    };
 
     if (yukleniyor) {
         return (
@@ -64,6 +105,7 @@ export default function SubeDetay() {
     if (!veri) return null;
 
     const { sube, ozet, sonSatislar, stokDurumu, personeller, sonTransferler } = veri;
+    const adminMi = kullanici?.rol === 'TENANT_ADMIN';
 
     const filtreliStok = stokDurumu.filter(s =>
         s.ad.toLowerCase().includes(stokArama.toLowerCase()) ||
@@ -74,7 +116,7 @@ export default function SubeDetay() {
         <div className="p-6 space-y-5">
 
             {/* ── Başlık ── */}
-            <div className="flex items-start justify-between gap-4">
+            <div className="flex items-start justify-between gap-4 flex-wrap">
                 <div className="flex items-center gap-3">
                     <button
                         onClick={() => navigate('/tanimlamalar/subeler')}
@@ -83,13 +125,18 @@ export default function SubeDetay() {
                         ← Şubeler
                     </button>
                     <div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                             <h1 className="text-2xl font-bold text-white">{sube.ad}</h1>
                             <span className={`text-xs px-2 py-0.5 rounded-full ${sube.aktif
                                 ? 'bg-lime-900/40 text-lime-400'
                                 : 'bg-red-900/50 text-red-400'}`}>
                                 {sube.aktif ? 'Aktif' : 'Pasif'}
                             </span>
+                            {sube.merkezMi && (
+                                <span className="text-xs px-2 py-0.5 rounded-full bg-amber-900/40 text-amber-400 font-medium">
+                                    🏭 Merkez Depo
+                                </span>
+                            )}
                         </div>
                         <div className="flex gap-4 mt-1 text-zinc-500 text-xs">
                             {sube.telefon && <span>📞 {sube.telefon}</span>}
@@ -97,6 +144,28 @@ export default function SubeDetay() {
                         </div>
                     </div>
                 </div>
+
+                {/* Sadece TENANT_ADMIN görsün — yapısal bir ayar */}
+                {adminMi && (
+                    sube.merkezMi ? (
+                        <button
+                            onClick={merkezKaldir}
+                            disabled={merkezIsleniyor}
+                            className="text-xs font-semibold px-3 py-2 rounded-lg bg-zinc-800 text-zinc-300 hover:bg-zinc-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shrink-0"
+                        >
+                            {merkezIsleniyor ? '⏳...' : 'Merkez Depo İşaretini Kaldır'}
+                        </button>
+                    ) : (
+                        <button
+                            onClick={merkezYap}
+                            disabled={merkezIsleniyor || !sube.aktif}
+                            title={!sube.aktif ? 'Pasif şube merkez yapılamaz' : ''}
+                            className="text-xs font-semibold px-3 py-2 rounded-lg bg-amber-400 text-zinc-900 hover:bg-amber-300 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shrink-0"
+                        >
+                            {merkezIsleniyor ? '⏳...' : '🏭 Merkez Depo Olarak İşaretle'}
+                        </button>
+                    )
+                )}
             </div>
 
             {/* ── Özet kartlar ── */}

@@ -265,4 +265,54 @@ const guncelle = async (req, res) => {
     }
 };
 
-module.exports = { hepsiniGetir, tekiniGetir, detayGetir, olustur, guncelle };
+// ── Merkez depo olarak işaretle ────────────────────────────────────────────
+// Bir tenant'ta aynı anda tek bir merkez şube olabilir. Bu yüzden yeni bir
+// şubeyi merkez yaparken önce tüm diğer şubelerin merkezMi'sini false'a
+// çekip sonra hedef şubeyi true yapıyoruz — tek bir transaction içinde,
+// yarım kalmış (iki merkez şube birden aktif) bir durum oluşmasın.
+const merkezYap = async (req, res) => {
+    try {
+        const tenantId = req.kullanici.tenantId;
+        const id = parseInt(req.params.id);
+
+        const sube = await prisma.sube.findFirst({ where: { id, tenantId } });
+        if (!sube) return res.status(404).json({ hata: 'Şube bulunamadı' });
+
+        if (!sube.aktif) {
+            return res.status(400).json({ hata: 'Pasif bir şube merkez depo olarak işaretlenemez' });
+        }
+
+        await prisma.$transaction([
+            prisma.sube.updateMany({
+                where: { tenantId, merkezMi: true },
+                data: { merkezMi: false },
+            }),
+            prisma.sube.update({
+                where: { id },
+                data: { merkezMi: true },
+            }),
+        ]);
+
+        res.json({ mesaj: `${sube.ad} merkez depo olarak işaretlendi` });
+    } catch (err) {
+        res.status(500).json({ hata: err.message });
+    }
+};
+
+// ── Merkez depo işaretini kaldır ───────────────────────────────────────────
+const merkezKaldir = async (req, res) => {
+    try {
+        const tenantId = req.kullanici.tenantId;
+        const id = parseInt(req.params.id);
+
+        const sube = await prisma.sube.findFirst({ where: { id, tenantId } });
+        if (!sube) return res.status(404).json({ hata: 'Şube bulunamadı' });
+
+        await prisma.sube.update({ where: { id }, data: { merkezMi: false } });
+        res.json({ mesaj: 'Merkez depo işareti kaldırıldı' });
+    } catch (err) {
+        res.status(500).json({ hata: err.message });
+    }
+};
+
+module.exports = { hepsiniGetir, tekiniGetir, detayGetir, olustur, guncelle, merkezYap, merkezKaldir };

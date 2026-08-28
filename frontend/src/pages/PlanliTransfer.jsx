@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import toast from 'react-hot-toast';
+import { usePaketDurumu, SaltOkunurUyari } from '../components/PlanKilidi';
 
 const GUNLER = [
     { value: 0, label: 'Pazar' },
@@ -21,9 +21,14 @@ const gunEtiket = (gunler) => {
 const bos_kalem = () => ({ stokKartId: '', kaynakSubeId: '', hedefSubeId: '', miktar: '', aciklama: '' });
 
 export default function PlanliTransfer() {
-    const navigate = useNavigate();
-    const [paketYukleniyor, setPaketYukleniyor] = useState(true);
-    const [yetkisiz, setYetkisiz] = useState(false);
+    // Paket/deneme bilgisi App.jsx'teki <PrivateRoute planOzellik="planliTransfer">
+    // tarafından sağlanan <PaketProvider> context'inden geliyor — eski hâlde
+    // bu sayfa kendi paket kontrolünü yapıp yetersizse TAMAMEN bir uyarı
+    // ekranına dönüyordu, artık sayfa her zaman açık, sadece yazma işlemleri
+    // (yeni plan oluşturma, çalıştırma, aktif/pasif yapma, silme) tamErisim
+    // yoksa gizleniyor.
+    const { tamErisim } = usePaketDurumu();
+
     const [yukleniyor, setYukleniyor] = useState(false);
 
     const [planlar, setPlanlar] = useState([]);
@@ -41,25 +46,6 @@ export default function PlanliTransfer() {
         aciklama: '',
         kalemler: [bos_kalem()]
     });
-
-    // ── Paket Kontrolü ────────────────────────────────────────
-    useEffect(() => {
-        const paketKontrol = async () => {
-            try {
-                const res = await api.get('/api/auth/beni-getir');
-                const tenantPaket = res.data.tenant?.plan;
-                if (tenantPaket === 'BASLANGIC') {
-                    setYetkisiz(true);
-                    setTimeout(() => navigate('/abonelik?reason=planliTransfer'), 2000);
-                }
-                setPaketYukleniyor(false);
-            } catch (err) {
-                console.error(err);
-                setPaketYukleniyor(false);
-            }
-        };
-        paketKontrol();
-    }, [navigate]);
 
     // ── Verileri Yükle ────────────────────────────────────────
     const verileriYukle = async () => {
@@ -81,9 +67,7 @@ export default function PlanliTransfer() {
         }
     };
 
-    useEffect(() => {
-        if (!yetkisiz && !paketYukleniyor) verileriYukle();
-    }, [yetkisiz, paketYukleniyor]);
+    useEffect(() => { verileriYukle(); }, []);
 
     // ── Kalem İşlemleri ───────────────────────────────────────
     const kalemEkle = () => {
@@ -187,21 +171,9 @@ export default function PlanliTransfer() {
         }));
     };
 
-    // ─── Render Guard'ları ────────────────────────────────────
-    if (paketYukleniyor) return <div className="flex items-center justify-center h-screen"><p className="text-zinc-400">Yükleniyor...</p></div>;
-
-    if (yetkisiz) {
-        return (
-            <div className="flex items-center justify-center h-screen bg-zinc-900">
-                <div className="text-center p-6 border-2 border-amber-400 rounded-xl bg-zinc-800 shadow-lg max-w-md">
-                    <h2 className="text-2xl font-bold text-amber-400 mb-3">⚠️ Planlı Transfer PROFESYONEL Paketinde</h2>
-                    <p className="text-gray-300 mb-5">Bu özelliği kullanmak için paketinizi yükseltmeniz gerekiyor.</p>
-                    <button onClick={() => navigate('/abonelik')} className="bg-lime-400 hover:bg-lime-500 text-zinc-900 font-bold py-2 px-6 rounded-lg">Paket Yükseltin →</button>
-                </div>
-            </div>
-        );
-    }
-
+    // ─── Render Guard ─────────────────────────────────────────
+    // Paket yetersizliği artık sayfayı hiç engellemiyor — sadece veri
+    // yüklenirken bekletiyoruz.
     if (yukleniyor) return <div className="flex items-center justify-center h-64"><p className="text-zinc-400">Veriler yükleniyor...</p></div>;
 
     return (
@@ -211,16 +183,21 @@ export default function PlanliTransfer() {
                     <h1 className="text-2xl font-bold text-white">Planlı Transferler</h1>
                     <p className="text-zinc-500 text-sm mt-1">Birden fazla ürünü tek planda otomatik transfer edin</p>
                 </div>
-                <button
-                    onClick={() => setFormAcik(!formAcik)}
-                    className="bg-lime-400 text-zinc-900 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-lime-300"
-                >
-                    {formAcik ? '✕ İptal' : '+ Yeni Plan'}
-                </button>
+                {/* Yeni plan oluşturma — yazma işlemi, salt okunurda gizli */}
+                {tamErisim && (
+                    <button
+                        onClick={() => setFormAcik(!formAcik)}
+                        className="bg-lime-400 text-zinc-900 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-lime-300"
+                    >
+                        {formAcik ? '✕ İptal' : '+ Yeni Plan'}
+                    </button>
+                )}
             </div>
 
+            <SaltOkunurUyari />
+
             {/* Yeni Plan Formu */}
-            {formAcik && (
+            {formAcik && tamErisim && (
                 <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 space-y-5">
                     <h2 className="text-white font-semibold">Yeni Planlı Transfer</h2>
 
@@ -385,11 +362,11 @@ export default function PlanliTransfer() {
                 </div>
             )}
 
-            {/* Planlar Listesi */}
+            {/* Planlar Listesi — okuma, her zaman görünür */}
             {planlar.length === 0 ? (
                 <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-10 text-center">
                     <p className="text-zinc-400 mb-2">⏰ Henüz planlı transfer yok</p>
-                    <p className="text-zinc-500 text-sm">"+ Yeni Plan" ile oluşturun</p>
+                    {tamErisim && <p className="text-zinc-500 text-sm">"+ Yeni Plan" ile oluşturun</p>}
                 </div>
             ) : (
                 <div className="space-y-2.5">
@@ -432,35 +409,37 @@ export default function PlanliTransfer() {
                                 </p>
                             )}
 
-                            {/* Alt satır: Butonlar - mobil uyumlu */}
-                            <div className="flex gap-2 flex-wrap">
-                                <button
-                                    onClick={() => hemenCalistir(plan.id)}
-                                    disabled={calistiriyor === plan.id}
-                                    className={`flex-1 px-3 py-2 rounded-lg text-xs font-semibold min-w-[80px] transition-all ${calistiriyor === plan.id
-                                        ? 'bg-zinc-600 text-zinc-400 cursor-not-allowed'
-                                        : 'bg-lime-400 text-zinc-900 hover:bg-lime-300'
-                                        }`}
-                                >
-                                    {calistiriyor === plan.id ? '⏳ Çalışıyor...' : '▶ Çalıştır'}
-                                </button>
-                                <button
-                                    onClick={() => aktifPasifYap(plan.id, !plan.aktif)}
-                                    disabled={degistiriyor === plan.id}
-                                    className={`flex-1 px-3 py-2 rounded-lg text-xs min-w-[80px] transition-all ${degistiriyor === plan.id
+                            {/* Alt satır: Butonlar — yazma işlemleri, salt okunurda gizli */}
+                            {tamErisim && (
+                                <div className="flex gap-2 flex-wrap">
+                                    <button
+                                        onClick={() => hemenCalistir(plan.id)}
+                                        disabled={calistiriyor === plan.id}
+                                        className={`flex-1 px-3 py-2 rounded-lg text-xs font-semibold min-w-[80px] transition-all ${calistiriyor === plan.id
+                                            ? 'bg-zinc-600 text-zinc-400 cursor-not-allowed'
+                                            : 'bg-lime-400 text-zinc-900 hover:bg-lime-300'
+                                            }`}
+                                    >
+                                        {calistiriyor === plan.id ? '⏳ Çalışıyor...' : '▶ Çalıştır'}
+                                    </button>
+                                    <button
+                                        onClick={() => aktifPasifYap(plan.id, !plan.aktif)}
+                                        disabled={degistiriyor === plan.id}
+                                        className={`flex-1 px-3 py-2 rounded-lg text-xs min-w-[80px] transition-all ${degistiriyor === plan.id
                                             ? 'bg-zinc-800 text-zinc-600 cursor-not-allowed'
                                             : 'bg-zinc-700 text-zinc-300 hover:bg-zinc-600'
-                                        }`}
-                                >
-                                    {degistiriyor === plan.id ? '⏳...' : plan.aktif ? '⏸ Durdur' : '▶ Aktif Et'}
-                                </button>
-                                <button
-                                    onClick={() => planSil(plan.id)}
-                                    className="bg-red-900/50 text-red-400 px-3 py-2 rounded-lg text-xs hover:bg-red-900 min-w-[60px]"
-                                >
-                                    🗑 Sil
-                                </button>
-                            </div>
+                                            }`}
+                                    >
+                                        {degistiriyor === plan.id ? '⏳...' : plan.aktif ? '⏸ Durdur' : '▶ Aktif Et'}
+                                    </button>
+                                    <button
+                                        onClick={() => planSil(plan.id)}
+                                        className="bg-red-900/50 text-red-400 px-3 py-2 rounded-lg text-xs hover:bg-red-900 min-w-[60px]"
+                                    >
+                                        🗑 Sil
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     ))}
                 </div>

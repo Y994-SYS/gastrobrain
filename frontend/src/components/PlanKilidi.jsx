@@ -1,3 +1,4 @@
+import { createContext, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 // Hangi plan hangi özelliklere sahip
@@ -27,13 +28,76 @@ const PLAN_ETIKET = {
     KURUMSAL: 'Kurumsal',
 };
 
+// Tam erişim var mı? (deneme sırasında her zaman true — trial cliff'i
+// önlemek için gerçek "kısıtlama" sadece deneme bitip plan yetersiz kalınca
+// başlıyor, o durumda da SALT OKUNUR moduna geçiliyor, sayfa tamamen
+// kapanmıyor.)
 export function planErisimiVar(plan, denemede, ozellik) {
-    if (denemede) return true; // deneme döneminde hepsi açık
+    if (denemede) return true;
     if (!plan) return false;
     const ozellikler = PLAN_OZELLIKLERI[plan] || [];
     return ozellikler.includes('hepsi') || ozellikler.includes(ozellik);
 }
 
+// ── Paket Durumu Context ────────────────────────────────────────────────────
+// Bir sayfa artık "kilitli / açık" diye ikiye ayrılmıyor — her zaman render
+// ediliyor, ama içindeki yazma butonları (Yeni Ekle, Düzenle, Sil) bu
+// context'ten okuduğu `tamErisim` değerine göre kendini gösterip gizliyor.
+const PaketContext = createContext({ tamErisim: true, ozellik: null, plan: null, denemede: false });
+
+export function PaketProvider({ ozellik, plan, denemede, children }) {
+    const tamErisim = planErisimiVar(plan, denemede, ozellik);
+    return (
+        <PaketContext.Provider value={{ tamErisim, ozellik, plan, denemede }}>
+            {children}
+        </PaketContext.Provider>
+    );
+}
+
+// Sayfa içindeki bileşenlerin kullanacağı hook. Örnek:
+//   const { tamErisim } = usePaketDurumu();
+//   {tamErisim && <button>Yeni Ekle</button>}
+export function usePaketDurumu() {
+    return useContext(PaketContext);
+}
+
+// ── Salt Okunur Uyarı Şeridi ─────────────────────────────────────────────────
+// Sayfanın en üstüne konur. Tam erişim varsa hiçbir şey render etmez —
+// yani deneme sırasında veya doğru pakette bu şerit hiç görünmez.
+export function SaltOkunurUyari() {
+    const { tamErisim, ozellik } = usePaketDurumu();
+    const navigate = useNavigate();
+
+    if (tamErisim) return null;
+
+    const gerekliPlan = OZELLIK_PLAN[ozellik] || 'PROFESYONEL';
+
+    return (
+        <div className="bg-amber-900/20 border border-amber-800/40 rounded-xl p-4 mb-5 flex items-center justify-between gap-3 flex-wrap">
+            <div>
+                <p className="text-amber-400 font-semibold text-sm">
+                    🔒 Salt Okunur Mod — {OZELLIK_ETIKET[ozellik] || 'Bu özellik'}
+                </p>
+                <p className="text-zinc-400 text-xs mt-1">
+                    Mevcut kayıtlarınızı görüntüleyebilirsiniz, ancak yeni ekleme/düzenleme/silme yapabilmek için{' '}
+                    <span className="text-lime-400 font-medium">{PLAN_ETIKET[gerekliPlan]}</span> paketine geçmeniz gerekiyor.
+                </p>
+            </div>
+            <button
+                onClick={() => navigate('/abonelik')}
+                className="bg-lime-400 hover:bg-lime-300 text-zinc-900 font-semibold text-xs px-4 py-2 rounded-lg whitespace-nowrap transition-colors"
+            >
+                Planı Yükselt →
+            </button>
+        </div>
+    );
+}
+
+// ── Eski davranış (tam sayfa kilit ekranı) ─────────────────────────────────
+// Artık normal akışta KULLANILMIYOR (App.jsx her zaman sayfayı render
+// ediyor) — ama örneğin bir tenant'ın o modülde hiç kaydı yoksa ve plan da
+// yetersizse, sayfanın kendisi isterse bunu "boş durum" yerine gösterebilir.
+// Geriye dönük uyumluluk için export edilmeye devam ediyor.
 export default function PlanKilidi({ ozellik }) {
     const navigate = useNavigate();
     const gerekliPlan = OZELLIK_PLAN[ozellik] || 'PROFESYONEL';

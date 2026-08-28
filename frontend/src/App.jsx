@@ -35,7 +35,7 @@ import SifreSifirla from './pages/SifreSifirla';
 import AuditLog from './pages/AuditLog';
 import Transfer from './pages/Transfer';
 import SubeDetay from './pages/tanimlamalar/SubeDetay';
-import PlanKilidi, { planErisimiVar } from './components/PlanKilidi';
+import { PaketProvider } from './components/PlanKilidi';
 import MerkezDepo from './pages/MerkezDepo';
 import PlanliTransfer from './pages/PlanliTransfer';
 
@@ -53,6 +53,20 @@ const R = {
 const LISANS_SERBEST = ['/abonelik', '/profil', '/yardim'];
 
 // ─── PrivateRoute ─────────────────────────────────────────────────────────────
+// ÖNEMLİ DEĞİŞİKLİK: Daha önce, plan bir özelliği kapsamıyorsa sayfa
+// TAMAMEN <PlanKilidi> ile değiştiriliyordu — kullanıcı deneme sırasında
+// girdiği verilere (personel listesi, cari kartlar, transfer geçmişi vb.)
+// artık hiç erişemiyordu ("trial cliff"). Bu, "elimden bir şey alındı"
+// hissi yaratıyordu.
+//
+// Artık sayfa HER ZAMAN render ediliyor. planOzellik verilmişse, sayfa
+// <PaketProvider> ile sarmalanıyor; sayfa içindeki bileşenler
+// `usePaketDurumu()` hook'u ile "tamErisim" bilgisini okuyup kendi yazma
+// butonlarını (Yeni Ekle/Düzenle/Sil) buna göre gösterip gizliyor, ayrıca
+// `<SaltOkunurUyari />` ile üstte bir bilgilendirme şeridi gösterebiliyor.
+// Backend tarafında da paketKontrol middleware'i artık sadece yazma
+// isteklerini (POST/PUT/PATCH/DELETE) engelliyor, GET her zaman serbest —
+// yani veri hiçbir zaman "kaybolmuş" gibi görünmüyor.
 function PrivateRoute({ children, roller, planOzellik }) {
   const kullanici = useAuthStore((s) => s.kullanici);
 
@@ -73,9 +87,14 @@ function PrivateRoute({ children, roller, planOzellik }) {
     if (!serbest) return <Navigate to="/abonelik" replace />;
   }
 
-  // Plan kilidi kontrolü — deneme döneminde hepsi açık
-  if (planOzellik && !planErisimiVar(kullanici.plan, kullanici.denemede, planOzellik)) {
-    return <Layout><PlanKilidi ozellik={planOzellik} /></Layout>;
+  if (planOzellik) {
+    return (
+      <Layout>
+        <PaketProvider ozellik={planOzellik} plan={kullanici.plan} denemede={kullanici.denemede}>
+          {children}
+        </PaketProvider>
+      </Layout>
+    );
   }
 
   return <Layout>{children}</Layout>;
@@ -122,7 +141,7 @@ export default function App() {
         <Route path="/stok/tuketim" element={<PrivateRoute roller={R.STOK}><TuketimGideri /></PrivateRoute>} />
         <Route path="/stok/ay-sonu-sayim" element={<PrivateRoute roller={R.STOK}><AySonuSayim /></PrivateRoute>} />
 
-        {/* ── Transfer — Profesyonel+ ──────────────────────────────────── */}
+        {/* ── Transfer — Profesyonel+ (deneme bitince salt okunur) ─────── */}
         <Route path="/stok/transfer" element={<PrivateRoute roller={R.YONETIM} planOzellik="transfer"><Transfer /></PrivateRoute>} />
 
         {/* ── Satış — tüm planlarda açık ──────────────────────────────── */}
@@ -131,18 +150,18 @@ export default function App() {
         {/* ── Reçete — tüm planlarda açık ─────────────────────────────── */}
         <Route path="/receteler" element={<PrivateRoute roller={R.YONETIM}><Receteler /></PrivateRoute>} />
 
-        {/* ── Cari — Profesyonel+ ─────────────────────────────────────── */}
+        {/* ── Cari — Profesyonel+ (deneme bitince salt okunur) ─────────── */}
         <Route path="/cari-hesap" element={<PrivateRoute roller={R.YONETIM} planOzellik="cari"><CariHesap /></PrivateRoute>} />
 
         {/* ── Raporlar — temel hepse açık, gelişmiş Profesyonel+ ──────── */}
         <Route path="/raporlar" element={<PrivateRoute roller={R.YONETIM}><Raporlar /></PrivateRoute>} />
         <Route path="/raporlar/kar-zarar" element={<PrivateRoute roller={R.YONETIM}><KarZarar /></PrivateRoute>} />
 
-        {/* ── Personel — Profesyonel+ ──────────────────────────────────── */}
+        {/* ── Personel — Profesyonel+ (deneme bitince salt okunur) ─────── */}
         <Route path="/personel" element={<PrivateRoute roller={R.PERSONEL} planOzellik="personel"><Personel /></PrivateRoute>} />
         <Route path="/personel/kullanicilar" element={<PrivateRoute roller={R.ADMIN}><Kullanicilar /></PrivateRoute>} />
-        <Route path="/merkezdepo" element={<PrivateRoute roller={['TENANT_ADMIN', 'MUDUR']}><MerkezDepo /></PrivateRoute>} />
-        <Route path="/stok/planli-transfer" element={<PrivateRoute roller={R.YONETIM}><PlanliTransfer /></PrivateRoute>} />
+        <Route path="/merkezdepo" element={<PrivateRoute roller={['TENANT_ADMIN', 'MUDUR']} planOzellik="merkezDepo"><MerkezDepo /></PrivateRoute>} />
+        <Route path="/stok/planli-transfer" element={<PrivateRoute roller={R.YONETIM} planOzellik="planliTransfer"><PlanliTransfer /></PrivateRoute>} />
 
 
         {/* ── Tanımlamalar ────────────────────────────────────────────── */}

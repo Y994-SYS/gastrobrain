@@ -402,8 +402,8 @@ const mailService = {
                 </div>
             `
         });
-    }
-     // ── Yeni Kayıt Bildirimi (admin'e) ──────────────────────────────────────
+    },
+    // ── Yeni Kayıt Bildirimi (admin'e) ──────────────────────────────────────
     // Yeni bir firma (tenant) kaydolduğunda sana (FEEDBACK_EMAIL) haber
     // verir. hosgeldinMailGonder'ın hemen yanında, aynı try/catch deseniyle
     // çağrılır — bu mailin başarısız olması kayıt akışını ASLA engellemez.

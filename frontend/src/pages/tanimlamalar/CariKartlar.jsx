@@ -3,12 +3,19 @@ import toast from 'react-hot-toast';
 import api from '../../services/api';
 import Modal from '../../components/Modal';
 import Table from '../../components/Table';
+import { usePaketDurumu, SaltOkunurUyari } from '../../components/PlanKilidi';
 
 const BOS_FORM = { kod: '', ad: '', vergiNo: '', telefon: '', email: '', adres: '' };
 
 const inputCls = "w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-3 py-2.5 text-sm outline-none focus:border-lime-400 transition-colors";
 
 export default function CariKartlar() {
+    // Paket/deneme bilgisi App.jsx'teki <PrivateRoute planOzellik="cari">
+    // tarafından sağlanan <PaketProvider> context'inden geliyor. Deneme
+    // bitip plan yetersiz kalınca sayfa kapanmıyor — sadece yazma
+    // işlemleri (Yeni Cari Kart, Düzenle, Sil) gizleniyor.
+    const { tamErisim } = usePaketDurumu();
+
     const [veri, setVeri] = useState([]);
     const [modal, setModal] = useState(false);
     const [form, setForm] = useState(BOS_FORM);
@@ -136,21 +143,26 @@ export default function CariKartlar() {
                             className="bg-zinc-900 border border-zinc-800 text-white rounded-lg pl-8 pr-3 py-2 text-sm outline-none focus:border-lime-400 transition-colors w-40"
                         />
                     </div>
-                    <button
-                        onClick={() => modalAc()}
-                        className="bg-lime-400 hover:bg-lime-300 active:scale-95 text-black font-bold text-sm px-4 py-2 rounded-lg transition-all whitespace-nowrap"
-                    >
-                        + Yeni Cari Kart
-                    </button>
+                    {/* Yeni cari kart ekleme — yazma işlemi, salt okunurda gizli */}
+                    {tamErisim && (
+                        <button
+                            onClick={() => modalAc()}
+                            className="bg-lime-400 hover:bg-lime-300 active:scale-95 text-black font-bold text-sm px-4 py-2 rounded-lg transition-all whitespace-nowrap"
+                        >
+                            + Yeni Cari Kart
+                        </button>
+                    )}
                 </div>
             </div>
+
+            <SaltOkunurUyari />
 
             <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
                 <Table
                     kolonlar={kolonlar}
                     veri={filtreliVeri}
-                    onDüzenle={(satir) => modalAc(satir)}
-                    onSil={(satir) => setSilOnayId(satir.id)}
+                    onDüzenle={tamErisim ? (satir) => modalAc(satir) : undefined}
+                    onSil={tamErisim ? (satir) => setSilOnayId(satir.id) : undefined}
                     yukleniyor={tabloYukleniyor}
                 />
                 {!tabloYukleniyor && filtreliVeri.length === 0 && (
@@ -168,8 +180,8 @@ export default function CariKartlar() {
                 )}
             </div>
 
-            {/* Ekle / Düzenle Modal */}
-            {modal && (
+            {/* Ekle / Düzenle Modal — yazma işlemi, salt okunurda hiç açılmaz */}
+            {modal && tamErisim && (
                 <Modal
                     baslik={duzenleId ? 'Cari Kart Düzenle' : 'Yeni Cari Kart'}
                     onKapat={modalKapat}
@@ -252,8 +264,8 @@ export default function CariKartlar() {
                 </Modal>
             )}
 
-            {/* Silme Onay Modal */}
-            {silOnayId && (
+            {/* Silme Onay Modal — yazma işlemi, salt okunurda hiç açılmaz */}
+            {silOnayId && tamErisim && (
                 <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
                     <div className="bg-zinc-900 rounded-2xl p-6 w-full max-w-sm border border-zinc-700 space-y-4">
                         <h2 className="text-white font-bold">Cari Kartı Sil</h2>

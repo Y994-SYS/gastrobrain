@@ -2,10 +2,18 @@ import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import api from '../../services/api';
 import Modal from '../../components/Modal';
+import { usePaketDurumu, SaltOkunurUyari } from '../../components/PlanKilidi';
 
 const fmt = (n) => Number(n || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 export default function CariHesap() {
+    // Paket/deneme bilgisi App.jsx'teki <PrivateRoute planOzellik="cari">
+    // tarafından sağlanan <PaketProvider> context'inden geliyor. Deneme
+    // bitip plan yetersiz kalınca sayfa kapanmıyor — sadece "+ Ödeme Ekle"
+    // (yazma işlemi) gizleniyor, bakiyeler ve hareket geçmişi her zaman
+    // görünür kalıyor.
+    const { tamErisim } = usePaketDurumu();
+
     const [cariler, setCariler] = useState([]);
     const [seciliCari, setSeciliCari] = useState(null);
     const [hareketler, setHareketler] = useState([]);
@@ -98,6 +106,8 @@ export default function CariHesap() {
                 <p className="text-zinc-500 text-sm mt-0.5">Tedarikçi bakiyeleri ve ödeme takibi</p>
             </div>
 
+            <SaltOkunurUyari />
+
             <div className="grid grid-cols-2 gap-3 mb-5">
                 <div className="bg-zinc-900 border border-red-500/20 rounded-xl p-4">
                     <div className="text-xs text-zinc-500 mb-1">Toplam Borç</div>
@@ -147,12 +157,15 @@ export default function CariHesap() {
                                         Bakiye: ₺{fmt(seciliCari.bakiye)}
                                     </div>
                                 </div>
-                                <button
-                                    onClick={() => setOdemeModal(true)}
-                                    className="bg-lime-400 hover:bg-lime-300 text-black font-bold text-xs px-3 py-1.5 rounded-lg transition-colors"
-                                >
-                                    + Ödeme Ekle
-                                </button>
+                                {/* Ödeme ekleme — yazma işlemi, salt okunurda gizli */}
+                                {tamErisim && (
+                                    <button
+                                        onClick={() => setOdemeModal(true)}
+                                        className="bg-lime-400 hover:bg-lime-300 text-black font-bold text-xs px-3 py-1.5 rounded-lg transition-colors"
+                                    >
+                                        + Ödeme Ekle
+                                    </button>
+                                )}
                             </div>
                             <div className="divide-y divide-zinc-800 max-h-96 overflow-y-auto">
                                 {hareketler.length === 0 ? (
@@ -183,7 +196,7 @@ export default function CariHesap() {
                 </div>
             </div>
 
-            {odemeModal && (
+            {odemeModal && tamErisim && (
                 <Modal baslik="Ödeme Ekle" onKapat={() => setOdemeModal(false)}>
                     <div className="space-y-4">
                         <div className="bg-zinc-800 rounded-lg p-3 text-sm text-zinc-300">

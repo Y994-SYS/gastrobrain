@@ -5,6 +5,7 @@ import Modal from '../../components/Modal';
 import SubeSecici from '../../components/SubeSecici';
 import useSubeStore from '../../store/subeStore';
 import useAuthStore from '../../store/auth.store';
+import { usePaketDurumu, SaltOkunurUyari } from '../../components/PlanKilidi';
 
 // Native <input type="number"> bazı tarayıcı/bölge ayarlarında "." veya ","
 // karakterini binlik ayraç sanıp değeri bozabiliyor (örn. "20.000" yazınca
@@ -28,6 +29,13 @@ export default function Personel() {
     const { kullanici } = useAuthStore();
     const { seciliSubeId, subeler } = useSubeStore();
     const subeParam = seciliSubeId ? `?subeId=${seciliSubeId}` : '';
+
+    // Paket/deneme bilgisi App.jsx'teki <PrivateRoute planOzellik="personel">
+    // tarafından sağlanan <PaketProvider> context'inden geliyor. Deneme
+    // bitip plan yetersiz kalınca sayfa kapanmıyor — sadece yazma
+    // butonları (Yeni Personel, Düzenle, Sil, Maaş/Avans/Devam/Düzeltme
+    // ekleme, Geri Yükle) gizleniyor. Mevcut kayıtlar her zaman görünür.
+    const { tamErisim } = usePaketDurumu();
 
     // TENANT_ADMIN ve birden fazla şubesi olan kullanıcılar için personel formunda
     // şube seçimi gösterilir — aksi halde personel her zaman sessizce kullanıcının
@@ -394,11 +402,16 @@ export default function Personel() {
                     <button onClick={pasifModalAc} className="text-xs border border-zinc-700 text-zinc-400 hover:text-white hover:border-zinc-500 px-4 py-2 rounded-lg transition-colors">
                         Pasif Personeller
                     </button>
-                    <button onClick={yeniPersonelModalAc} className="bg-lime-400 hover:bg-lime-300 text-black font-bold text-sm px-4 py-2 rounded-lg transition-colors">
-                        + Yeni Personel
-                    </button>
+                    {/* Yeni personel ekleme — yazma işlemi, salt okunurda gizli */}
+                    {tamErisim && (
+                        <button onClick={yeniPersonelModalAc} className="bg-lime-400 hover:bg-lime-300 text-black font-bold text-sm px-4 py-2 rounded-lg transition-colors">
+                            + Yeni Personel
+                        </button>
+                    )}
                 </div>
             </div>
+
+            <SaltOkunurUyari />
 
             <SubeSecici />
 
@@ -423,10 +436,13 @@ export default function Personel() {
                                         <div className="text-xs text-zinc-500 mt-0.5">₺{p.maas} / ay</div>
                                         {p.sube && <div className="text-xs text-zinc-600 mt-0.5">{p.sube.ad}</div>}
                                     </div>
-                                    <div className="flex gap-1">
-                                        <button onClick={(e) => { e.stopPropagation(); duzenle(p); }} className="text-xs text-zinc-500 hover:text-white px-2 py-1 rounded transition-colors">✏️</button>
-                                        <button onClick={(e) => { e.stopPropagation(); sil(p.id); }} className="text-xs text-zinc-500 hover:text-red-400 px-2 py-1 rounded transition-colors">🗑️</button>
-                                    </div>
+                                    {/* Düzenle/Sil — yazma işlemi, salt okunurda gizli */}
+                                    {tamErisim && (
+                                        <div className="flex gap-1">
+                                            <button onClick={(e) => { e.stopPropagation(); duzenle(p); }} className="text-xs text-zinc-500 hover:text-white px-2 py-1 rounded transition-colors">✏️</button>
+                                            <button onClick={(e) => { e.stopPropagation(); sil(p.id); }} className="text-xs text-zinc-500 hover:text-red-400 px-2 py-1 rounded transition-colors">🗑️</button>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         ))}
@@ -447,12 +463,15 @@ export default function Personel() {
                                             {secili.sube && <span>🏪 {secili.sube.ad}</span>}
                                         </div>
                                     </div>
-                                    <div className="flex flex-wrap gap-2">
-                                        <button onClick={() => maasModalAc()} className="text-xs border border-zinc-700 text-zinc-400 hover:text-lime-400 hover:border-lime-400 px-3 py-1.5 rounded-lg transition-colors">💰 Maaş</button>
-                                        <button onClick={() => setAvansModal(true)} className="text-xs border border-zinc-700 text-zinc-400 hover:text-amber-400 hover:border-amber-400 px-3 py-1.5 rounded-lg transition-colors">💳 Avans</button>
-                                        <button onClick={devamModalAc} className="text-xs border border-zinc-700 text-zinc-400 hover:text-blue-400 hover:border-blue-400 px-3 py-1.5 rounded-lg transition-colors">📋 Devam</button>
-                                        <button onClick={izinModalAc} className="text-xs border border-zinc-700 text-zinc-400 hover:text-lime-400 hover:border-lime-400 px-3 py-1.5 rounded-lg transition-colors">🏖️ Düzeltme</button>
-                                    </div>
+                                    {/* Maaş/Avans/Devam/Düzeltme ekleme — yazma işlemi, salt okunurda gizli */}
+                                    {tamErisim && (
+                                        <div className="flex flex-wrap gap-2">
+                                            <button onClick={() => maasModalAc()} className="text-xs border border-zinc-700 text-zinc-400 hover:text-lime-400 hover:border-lime-400 px-3 py-1.5 rounded-lg transition-colors">💰 Maaş</button>
+                                            <button onClick={() => setAvansModal(true)} className="text-xs border border-zinc-700 text-zinc-400 hover:text-amber-400 hover:border-amber-400 px-3 py-1.5 rounded-lg transition-colors">💳 Avans</button>
+                                            <button onClick={devamModalAc} className="text-xs border border-zinc-700 text-zinc-400 hover:text-blue-400 hover:border-blue-400 px-3 py-1.5 rounded-lg transition-colors">📋 Devam</button>
+                                            <button onClick={izinModalAc} className="text-xs border border-zinc-700 text-zinc-400 hover:text-lime-400 hover:border-lime-400 px-3 py-1.5 rounded-lg transition-colors">🏖️ Düzeltme</button>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 
@@ -494,8 +513,8 @@ export default function Personel() {
                                     baslik: 'Maaş Geçmişi', liste: secili.maaslar, bos: 'Maaş kaydı yok', render: (m) => (
                                         <div
                                             key={m.id}
-                                            onClick={() => !m._gecici && maasModalAc(m.yil, m.ay)}
-                                            className={`px-4 py-2.5 flex justify-between items-center ${m._gecici ? 'opacity-60' : 'cursor-pointer hover:bg-zinc-800/50 transition-colors'}`}
+                                            onClick={() => tamErisim && !m._gecici && maasModalAc(m.yil, m.ay)}
+                                            className={`px-4 py-2.5 flex justify-between items-center ${m._gecici ? 'opacity-60' : tamErisim ? 'cursor-pointer hover:bg-zinc-800/50 transition-colors' : ''}`}
                                         >
                                             <div className="flex items-center gap-2">
                                                 <span className="text-sm text-zinc-300">{aylar[m.ay]} {m.yil}</span>
@@ -553,7 +572,7 @@ export default function Personel() {
                 </div>
             </div>
 
-            {personelModal && (
+            {personelModal && tamErisim && (
                 <Modal baslik={duzenleId ? 'Personel Düzenle' : 'Yeni Personel'} onKapat={() => setPersonelModal(false)}>
                     <div className="space-y-4">
                         <div className="grid grid-cols-2 gap-3">
@@ -603,7 +622,7 @@ export default function Personel() {
                 </Modal>
             )}
 
-            {maasModal && (
+            {maasModal && tamErisim && (
                 <Modal baslik={maasDuzenleId ? 'Maaş Kaydını Güncelle' : 'Maaş Kaydı'} onKapat={() => setMaasModal(false)}>
                     <div className="space-y-4">
                         <div className="grid grid-cols-2 gap-3">
@@ -647,7 +666,7 @@ export default function Personel() {
                 </Modal>
             )}
 
-            {avansModal && (
+            {avansModal && tamErisim && (
                 <Modal baslik="Avans Kaydı" onKapat={() => setAvansModal(false)}>
                     <div className="space-y-4">
                         <div>
@@ -669,7 +688,7 @@ export default function Personel() {
                 </Modal>
             )}
 
-            {devamModal && (
+            {devamModal && tamErisim && (
                 <Modal baslik="Devam Kaydı" onKapat={() => setDevamModal(false)}>
                     <div className="space-y-4">
                         <div className="flex bg-zinc-800 rounded-lg p-1 gap-1">
@@ -746,7 +765,7 @@ export default function Personel() {
                 </Modal>
             )}
 
-            {izinModal && (
+            {izinModal && tamErisim && (
                 <Modal baslik="İzin Düzeltmesi" onKapat={() => setIzinModal(false)}>
                     <div className="space-y-4">
                         <div>
@@ -796,12 +815,15 @@ export default function Personel() {
                                         {p.silinmeTarihi ? `${new Date(p.silinmeTarihi).toLocaleDateString('tr-TR')} tarihinde pasife alındı` : 'Pasif'}
                                     </div>
                                 </div>
-                                <button
-                                    onClick={() => geriYukle(p)}
-                                    className="text-xs bg-lime-400 hover:bg-lime-300 text-black font-bold px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap"
-                                >
-                                    Geri Yükle
-                                </button>
+                                {/* Geri Yükle — yazma işlemi, salt okunurda gizli */}
+                                {tamErisim && (
+                                    <button
+                                        onClick={() => geriYukle(p)}
+                                        className="text-xs bg-lime-400 hover:bg-lime-300 text-black font-bold px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap"
+                                    >
+                                        Geri Yükle
+                                    </button>
+                                )}
                             </div>
                         ))}
                     </div>

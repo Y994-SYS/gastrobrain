@@ -3,7 +3,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { demoBilgileriOlustur } = require('./demoSeed.service');
 const prisma = new PrismaClient();
-const { hosgeldinMailGonder } = require('./mail.service');
+const { hosgeldinMailGonder, yeniKayitBildirimMailGonder } = require('./mail.service');
 
 // Deneme süresi kontrolü — lisansBitis > şimdi ise deneme/aktif,
 // ama kayıt tarihinden 30 gün içindeyse "deneme döneminde" sayılır.
@@ -193,10 +193,22 @@ const authService = {
         });
 
         demoBilgileriOlustur(sonuc.tenant.id, sonuc.sube.id);
+
         try {
             await hosgeldinMailGonder(firmaEmail, firmaAd, adminAd, sonuc.tenant.lisansBitis);
         } catch (e) {
             console.error('Mail gönderilemedi:', e.message);
+        }
+
+        // Yeni kayıt olduğunda sana (admin) da haber verir. Kullanıcıya giden
+        // hoşgeldin mailinden bağımsız, ayrı bir try/catch içinde — bu mailin
+        // başarısız olması kayıt akışını hiçbir şekilde etkilemez.
+        try {
+            await yeniKayitBildirimMailGonder({
+                firmaAd, firmaEmail, firmaTelefon, adminAd, adminEmail
+            });
+        } catch (e) {
+            console.error('Yeni kayıt bildirim maili gönderilemedi:', e.message);
         }
 
         const token = jwt.sign(

@@ -403,6 +403,42 @@ const mailService = {
             `
         });
     }
+     // ── Yeni Kayıt Bildirimi (admin'e) ──────────────────────────────────────
+    // Yeni bir firma (tenant) kaydolduğunda sana (FEEDBACK_EMAIL) haber
+    // verir. hosgeldinMailGonder'ın hemen yanında, aynı try/catch deseniyle
+    // çağrılır — bu mailin başarısız olması kayıt akışını ASLA engellemez.
+    async yeniKayitBildirimMailGonder({ firmaAd, firmaEmail, firmaTelefon, adminAd, adminEmail }) {
+        const hedefEmail = process.env.FEEDBACK_EMAIL || process.env.SMTP_USER;
+        const firmaAdGuvenli = htmlKacisla(firmaAd);
+        const firmaEmailGuvenli = htmlKacisla(firmaEmail);
+        const adminAdGuvenli = htmlKacisla(adminAd);
+        const adminEmailGuvenli = htmlKacisla(adminEmail);
+        const telefonGuvenli = firmaTelefon ? htmlKacisla(firmaTelefon) : null;
+
+        await mailGonder({
+            to: hedefEmail,
+            subject: `🎉 Yeni Kayıt — ${firmaAdGuvenli}`,
+            html: `
+                <div style="font-family: sans-serif; max-width: 500px; margin: 0 auto;">
+                    <h2 style="color: #18181b;">🎉 Yeni Firma Kaydoldu</h2>
+                    <table style="width: 100%; border-collapse: collapse; margin-top: 16px;">
+                        <tr><td style="padding: 8px 0; color: #71717a;">Firma:</td><td style="padding: 8px 0; font-weight: 600;">${firmaAdGuvenli}</td></tr>
+                        <tr><td style="padding: 8px 0; color: #71717a;">Firma Email:</td><td style="padding: 8px 0;">${firmaEmailGuvenli}</td></tr>
+                        ${telefonGuvenli ? `<tr><td style="padding: 8px 0; color: #71717a;">Telefon:</td><td style="padding: 8px 0;">${telefonGuvenli}</td></tr>` : ''}
+                        <tr><td style="padding: 8px 0; color: #71717a;">Admin:</td><td style="padding: 8px 0; font-weight: 600;">${adminAdGuvenli}</td></tr>
+                        <tr><td style="padding: 8px 0; color: #71717a;">Admin Email:</td><td style="padding: 8px 0;">${adminEmailGuvenli}</td></tr>
+                        <tr><td style="padding: 8px 0; color: #71717a;">Plan:</td><td style="padding: 8px 0;">Başlangıç (30 gün deneme)</td></tr>
+                    </table>
+                    <p style="margin-top: 20px;">
+                        <a href="${process.env.APP_URL}/super-admin" style="background: #a3e635; color: #18181b; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: 600;">
+                            Süper Admin Panelinde Görüntüle →
+                        </a>
+                    </p>
+                </div>
+            `
+        });
+    }
+
 };
 
 module.exports = mailService;

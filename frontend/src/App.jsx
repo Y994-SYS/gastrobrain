@@ -115,7 +115,18 @@ export default function App() {
 
   return (
     <BrowserRouter>
-      <Toaster position="top-right" />
+      <Toaster
+        position="top-right"
+        toastOptions={{
+          duration: 4000,
+          error: {
+            duration: 6000,
+          },
+          success: {
+            duration: 3000,
+          },
+        }}
+      />
       <Routes>
 
         {/* ── Public ─────────────────────────────────────────────────── */}

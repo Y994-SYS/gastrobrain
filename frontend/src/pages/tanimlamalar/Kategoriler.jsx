@@ -48,10 +48,10 @@ export default function Kategoriler() {
         setModal(true);
     };
 
-    const sil = async (id) => {
+    const sil = async (satir) => {
         if (!confirm('Silmek istediğine emin misin?')) return;
         try {
-            await api.delete(`/api/kategoriler/${id}`);
+            await api.delete(`/api/kategoriler/${satir.id}`);
             toast.success('Silindi');
             getir();
         } catch (err) {

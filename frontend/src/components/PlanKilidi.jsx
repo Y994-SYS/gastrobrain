@@ -2,18 +2,30 @@ import { createContext, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 // Hangi plan hangi özelliklere sahip
+//
+// DÜZELTME: 'merkezDepo' ve 'planliTransfer' bu listeye hiç eklenmemişti —
+// backend'deki paketKontrol.middleware.js'in PAKET_OZELLIKLERI listesinde
+// PROFESYONEL için ikisi de `true` idi (yani gerçek erişim hep doğruydu),
+// ama bu ayrı frontend listesi onlardan habersizdi. Sonuç: PROFESYONEL
+// planındaki kullanıcılar Merkez Depo ve Planlı Transfer sayfalarında
+// yanlışlıkla "Salt Okunur Mod" görüyordu — veri kaybı yoktu, sadece yazma
+// butonları hatalı gizleniyordu. Bu iki liste (frontend + backend) aynı
+// bilgiyi iki ayrı yerde tutuyor; ileride yeni bir paket-kısıtlı özellik
+// eklenirse İKİSİNİN DE güncellenmesi gerekiyor.
 const PLAN_OZELLIKLERI = {
     BASLANGIC: ['stok', 'satis', 'recete', 'raporlar_temel'],
-    PROFESYONEL: ['stok', 'satis', 'recete', 'raporlar_temel', 'cari', 'personel', 'raporlar_gelismis', 'transfer'],
+    PROFESYONEL: ['stok', 'satis', 'recete', 'raporlar_temel', 'cari', 'personel', 'raporlar_gelismis', 'transfer', 'merkezDepo', 'planliTransfer'],
     KURUMSAL: ['hepsi'],
 };
 
-// Hangi özellik hangi plana dahil
+// Hangi özellik hangi plana dahil (yükseltme mesajında kullanılıyor)
 const OZELLIK_PLAN = {
     cari: 'PROFESYONEL',
     personel: 'PROFESYONEL',
     raporlar_gelismis: 'PROFESYONEL',
     transfer: 'PROFESYONEL',
+    merkezDepo: 'PROFESYONEL',
+    planliTransfer: 'PROFESYONEL',
 };
 
 const OZELLIK_ETIKET = {
@@ -21,6 +33,8 @@ const OZELLIK_ETIKET = {
     personel: 'Personel & Maaş Yönetimi',
     raporlar_gelismis: 'Gelişmiş Raporlar & Excel Export',
     transfer: 'Şubeler Arası Stok Transferi',
+    merkezDepo: 'Merkez Depo Yönetimi',
+    planliTransfer: 'Planlı Transferler',
 };
 
 const PLAN_ETIKET = {
@@ -40,9 +54,6 @@ export function planErisimiVar(plan, denemede, ozellik) {
 }
 
 // ── Paket Durumu Context ────────────────────────────────────────────────────
-// Bir sayfa artık "kilitli / açık" diye ikiye ayrılmıyor — her zaman render
-// ediliyor, ama içindeki yazma butonları (Yeni Ekle, Düzenle, Sil) bu
-// context'ten okuduğu `tamErisim` değerine göre kendini gösterip gizliyor.
 const PaketContext = createContext({ tamErisim: true, ozellik: null, plan: null, denemede: false });
 
 export function PaketProvider({ ozellik, plan, denemede, children }) {
@@ -54,16 +65,11 @@ export function PaketProvider({ ozellik, plan, denemede, children }) {
     );
 }
 
-// Sayfa içindeki bileşenlerin kullanacağı hook. Örnek:
-//   const { tamErisim } = usePaketDurumu();
-//   {tamErisim && <button>Yeni Ekle</button>}
 export function usePaketDurumu() {
     return useContext(PaketContext);
 }
 
 // ── Salt Okunur Uyarı Şeridi ─────────────────────────────────────────────────
-// Sayfanın en üstüne konur. Tam erişim varsa hiçbir şey render etmez —
-// yani deneme sırasında veya doğru pakette bu şerit hiç görünmez.
 export function SaltOkunurUyari() {
     const { tamErisim, ozellik } = usePaketDurumu();
     const navigate = useNavigate();
@@ -94,10 +100,8 @@ export function SaltOkunurUyari() {
 }
 
 // ── Eski davranış (tam sayfa kilit ekranı) ─────────────────────────────────
-// Artık normal akışta KULLANILMIYOR (App.jsx her zaman sayfayı render
-// ediyor) — ama örneğin bir tenant'ın o modülde hiç kaydı yoksa ve plan da
-// yetersizse, sayfanın kendisi isterse bunu "boş durum" yerine gösterebilir.
-// Geriye dönük uyumluluk için export edilmeye devam ediyor.
+// Artık normal akışta KULLANILMIYOR — geriye dönük uyumluluk için export
+// edilmeye devam ediyor.
 export default function PlanKilidi({ ozellik }) {
     const navigate = useNavigate();
     const gerekliPlan = OZELLIK_PLAN[ozellik] || 'PROFESYONEL';

@@ -371,7 +371,7 @@ export default function HomeClient() {
                 {/* NAV */}
                 <nav>
                     <a href="#" className="nav-logo-wrap">
-                        <Image src="/logo.png" alt="GastroBrain" width={36} height={36} />
+                        <Image src="/gastrologo.webp" alt="GastroBrain" width={36} height={36} />
                         <span className="nav-logo-text">Gastro<span>Brain</span></span>
                     </a>
 
@@ -639,7 +639,7 @@ export default function HomeClient() {
                 <footer>
                     <div className="footer-inner">
                         <a href="#" className="footer-logo-wrap">
-                            <Image src="/logo.png" alt="GastroBrain" width={28} height={28} />
+                            <Image src="/gastrologo.webp" alt="GastroBrain" width={28} height={28} />
                             <span className="footer-logo-text">Gastro<span>Brain</span></span>
                         </a>
                         <div className="footer-links">

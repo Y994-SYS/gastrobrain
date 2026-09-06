@@ -506,14 +506,9 @@ const hesaplaMerkezMuhasebesi = async (tenantId) => {
         };
     });
 
-    const toplamBorc = tedarikciAnaliz
-        .filter(t => t.netBakiye < 0)
-        .reduce((t, c) => t + Math.abs(c.netBakiye), 0);
-    const toplamAlacak = tedarikciAnaliz
-        .filter(t => t.netBakiye > 0)
-        .reduce((t, c) => t + c.netBakiye, 0);
+    const toplamBorc = tedarikciAnaliz.reduce((t, c) => t + c.toplamBorc, 0);
+    const toplamAlacak = tedarikciAnaliz.reduce((t, c) => t + c.toplamAlacak, 0);
     const netToplam = toplamAlacak - toplamBorc;
-
     return {
         tedarikciler: tedarikciAnaliz
             .filter(t => t.toplamBorc > 0 || t.toplamAlacak > 0)

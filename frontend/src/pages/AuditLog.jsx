@@ -3,6 +3,7 @@ import api from '../services/api';
 
 const EYLEM_RENK = {
     SATIS_EKLE: 'text-lime-400 bg-lime-400/10',
+    SATIS_EKLE_ZORLA: 'text-amber-400 bg-amber-400/10',
     SATIS_SIL: 'text-red-400 bg-red-400/10',
     STOK_GIRIS_FATURA: 'text-blue-400 bg-blue-400/10',
     STOK_IADE_FATURA: 'text-orange-400 bg-orange-400/10',
@@ -13,10 +14,26 @@ const EYLEM_RENK = {
     KULLANICI_GUNCELLE: 'text-yellow-400 bg-yellow-400/10',
     KULLANICI_SIL: 'text-red-400 bg-red-400/10',
     SIFRE_DEGISTIR: 'text-zinc-400 bg-zinc-400/10',
+    // ── Şube-şube manuel transfer ──
+    SUBE_TRANSFER: 'text-cyan-400 bg-cyan-400/10',
+    // ── Merkez Depo ──
+    MERKEZ_DEPO_TANIM_EKLE: 'text-blue-400 bg-blue-400/10',
+    MERKEZ_DEPO_TANIM_TOPLU_EKLE: 'text-blue-400 bg-blue-400/10',
+    MERKEZ_DEPO_TANIM_SIL: 'text-red-400 bg-red-400/10',
+    MERKEZ_DEPO_MANUEL_DAGIT: 'text-cyan-400 bg-cyan-400/10',
+    MERKEZ_DEPO_TOPLU_DAGIT: 'text-cyan-400 bg-cyan-400/10',
+    // ── Planlı Transfer ──
+    PLANLI_TRANSFER_OLUSTUR: 'text-blue-400 bg-blue-400/10',
+    PLANLI_TRANSFER_GUNCELLE: 'text-yellow-400 bg-yellow-400/10',
+    PLANLI_TRANSFER_SIL: 'text-red-400 bg-red-400/10',
+    PLANLI_TRANSFER_AKTIF_PASIF: 'text-yellow-400 bg-yellow-400/10',
+    PLANLI_TRANSFER_MANUEL: 'text-cyan-400 bg-cyan-400/10',
+    PLANLI_TRANSFER_OTOMATIK: 'text-purple-400 bg-purple-400/10',
 };
 
 const EYLEM_LABEL = {
     SATIS_EKLE: 'Satış Eklendi',
+    SATIS_EKLE_ZORLA: 'Satış Eklendi (Zorla)',
     SATIS_SIL: 'Satış Silindi',
     STOK_GIRIS_FATURA: 'Giriş Faturası',
     STOK_IADE_FATURA: 'İade Faturası',
@@ -27,6 +44,21 @@ const EYLEM_LABEL = {
     KULLANICI_GUNCELLE: 'Kullanıcı Güncellendi',
     KULLANICI_SIL: 'Kullanıcı Silindi',
     SIFRE_DEGISTIR: 'Şifre Değiştirildi',
+    // ── Şube-şube manuel transfer ──
+    SUBE_TRANSFER: 'Şubeler Arası Transfer',
+    // ── Merkez Depo ──
+    MERKEZ_DEPO_TANIM_EKLE: 'Merkez Depo Tanımı Eklendi',
+    MERKEZ_DEPO_TANIM_TOPLU_EKLE: 'Merkez Depo Toplu Tanım',
+    MERKEZ_DEPO_TANIM_SIL: 'Merkez Depo Tanımı Silindi',
+    MERKEZ_DEPO_MANUEL_DAGIT: 'Merkez Depo Dağıtımı',
+    MERKEZ_DEPO_TOPLU_DAGIT: 'Merkez Depo Toplu Dağıtım',
+    // ── Planlı Transfer ──
+    PLANLI_TRANSFER_OLUSTUR: 'Planlı Transfer Oluşturuldu',
+    PLANLI_TRANSFER_GUNCELLE: 'Planlı Transfer Güncellendi',
+    PLANLI_TRANSFER_SIL: 'Planlı Transfer Silindi',
+    PLANLI_TRANSFER_AKTIF_PASIF: 'Planlı Transfer Durumu Değişti',
+    PLANLI_TRANSFER_MANUEL: 'Planlı Transfer Elle Çalıştırıldı',
+    PLANLI_TRANSFER_OTOMATIK: 'Planlı Transfer Otomatik Çalıştı',
 };
 
 export default function AuditLog() {

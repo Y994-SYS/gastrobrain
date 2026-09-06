@@ -16,9 +16,10 @@ const merkezDepoController = {
                 aciklama
             });
 
+            // DÜZELTME: "stokKartId: 134" yerine ürün adı loglanıyor
             await auditLog.kaydet({
                 eylem: 'MERKEZ_DEPO_TANIM_EKLE',
-                detay: { stokKartId, minStokSeviyesi, otomatiDagit },
+                detay: { urun: sonuc.stokKart.ad, minStokSeviyesi, otomatiDagit },
                 kullaniciId: req.kullanici.id,
                 tenantId,
                 ip: req.ip
@@ -66,9 +67,10 @@ const merkezDepoController = {
 
             const sonuc = await merkezDepoService.sil(Number(id), tenantId);
 
+            // DÜZELTME: ürün adıyla logla
             await auditLog.kaydet({
                 eylem: 'MERKEZ_DEPO_TANIM_SIL',
-                detay: { merkezDepoId: id },
+                detay: { urun: sonuc.stokKart.ad },
                 kullaniciId: req.kullanici.id,
                 tenantId,
                 ip: req.ip
@@ -93,9 +95,10 @@ const merkezDepoController = {
                 aciklama
             });
 
+            // DÜZELTME: "merkezDepoId: 7, hedefSubeId: 3" yerine ürün ve şube adı
             await auditLog.kaydet({
                 eylem: 'MERKEZ_DEPO_MANUEL_DAGIT',
-                detay: { merkezDepoId, hedefSubeId, miktar },
+                detay: { urun: sonuc.stokAdi, hedefSube: sonuc.hedefSubeAdi, miktar },
                 kullaniciId: req.kullanici.id,
                 tenantId,
                 ip: req.ip
@@ -123,10 +126,12 @@ const merkezDepoController = {
             });
 
             const basariliSayisi = sonuclar.filter(s => s.basarili).length;
+            // DÜZELTME: başarılı ürün adlarının listesi logda görünüyor
+            const urunAdlari = sonuclar.filter(s => s.basarili).map(s => s.stokAdi);
 
             await auditLog.kaydet({
                 eylem: 'MERKEZ_DEPO_TOPLU_DAGIT',
-                detay: { hedefSubeId, kalemSayisi: kalemler.length, basariliSayisi },
+                detay: { urunler: urunAdlari.join(', '), kalemSayisi: kalemler.length, basariliSayisi },
                 kullaniciId: req.kullanici.id,
                 tenantId,
                 ip: req.ip

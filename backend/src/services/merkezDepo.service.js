@@ -30,6 +30,11 @@ const merkezDepoService = {
     // artık otomatik olarak yeniden aktive ediliyor — aksi hâlde kullanıcı
     // bir tanımı sildikten sonra aynı ürün için tekrar tanım eklemeye
     // çalıştığında sessizce pasif kalırdı.
+    //
+    // DÜZELTME 2: create/update dönüşlerine `stokKart: true` include edildi
+    // — controller artık audit log'a "stokKartId: 134" yerine "ad: Domates"
+    // yazabiliyor, İşlem Geçmişi ekranında müşteri hangi üründen bahsedildiğini
+    // görebiliyor.
     async tanımlaEkle({ tenantId, stokKartId, minStokSeviyesi, otomatiDagit, aciklama }) {
         const mevcut = await prisma.merkezDepo.findUnique({
             where: { stokKartId_tenantId: { stokKartId, tenantId } }
@@ -38,12 +43,14 @@ const merkezDepoService = {
         if (mevcut) {
             return await prisma.merkezDepo.update({
                 where: { id: mevcut.id },
-                data: { minStokSeviyesi, otomatiDagit, aciklama, aktif: true }
+                data: { minStokSeviyesi, otomatiDagit, aciklama, aktif: true },
+                include: { stokKart: true }
             });
         }
 
         return await prisma.merkezDepo.create({
-            data: { tenantId, stokKartId, minStokSeviyesi, otomatiDagit, aciklama, aktif: true }
+            data: { tenantId, stokKartId, minStokSeviyesi, otomatiDagit, aciklama, aktif: true },
+            include: { stokKart: true }
         });
     },
 
@@ -105,18 +112,23 @@ const merkezDepoService = {
     // bilgisi (stokKart adı vb.) bozulmadan kalıyor.
     async sil(id, tenantId) {
         const mevcutTanim = await prisma.merkezDepo.findFirst({
-            where: { id, tenantId }
+            where: { id, tenantId },
+            include: { stokKart: true }
         });
 
         if (!mevcutTanim) throw new Error('Merkez depo tanımı bulunamadı');
 
         return await prisma.merkezDepo.update({
             where: { id },
-            data: { aktif: false }
+            data: { aktif: false },
+            include: { stokKart: true }
         });
     },
 
     // Manual dağıtım yap (tek kalem) — YAZMA işlemi, bilerek sıralı/atomik.
+    // DÜZELTME: dönüş değerine stokAdi/hedefSubeAdi eklendi — controller
+    // artık audit log'a "merkezDepoId: 7, hedefSubeId: 3" yerine
+    // "stok: Domates, hedefSube: Kadıköy Şube" yazabiliyor.
     async manuelDagit({ tenantId, merkezDepoId, hedefSubeId, miktar, aciklama }) {
         if (!(miktar > 0)) {
             throw new Error('Miktar sıfırdan büyük olmalıdır');
@@ -185,13 +197,18 @@ const merkezDepoService = {
             return kayit;
         });
 
-        return dagitim;
+        return { ...dagitim, stokAdi: tanim.stokKart.ad, hedefSubeAdi: hedefSube.ad };
     },
 
     // Toplu dağıtım — YAZMA işlemleri, bilerek sıralı. Her kalem merkez
     // stokunu tükettiği için paralel çalıştırılırsa aynı anda başlayan iki
     // istek merkez bakiyesini "yeterli" görüp stoku negatife düşürebilir
     // (TOCTOU) — bu yüzden burası bilinçli olarak for...of + await.
+    //
+    // DÜZELTME: sonuç kayıtlarına stokAdi eklendi (manuelDagit zaten
+    // döndürüyor). Hata durumunda da isim gösterebilmek için, hata öncesi
+    // tanım adını ayrıca çekiyoruz (manuelDagit hata fırlatırsa stokAdi
+    // dönmez).
     async topluDagit({ tenantId, hedefSubeId, kalemler }) {
         if (!Array.isArray(kalemler) || kalemler.length === 0) {
             throw new Error('En az bir kalem seçilmeli');
@@ -200,6 +217,12 @@ const merkezDepoService = {
         const sonuclar = [];
 
         for (const kalem of kalemler) {
+            const tanimOnizleme = await prisma.merkezDepo.findFirst({
+                where: { id: Number(kalem.merkezDepoId), tenantId },
+                include: { stokKart: true }
+            });
+            const stokAdi = tanimOnizleme?.stokKart?.ad || `#${kalem.merkezDepoId}`;
+
             try {
                 const dagitim = await this.manuelDagit({
                     tenantId,
@@ -208,9 +231,9 @@ const merkezDepoService = {
                     miktar: Number(kalem.miktar),
                     aciklama: kalem.aciklama
                 });
-                sonuclar.push({ basarili: true, merkezDepoId: kalem.merkezDepoId, dagitimId: dagitim.id });
+                sonuclar.push({ basarili: true, merkezDepoId: kalem.merkezDepoId, stokAdi, dagitimId: dagitim.id });
             } catch (err) {
-                sonuclar.push({ basarili: false, merkezDepoId: kalem.merkezDepoId, hata: err.message });
+                sonuclar.push({ basarili: false, merkezDepoId: kalem.merkezDepoId, stokAdi, hata: err.message });
             }
         }
 
@@ -229,7 +252,6 @@ const merkezDepoService = {
             }
         });
 
-        // 1. Adım: Tüm ihtiyaç durumlarını PARALEL oku (yazma yok, güvenli)
         const ihtiyacListesi = (await Promise.all(
             tanimlar.map(async (tanim) => {
                 const subeler = tanim.tenant.subeler.filter(s => s.id !== merkezSube.id);
@@ -244,8 +266,6 @@ const merkezDepoService = {
             })
         )).flat();
 
-        // 2. Adım: Gerçek dağıtımları SIRALI yap (her biri merkez stokunu
-        // tükettiği için paralel yapılamaz)
         const sonuclar = [];
         for (const { tanim, sube, mevcut } of ihtiyacListesi) {
             const gerekenMiktar = tanim.minStokSeviyesi - mevcut;
@@ -279,8 +299,6 @@ const merkezDepoService = {
         return sonuclar;
     },
 
-    // Dağıtım geçmişini getir — tanım pasife alınmış olsa bile (silinmediği
-    // için) buradaki ürün/tarih bilgisi bozulmadan görünmeye devam eder.
     async dagitimGecmisiGetir(tenantId, merkezDepoId, limit = 50) {
         return await prisma.merkezDagitim.findMany({
             where: {
@@ -296,7 +314,6 @@ const merkezDepoService = {
         });
     },
 
-    // Merkez depo durum özeti — sadece AKTİF tanımlar için hesaplanır.
     async durumuGetir(tenantId) {
         const merkezSube = await merkezSubeGetir(tenantId);
 

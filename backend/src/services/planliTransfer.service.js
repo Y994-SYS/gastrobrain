@@ -1,5 +1,6 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
+const auditLog = require('./auditLog.service');
 
 const GIRIS_TIPLER = new Set(['GIRIS_FATURA', 'IADE_FATURA', 'SUBE_TRANSFER_IN']);
 
@@ -13,6 +14,16 @@ const bakiyeHesapla = async (subeId, stokKartId) => {
         const miktar = h._sum.miktar || 0;
         return toplam + (GIRIS_TIPLER.has(h.tip) ? miktar : -miktar);
     }, 0);
+};
+
+const kalemInclude = {
+    kalemler: {
+        include: {
+            stokKart: { include: { birim: true } },
+            kaynakSube: true,
+            hedefSube: true,
+        }
+    }
 };
 
 const planliTransferService = {
@@ -50,30 +61,76 @@ const planliTransferService = {
                     }))
                 }
             },
-            include: {
-                kalemler: {
-                    include: {
-                        stokKart: { include: { birim: true } },
-                        kaynakSube: true,
-                        hedefSube: true,
-                    }
-                }
+            include: kalemInclude
+        });
+    },
+
+    // DÜZELTME (eksik fonksiyon): controller'da guncelle() çağrılıyordu
+    // ama service'te hiç tanımlı değildi — düzenleme isteği muhtemelen
+    // 500/undefined-is-not-a-function hatasıyla başarısız oluyordu.
+    //
+    // ⚠️ VARSAYIM: kalem tablosunun model adını ve FK alanını Prisma
+    // şemanızı görmeden, `kalemler` include yapısına bakarak tahmin ettim
+    // (`prisma.planliTransferKalem`, FK: `planliTransferId`). Sizde farklıysa
+    // (örn. `PlanTransferKalemi` ya da FK adı `transferId`) bu iki satırı
+    // (deleteMany where alanı) kendi şemanıza göre düzeltmeniz gerekir.
+    async guncelle(id, tenantId, { ad, gunler, saat, dakika, aktif, aciklama, kalemler }) {
+        const mevcut = await prisma.planliTransfer.findFirst({ where: { id, tenantId } });
+        if (!mevcut) throw new Error('Plan bulunamadı');
+
+        // Kalemler gönderildiyse, tüm yeni kalemlerin bu tenant'a ait
+        // olduğunu doğrula (olustur() ile aynı IDOR koruması)
+        if (kalemler) {
+            if (kalemler.length === 0) throw new Error('En az bir kalem ekleyin');
+            for (const kalem of kalemler) {
+                const [kaynak, hedef, stok] = await Promise.all([
+                    prisma.sube.findFirst({ where: { id: kalem.kaynakSubeId, tenantId } }),
+                    prisma.sube.findFirst({ where: { id: kalem.hedefSubeId, tenantId } }),
+                    prisma.stokKart.findFirst({ where: { id: kalem.stokKartId, tenantId } }),
+                ]);
+                if (!kaynak) throw new Error('Kaynak şube bulunamadı');
+                if (!hedef) throw new Error('Hedef şube bulunamadı');
+                if (!stok) throw new Error('Stok kartı bulunamadı');
+                if (kalem.kaynakSubeId === kalem.hedefSubeId) throw new Error('Kaynak ve hedef şube aynı olamaz');
             }
+        }
+
+        return await prisma.$transaction(async (tx) => {
+            if (kalemler) {
+                // ⚠️ VARSAYIM: model adı/FK — yukarıdaki notu oku
+                await tx.planliTransferKalem.deleteMany({ where: { planliTransferId: id } });
+            }
+
+            return tx.planliTransfer.update({
+                where: { id },
+                data: {
+                    ...(ad !== undefined && { ad }),
+                    ...(gunler !== undefined && { gunler }),
+                    ...(saat !== undefined && { saat }),
+                    ...(dakika !== undefined && { dakika }),
+                    ...(aktif !== undefined && { aktif }),
+                    ...(aciklama !== undefined && { aciklama }),
+                    ...(kalemler && {
+                        kalemler: {
+                            create: kalemler.map(k => ({
+                                stokKartId: k.stokKartId,
+                                kaynakSubeId: k.kaynakSubeId,
+                                hedefSubeId: k.hedefSubeId,
+                                miktar: k.miktar,
+                                aciklama: k.aciklama || null,
+                            }))
+                        }
+                    })
+                },
+                include: kalemInclude
+            });
         });
     },
 
     async tumunuGetir(tenantId) {
         return await prisma.planliTransfer.findMany({
             where: { tenantId },
-            include: {
-                kalemler: {
-                    include: {
-                        stokKart: { include: { birim: true } },
-                        kaynakSube: true,
-                        hedefSube: true,
-                    }
-                }
-            },
+            include: kalemInclude,
             orderBy: { createdAt: 'desc' }
         });
     },
@@ -90,15 +147,7 @@ const planliTransferService = {
         return await prisma.planliTransfer.update({
             where: { id },
             data: { aktif },
-            include: {
-                kalemler: {
-                    include: {
-                        stokKart: { include: { birim: true } },
-                        kaynakSube: true,
-                        hedefSube: true,
-                    }
-                }
-            }
+            include: kalemInclude
         });
     },
 
@@ -164,13 +213,28 @@ const planliTransferService = {
             });
         });
 
+        // DÜZELTME: kalem detayı (ürün + kaynak→hedef) döndürülüyor —
+        // controller artık audit log'a sadece "kalemSayisi: 3" değil,
+        // hangi ürünlerin taşındığını da yazabiliyor.
         return {
             mesaj: 'Transfer tamamlandı',
             plan: plan.ad,
             kalemSayisi: plan.kalemler.length,
+            kalemler: plan.kalemler.map(k => ({
+                urun: k.stokKart.ad,
+                kaynak: k.kaynakSube.ad,
+                hedef: k.hedefSube.ad,
+                miktar: k.miktar,
+            })),
         };
     },
 
+    // Cron tarafından çağrılır — kullanıcı tetiklemediği için otomatik
+    // çalışmalar da İşlem Geçmişi'nde görünsün istiyorsak burada
+    // loglanmalı (controller'da bu yol hiç geçilmiyor). auditLog.kaydet
+    // başarısız olursa (örn. DB geçici erişilemez) transfer akışı
+    // etkilenmesin diye try/catch içine alındı — codebase'deki mail
+    // gönderimi ile aynı desen.
     async zamanlanmisCalistir() {
         const simdi = new Date();
         const bugunGun = simdi.getDay();
@@ -201,6 +265,18 @@ const planliTransferService = {
             try {
                 const sonuc = await this.hemenCalistir(plan.id, plan.tenantId);
                 sonuclar.push({ basarili: true, ...sonuc });
+
+                try {
+                    await auditLog.kaydet({
+                        eylem: 'PLANLI_TRANSFER_OTOMATIK',
+                        detay: { plan: plan.ad, kalemSayisi: sonuc.kalemSayisi },
+                        kullaniciId: null, // sistem tarafından, kullanıcı tetiklemedi
+                        tenantId: plan.tenantId,
+                        ip: null
+                    });
+                } catch (logErr) {
+                    console.error('Planlı transfer audit log hatası:', logErr.message);
+                }
             } catch (err) {
                 sonuclar.push({ basarili: false, plan: plan.ad, hata: err.message });
             }

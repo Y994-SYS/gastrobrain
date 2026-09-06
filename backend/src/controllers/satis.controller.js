@@ -66,20 +66,23 @@ const satisController = {
             req.body.subeId = satisSubeIdBelirle(req);
 
             const zorla = req.body.zorla === true;
-            const { satis, zorlandi, eksikKalemler } = await satisService.ekle(
+            const { satis, zorlandi, eksikKalemler, receteAdi } = await satisService.ekle(
                 req.body,
                 req.kullanici.tenantId,
                 { zorla, rol: req.kullanici.rol }
             );
 
+            // DÜZELTME: "receteId: 48" yerine reçete adı loglanıyor —
+            // eksikKalemler zaten stok adlarıyla geliyordu (service'te
+            // {ad, mevcut, gereken} olarak dolduruluyor), o kısım değişmedi.
             await auditLog.kaydet({
                 eylem: zorlandi ? 'SATIS_EKLE_ZORLA' : 'SATIS_EKLE',
                 detay: {
-                    receteId: req.body.receteId,
+                    recete: receteAdi,
                     adet: req.body.adet,
                     birimFiyat: req.body.birimFiyat,
                     toplam: satis.toplam,
-                    ...(zorlandi ? { eksikKalemler } : {})
+                    ...(zorlandi ? { eksikKalemler: eksikKalemler.map(k => `${k.ad} (mevcut: ${k.mevcut.toFixed(2)}, gereken: ${k.gereken.toFixed(2)})`) } : {})
                 },
                 kullaniciId: req.kullanici.id,
                 tenantId: req.kullanici.tenantId,
@@ -94,10 +97,13 @@ const satisController = {
 
     async sil(req, res) {
         try {
-            await satisService.sil(Number(req.params.id), req.kullanici.tenantId);
+            // DÜZELTME: service.sil() artık silinen satışın reçete adını
+            // döndürüyor — "satisId: 12" yerine "recete: Adana Kebap" loglanıyor
+            const sonuc = await satisService.sil(Number(req.params.id), req.kullanici.tenantId);
+
             await auditLog.kaydet({
                 eylem: 'SATIS_SIL',
-                detay: { satisId: Number(req.params.id) },
+                detay: { recete: sonuc.receteAdi, toplam: sonuc.toplam },
                 kullaniciId: req.kullanici.id,
                 tenantId: req.kullanici.tenantId,
                 ip: req.ip

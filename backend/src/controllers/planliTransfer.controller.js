@@ -8,9 +8,16 @@ const planliTransferController = {
             const tenantId = req.kullanici.tenantId;
             const sonuc = await planliTransferService.olustur({ tenantId, ...req.body });
 
+            // DÜZELTME: eskiden "miktar: req.body.miktar" yazıyordu ama miktar
+            // üst seviyede yok, her kalemin içinde — bu her zaman undefined
+            // logluyordu. Artık kalem sayısı ve ürün adları yazılıyor.
             await auditLog.kaydet({
                 eylem: 'PLANLI_TRANSFER_OLUSTUR',
-                detay: { ad: req.body.ad, miktar: req.body.miktar },
+                detay: {
+                    plan: req.body.ad,
+                    kalemSayisi: sonuc.kalemler.length,
+                    urunler: sonuc.kalemler.map(k => k.stokKart.ad).join(', ')
+                },
                 kullaniciId: req.kullanici.id,
                 tenantId,
                 ip: req.ip
@@ -38,6 +45,16 @@ const planliTransferController = {
                 req.kullanici.tenantId,
                 req.body
             );
+
+            // DÜZELTME: bu işlem hiç loglanmıyordu
+            await auditLog.kaydet({
+                eylem: 'PLANLI_TRANSFER_GUNCELLE',
+                detay: { plan: sonuc.ad },
+                kullaniciId: req.kullanici.id,
+                tenantId: req.kullanici.tenantId,
+                ip: req.ip
+            });
+
             res.json(sonuc);
         } catch (err) {
             res.status(400).json({ hata: err.message });
@@ -46,7 +63,18 @@ const planliTransferController = {
 
     async sil(req, res) {
         try {
-            await planliTransferService.sil(Number(req.params.id), req.kullanici.tenantId);
+            const sonuc = await planliTransferService.sil(Number(req.params.id), req.kullanici.tenantId);
+
+            // DÜZELTME: bu işlem hiç loglanmıyordu — service.sil() zaten
+            // silinen kaydı (dolayısıyla `ad`ını) döndürüyor
+            await auditLog.kaydet({
+                eylem: 'PLANLI_TRANSFER_SIL',
+                detay: { plan: sonuc.ad },
+                kullaniciId: req.kullanici.id,
+                tenantId: req.kullanici.tenantId,
+                ip: req.ip
+            });
+
             res.json({ mesaj: 'Plan silindi' });
         } catch (err) {
             res.status(400).json({ hata: err.message });
@@ -60,6 +88,16 @@ const planliTransferController = {
                 req.kullanici.tenantId,
                 req.body.aktif
             );
+
+            // DÜZELTME: bu işlem hiç loglanmıyordu
+            await auditLog.kaydet({
+                eylem: 'PLANLI_TRANSFER_AKTIF_PASIF',
+                detay: { plan: sonuc.ad, durum: sonuc.aktif ? 'Aktif' : 'Pasif' },
+                kullaniciId: req.kullanici.id,
+                tenantId: req.kullanici.tenantId,
+                ip: req.ip
+            });
+
             res.json(sonuc);
         } catch (err) {
             res.status(400).json({ hata: err.message });
@@ -73,9 +111,15 @@ const planliTransferController = {
                 req.kullanici.tenantId
             );
 
+            // DÜZELTME: sadece planId değil, hangi ürünlerin taşındığı da
+            // logda görünüyor artık (service artık kalemler detayını dönüyor)
             await auditLog.kaydet({
                 eylem: 'PLANLI_TRANSFER_MANUEL',
-                detay: { planId: req.params.id },
+                detay: {
+                    plan: sonuc.plan,
+                    kalemSayisi: sonuc.kalemSayisi,
+                    urunler: sonuc.kalemler.map(k => k.urun).join(', ')
+                },
                 kullaniciId: req.kullanici.id,
                 tenantId: req.kullanici.tenantId,
                 ip: req.ip

@@ -1,6 +1,5 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
-const auditLog = require('./auditLog.service');
 
 // Stok yetersizliğini bilerek geçebilecek roller
 const ZORLA_IZINLI_ROLLER = ['TENANT_ADMIN', 'ADMIN', 'MUDUR'];
@@ -90,7 +89,7 @@ const satisService = {
 
         const eksikKalemler = [];
 
-        return prisma.$transaction(async (tx) => {
+        const sonuc = await prisma.$transaction(async (tx) => {
             for (const kalem of recete.kalemler) {
                 if (kalem.stokTakipZorunlu === false) continue;
 
@@ -164,17 +163,27 @@ const satisService = {
 
             return { satis, zorlandi: eksikKalemler.length > 0, eksikKalemler };
         });
+
+        // DÜZELTME: receteAdi eklendi — controller artık audit log'a
+        // "receteId: 48" yerine "recete: TAVUKSUYU" yazabiliyor.
+        return { ...sonuc, receteAdi: recete.ad };
     },
 
+    // DÜZELTME: silme işlemi artık silinen satışın reçete adını da
+    // döndürüyor (audit log'da isimle görünsün diye) — silmeden önce
+    // recete include edilerek kaydediliyor, çünkü kayıt silindikten sonra
+    // ilişkiden isim çekilemez.
     async sil(id, tenantId) {
         const satis = await prisma.satis.findFirst({
-            where: { id, sube: { tenantId } }
+            where: { id, sube: { tenantId } },
+            include: { recete: true }
         });
         if (!satis) throw new Error('Satış bulunamadı');
         // Not: stokHareket kayıtları silinir — bu, satışla düşülen stoğu
         // fiilen geri yükler. Frontend uyarı metni buna göre yazıldı.
         await prisma.stokHareket.deleteMany({ where: { satisId: id } });
-        return prisma.satis.delete({ where: { id } });
+        await prisma.satis.delete({ where: { id } });
+        return { receteAdi: satis.recete?.ad, toplam: satis.toplam };
     }
 
 };

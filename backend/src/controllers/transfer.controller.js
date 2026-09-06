@@ -1,5 +1,6 @@
 const { PrismaClient, Prisma } = require('@prisma/client');
 const prisma = new PrismaClient();
+const auditLog = require('../services/auditLog.service');
 
 // Giriş sayılan stok hareket tipleri (bakiye hesabı için)
 const GIRIS_TIPLER = new Set([
@@ -159,6 +160,22 @@ const transferYap = async (req, res) => {
             }
             throw err;
         }
+
+        // DÜZELTME: Bu işlem önceden hiç loglanmıyordu — şubeler arası
+        // manuel transferler İşlem Geçmişi'nde iz bırakmıyordu. İsimler
+        // (id değil) kaydediliyor ki liste ekranda okunaklı olsun.
+        await auditLog.kaydet({
+            eylem: 'SUBE_TRANSFER',
+            detay: {
+                stok: stokKart.ad,
+                kaynak: kaynakSube.ad,
+                hedef: hedefSube.ad,
+                miktar
+            },
+            kullaniciId: req.kullanici.id,
+            tenantId,
+            ip: req.ip
+        });
 
         res.status(201).json({
             mesaj: 'Transfer tamamlandı',

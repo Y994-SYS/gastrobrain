@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import toast from 'react-hot-toast';
 import api from '../../services/api';
 import Modal from '../../components/Modal';
@@ -36,12 +36,17 @@ export default function Satislar() {
 
     const [veri, setVeri] = useState([]);
     const [receteler, setReceteler] = useState([]);
+    const [kategoriler, setKategoriler] = useState([]);
     const [modal, setModal] = useState(false);
     const [form, setForm] = useState(bosForm);
     const [yukleniyor, setYukleniyor] = useState(false);
     const [tabloYukleniyor, setTabloYukleniyor] = useState(true);
     const [gunlukToplam, setGunlukToplam] = useState(0);
     const [silOnayId, setSilOnayId] = useState(null);
+
+    // Reçete seçim adımı — POS ekranında hızlı arama/kategori filtresi için
+    const [receteArama, setReceteArama] = useState('');
+    const [receteKategoriFiltre, setReceteKategoriFiltre] = useState('');
 
     // Yetersiz stok hatası geldiğinde, zorla kaydet onayı için bekleyen hata mesajı
     const [zorlaOnayMesaji, setZorlaOnayMesaji] = useState(null);
@@ -53,21 +58,49 @@ export default function Satislar() {
     const getir = useCallback(async () => {
         setTabloYukleniyor(true);
         try {
-            const [receteRes, satisRes, gunlukRes] = await Promise.allSettled([
+            const [receteRes, satisRes, gunlukRes, katRes] = await Promise.allSettled([
                 api.get('/api/receteler'),
                 api.get(`/api/satislar${subeParam}`),
                 api.get(`/api/satislar/gunluk-toplam${subeParam}`),
+                api.get('/api/kategoriler?tip=RECETE'),
             ]);
             if (receteRes.status === 'fulfilled') setReceteler(receteRes.value.data?.data || []);
             if (satisRes.status === 'fulfilled') setVeri(satisRes.value.data?.data || []);
             else toast.error('Satışlar yüklenemedi');
             if (gunlukRes.status === 'fulfilled') setGunlukToplam(gunlukRes.value.data?.data?.toplam || 0);
+            if (katRes.status === 'fulfilled') setKategoriler(katRes.value.data?.data || []);
         } finally {
             setTabloYukleniyor(false);
         }
     }, [subeParam]);
 
     useEffect(() => { getir(); }, [getir]);
+
+    // Seçili reçetenin tam objesi — kart grid'inde vurgulamak ve özet
+    // alanında adını/kategorisini göstermek için
+    const seciliRecete = useMemo(
+        () => receteler.find(r => r.id === Number(form.receteId)) || null,
+        [receteler, form.receteId]
+    );
+
+    const filtrelenmisReceteler = useMemo(() => {
+        let liste = receteler;
+        if (receteKategoriFiltre) {
+            liste = liste.filter(r => String(r.kategoriId) === String(receteKategoriFiltre));
+        }
+        if (receteArama.trim()) {
+            const q = receteArama.trim().toLocaleLowerCase('tr-TR');
+            liste = liste.filter(r =>
+                r.ad.toLocaleLowerCase('tr-TR').includes(q) ||
+                r.satisKodu?.toLocaleLowerCase('tr-TR').includes(q)
+            );
+        }
+        return liste;
+    }, [receteler, receteKategoriFiltre, receteArama]);
+
+    const receteSec = (r) => {
+        setForm(f => ({ ...f, receteId: String(r.id), birimFiyat: r.satisFiyati || f.birimFiyat }));
+    };
 
     const kaydet = async (zorla = false) => {
         if (!form.receteId || !form.adet || !form.birimFiyat)
@@ -82,6 +115,8 @@ export default function Satislar() {
             }
             setModal(false);
             setForm(bosForm());
+            setReceteArama('');
+            setReceteKategoriFiltre('');
             setZorlaOnayMesaji(null);
             getir();
         } catch (err) {
@@ -135,7 +170,7 @@ export default function Satislar() {
                         <div className="text-lime-400 font-bold text-sm">₺{fmt(gunlukToplam)}</div>
                     </div>
                     <button
-                        onClick={() => { setForm(bosForm()); setModal(true); }}
+                        onClick={() => { setForm(bosForm()); setReceteArama(''); setReceteKategoriFiltre(''); setModal(true); }}
                         className="bg-lime-400 hover:bg-lime-300 active:scale-95 text-black font-bold text-sm px-4 py-2 rounded-lg transition-all"
                     >
                         + Yeni Satış
@@ -231,21 +266,87 @@ export default function Satislar() {
                             <span className="text-sm font-semibold text-white">🏪 {kendiSubeAdi || '—'}</span>
                         </div>
 
+                        {/* ─── Reçete Seçimi: arama + kategori sekmeleri + kart grid ─── */}
                         <div>
                             <label className="text-zinc-400 text-sm mb-1.5 block">Reçete *</label>
-                            <select
-                                value={form.receteId}
-                                onChange={(e) => {
-                                    const rec = receteler.find(r => r.id === Number(e.target.value));
-                                    setForm({ ...form, receteId: e.target.value, birimFiyat: rec?.satisFiyati || '' });
-                                }}
-                                className={inputCls}
-                            >
-                                <option value="">— Reçete seç —</option>
-                                {receteler.map((r) => (
-                                    <option key={r.id} value={r.id}>{r.ad}</option>
-                                ))}
-                            </select>
+
+                            {seciliRecete ? (
+                                // Seçim yapıldıysa özet göster, "Değiştir" ile tekrar aramaya dön
+                                <div className="flex items-center justify-between bg-zinc-800 rounded-lg px-3 py-2.5">
+                                    <div className="flex items-center gap-2 min-w-0">
+                                        {seciliRecete.kategori && (
+                                            <span className="w-2 h-2 rounded-full shrink-0" style={{ background: seciliRecete.kategori.renk || '#71717a' }} />
+                                        )}
+                                        <span className="text-white text-sm font-medium truncate">{seciliRecete.ad}</span>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => setForm(f => ({ ...f, receteId: '' }))}
+                                        className="text-xs text-zinc-500 hover:text-lime-400 transition-colors ml-3 shrink-0"
+                                    >
+                                        Değiştir
+                                    </button>
+                                </div>
+                            ) : (
+                                <div className="space-y-2">
+                                    <input
+                                        value={receteArama}
+                                        onChange={(e) => setReceteArama(e.target.value)}
+                                        placeholder="Reçete ara..."
+                                        autoFocus
+                                        className={inputCls}
+                                    />
+
+                                    {kategoriler.length > 0 && (
+                                        <div className="flex gap-1.5 flex-wrap">
+                                            <button
+                                                type="button"
+                                                onClick={() => setReceteKategoriFiltre('')}
+                                                className={`text-xs font-semibold px-3 py-1 rounded-full transition-colors ${!receteKategoriFiltre
+                                                    ? 'bg-lime-400 text-black'
+                                                    : 'bg-zinc-800 text-zinc-400 hover:text-white'
+                                                    }`}
+                                            >
+                                                Tümü
+                                            </button>
+                                            {kategoriler.map((k) => (
+                                                <button
+                                                    key={k.id}
+                                                    type="button"
+                                                    onClick={() => setReceteKategoriFiltre(k.id)}
+                                                    className={`text-xs font-semibold px-3 py-1 rounded-full transition-colors flex items-center gap-1.5 ${String(receteKategoriFiltre) === String(k.id)
+                                                        ? 'bg-lime-400 text-black'
+                                                        : 'bg-zinc-800 text-zinc-400 hover:text-white'
+                                                        }`}
+                                                >
+                                                    <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: k.renk || '#71717a' }} />
+                                                    {k.ad}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    <div className="max-h-52 overflow-y-auto grid grid-cols-2 gap-2 pr-0.5">
+                                        {filtrelenmisReceteler.length === 0 ? (
+                                            <div className="col-span-2 text-center py-6 text-zinc-500 text-xs">
+                                                Sonuç bulunamadı
+                                            </div>
+                                        ) : filtrelenmisReceteler.map((r) => (
+                                            <button
+                                                key={r.id}
+                                                type="button"
+                                                onClick={() => receteSec(r)}
+                                                className="text-left bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 hover:border-lime-400 rounded-lg px-3 py-2 transition-colors"
+                                            >
+                                                <div className="text-sm text-white font-medium truncate">{r.ad}</div>
+                                                {r.satisFiyati > 0 && (
+                                                    <div className="text-xs text-lime-400 mt-0.5">₺{fmt(r.satisFiyati)}</div>
+                                                )}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
                         </div>
 
                         <div className="grid grid-cols-2 gap-3">

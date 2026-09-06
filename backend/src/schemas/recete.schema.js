@@ -24,6 +24,9 @@ const receteSchema = z.object({
     ),
     satisFiyati: opsiyonelSayi(z.coerce.number().min(0, 'Satış fiyatı negatif olamaz')),
     porsiyonSayisi: opsiyonelSayi(z.coerce.number().int('Porsiyon sayısı tam sayı olmalı').positive('Porsiyon sayısı 0’dan büyük olmalı')),
+    // null: kategorisiz reçete. Servis katmanında ayrıca tenant + tip='RECETE'
+    // doğrulaması yapılıyor (bkz. recete.service.js -> kategoriDogrula)
+    kategoriId: z.union([z.coerce.number().int().positive(), z.null()]).optional(),
     kalemler: z.array(receteKalemSchema).min(1, 'En az bir kalem eklenmeli'),
 }).strict();
 

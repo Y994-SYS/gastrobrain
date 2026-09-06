@@ -4,37 +4,47 @@ import api from '../../services/api';
 import Modal from '../../components/Modal';
 import Table from '../../components/Table';
 
-const bos = { ad: '', renk: '#4ADE80' };
+const TIPLER = [
+    { deger: 'STOK', etiket: 'Stok Kategorileri' },
+    { deger: 'RECETE', etiket: 'Reçete Kategorileri' },
+];
+
+const bosForm = (tip) => ({ ad: '', renk: '#4ADE80', tip });
 
 export default function Kategoriler() {
+    const [aktifTip, setAktifTip] = useState('STOK');
     const [veri, setVeri] = useState([]);
     const [modal, setModal] = useState(false);
-    const [form, setForm] = useState(bos);
+    const [form, setForm] = useState(bosForm('STOK'));
     const [duzenleId, setDuzenleId] = useState(null);
     const [yukleniyor, setYukleniyor] = useState(false);
 
-    const getir = async () => {
-        const res = await api.get('/api/kategoriler');
+    const getir = async (tip) => {
+        const res = await api.get(`/api/kategoriler?tip=${tip}`);
         setVeri(res.data.data);
     };
 
-    useEffect(() => { getir(); }, []);
+    useEffect(() => { getir(aktifTip); }, [aktifTip]);
 
     const kaydet = async () => {
         if (!form.ad) return toast.error('Ad zorunlu');
         setYukleniyor(true);
         try {
             if (duzenleId) {
-                await api.put(`/api/kategoriler/${duzenleId}`, form);
+                // Güncellemede tip gönderilmiyor — service katmanında zaten
+                // reddediliyor, bir kategori tipini sonradan değiştirmek
+                // ilişkili kayıtları (stokKart/recete) sahipsiz bırakabilir.
+                const { tip, ...guncellenebilir } = form;
+                await api.put(`/api/kategoriler/${duzenleId}`, guncellenebilir);
                 toast.success('Güncellendi');
             } else {
                 await api.post('/api/kategoriler', form);
                 toast.success('Eklendi');
             }
             setModal(false);
-            setForm(bos);
+            setForm(bosForm(aktifTip));
             setDuzenleId(null);
-            getir();
+            getir(aktifTip);
         } catch (err) {
             toast.error(err.response?.data?.mesaj || 'Hata oluştu');
         } finally {
@@ -43,7 +53,7 @@ export default function Kategoriler() {
     };
 
     const duzenle = (satir) => {
-        setForm({ ad: satir.ad, renk: satir.renk || '#4ADE80' });
+        setForm({ ad: satir.ad, renk: satir.renk || '#4ADE80', tip: satir.tip });
         setDuzenleId(satir.id);
         setModal(true);
     };
@@ -53,7 +63,7 @@ export default function Kategoriler() {
         try {
             await api.delete(`/api/kategoriler/${satir.id}`);
             toast.success('Silindi');
-            getir();
+            getir(aktifTip);
         } catch (err) {
             toast.error(err.response?.data?.mesaj || 'Silinemedi');
         }
@@ -68,22 +78,37 @@ export default function Kategoriler() {
                 </div>
             )
         },
-        // Renk kodu sütunu kaldırıldı — renkli nokta ad sütununda gösteriliyor
     ];
 
     return (
         <div>
-            <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center justify-between mb-4">
                 <div>
                     <h1 className="text-xl font-bold text-white">Kategoriler</h1>
                     <p className="text-zinc-500 text-sm mt-0.5">{veri.length} kayıt</p>
                 </div>
                 <button
-                    onClick={() => { setForm(bos); setDuzenleId(null); setModal(true); }}
+                    onClick={() => { setForm(bosForm(aktifTip)); setDuzenleId(null); setModal(true); }}
                     className="bg-lime-400 hover:bg-lime-300 text-black font-bold text-sm px-4 py-2 rounded-lg transition-colors"
                 >
                     + Yeni Kategori
                 </button>
+            </div>
+
+            {/* Tip sekmeleri */}
+            <div className="flex gap-2 mb-4">
+                {TIPLER.map((t) => (
+                    <button
+                        key={t.deger}
+                        onClick={() => setAktifTip(t.deger)}
+                        className={`text-sm font-semibold px-4 py-2 rounded-lg transition-colors ${aktifTip === t.deger
+                            ? 'bg-lime-400 text-black'
+                            : 'bg-zinc-800 text-zinc-400 hover:text-white'
+                            }`}
+                    >
+                        {t.etiket}
+                    </button>
+                ))}
             </div>
 
             <div className="bg-zinc-900 border border-zinc-800 rounded-2xl">
@@ -92,7 +117,7 @@ export default function Kategoriler() {
 
             {modal && (
                 <Modal
-                    baslik={duzenleId ? 'Kategori Düzenle' : 'Yeni Kategori'}
+                    baslik={duzenleId ? 'Kategori Düzenle' : `Yeni ${TIPLER.find(t => t.deger === form.tip)?.etiket.replace(' Kategorileri', ' Kategorisi')}`}
                     onKapat={() => setModal(false)}
                 >
                     <div className="space-y-4">
@@ -101,7 +126,7 @@ export default function Kategoriler() {
                             <input
                                 value={form.ad}
                                 onChange={(e) => setForm({ ...form, ad: e.target.value })}
-                                placeholder="örn. Et & Tavuk"
+                                placeholder={form.tip === 'RECETE' ? 'örn. Çorbalar' : 'örn. Et & Tavuk'}
                                 className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-4 py-2.5 text-sm outline-none focus:border-lime-400 transition-colors"
                             />
                         </div>

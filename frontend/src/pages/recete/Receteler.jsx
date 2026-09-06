@@ -9,21 +9,25 @@ const fmt3 = (n) => Number(n || 0).toLocaleString('tr-TR', { minimumFractionDigi
 export default function Receteler() {
     const [veri, setVeri] = useState([]);
     const [stokKartlari, setStokKartlari] = useState([]);
+    const [kategoriler, setKategoriler] = useState([]);
     const [modal, setModal] = useState(false);
     const [maliyetModal, setMaliyetModal] = useState(null);
     const [duzenleId, setDuzenleId] = useState(null);
     const [yukleniyor, setYukleniyor] = useState(false);
+    const [filtreKategoriId, setFiltreKategoriId] = useState('');
 
-    const bosForm = { ad: '', aciklama: '', satisKodu: '', satisFiyati: '', porsiyonSayisi: '', kalemler: [] };
+    const bosForm = { ad: '', aciklama: '', satisKodu: '', satisFiyati: '', porsiyonSayisi: '', kategoriId: '', kalemler: [] };
     const [form, setForm] = useState(bosForm);
 
     const getir = async () => {
-        const [recRes, stokRes] = await Promise.all([
+        const [recRes, stokRes, katRes] = await Promise.all([
             api.get('/api/receteler'),
             api.get('/api/stok-kartlari'),
+            api.get('/api/kategoriler?tip=RECETE'),
         ]);
         setVeri(recRes.data.data);
         setStokKartlari(stokRes.data.data);
+        setKategoriler(katRes.data.data);
     };
 
     useEffect(() => { getir(); }, []);
@@ -53,11 +57,14 @@ export default function Receteler() {
         }
         setYukleniyor(true);
         try {
+            // kategoriId boş string gönderilirse backend'de Number('') -> NaN
+            // hatası oluşmasın diye burada null'a çeviriyoruz
+            const gonderilecek = { ...form, kategoriId: form.kategoriId || null };
             if (duzenleId) {
-                await api.put(`/api/receteler/${duzenleId}`, form);
+                await api.put(`/api/receteler/${duzenleId}`, gonderilecek);
                 toast.success('Güncellendi');
             } else {
-                await api.post('/api/receteler', form);
+                await api.post('/api/receteler', gonderilecek);
                 toast.success('Reçete eklendi');
             }
             setModal(false);
@@ -78,6 +85,7 @@ export default function Receteler() {
             satisKodu: r.satisKodu || '',
             satisFiyati: r.satisFiyati || '',
             porsiyonSayisi: r.porsiyonSayisi || '',
+            kategoriId: r.kategoriId || '',
             kalemler: r.kalemler.map(k => ({
                 stokKartId: k.stokKartId,
                 miktar: k.miktar,
@@ -110,12 +118,16 @@ export default function Receteler() {
         }
     };
 
+    const gorunenVeri = filtreKategoriId
+        ? veri.filter(r => String(r.kategoriId) === String(filtreKategoriId))
+        : veri;
+
     return (
         <div>
             <div className="flex items-center justify-between mb-5">
                 <div>
                     <h1 className="text-xl font-bold text-white">Reçeteler</h1>
-                    <p className="text-zinc-500 text-sm mt-0.5">{veri.length} reçete</p>
+                    <p className="text-zinc-500 text-sm mt-0.5">{gorunenVeri.length} reçete</p>
                 </div>
                 <button
                     onClick={() => { setForm(bosForm); setDuzenleId(null); setModal(true); }}
@@ -125,17 +137,51 @@ export default function Receteler() {
                 </button>
             </div>
 
+            {/* Kategori filtre sekmeleri */}
+            {kategoriler.length > 0 && (
+                <div className="flex gap-2 mb-4 flex-wrap">
+                    <button
+                        onClick={() => setFiltreKategoriId('')}
+                        className={`text-xs font-semibold px-3 py-1.5 rounded-full transition-colors ${!filtreKategoriId
+                            ? 'bg-lime-400 text-black'
+                            : 'bg-zinc-800 text-zinc-400 hover:text-white'
+                            }`}
+                    >
+                        Tümü
+                    </button>
+                    {kategoriler.map((k) => (
+                        <button
+                            key={k.id}
+                            onClick={() => setFiltreKategoriId(k.id)}
+                            className={`text-xs font-semibold px-3 py-1.5 rounded-full transition-colors flex items-center gap-1.5 ${String(filtreKategoriId) === String(k.id)
+                                ? 'bg-lime-400 text-black'
+                                : 'bg-zinc-800 text-zinc-400 hover:text-white'
+                                }`}
+                        >
+                            <span className="w-2 h-2 rounded-full shrink-0" style={{ background: k.renk || '#71717a' }} />
+                            {k.ad}
+                        </button>
+                    ))}
+                </div>
+            )}
+
             <div className="grid gap-3">
-                {veri.length === 0 ? (
+                {gorunenVeri.length === 0 ? (
                     <div className="bg-zinc-900 border border-zinc-800 rounded-xl text-center py-14 text-zinc-500 text-sm">
-                        Henüz reçete yok
+                        {filtreKategoriId ? 'Bu kategoride reçete yok' : 'Henüz reçete yok'}
                     </div>
-                ) : veri.map((r) => (
+                ) : gorunenVeri.map((r) => (
                     <div key={r.id} className="bg-zinc-900 border border-zinc-800 rounded-xl p-4">
                         <div className="flex items-start justify-between mb-2.5">
                             <div>
                                 <h3 className="text-white font-bold">{r.ad}</h3>
-                                <div className="flex gap-3 mt-1 flex-wrap">
+                                <div className="flex gap-3 mt-1 flex-wrap items-center">
+                                    {r.kategori && (
+                                        <span className="text-xs px-2 py-0.5 rounded-full flex items-center gap-1" style={{ background: `${r.kategori.renk}22`, color: r.kategori.renk || '#a3a3a3' }}>
+                                            <span className="w-1.5 h-1.5 rounded-full" style={{ background: r.kategori.renk || '#71717a' }} />
+                                            {r.kategori.ad}
+                                        </span>
+                                    )}
                                     {r.satisKodu && (
                                         <span className="text-xs bg-zinc-800 text-zinc-300 px-2 py-0.5 rounded font-mono">{r.satisKodu}</span>
                                     )}
@@ -204,6 +250,24 @@ export default function Receteler() {
                                     className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-4 py-2.5 text-sm outline-none focus:border-lime-400 transition-colors"
                                 />
                             </div>
+
+                            <div className="col-span-2">
+                                <label className="text-zinc-400 text-sm mb-1.5 block">
+                                    Kategori
+                                    <span className="text-zinc-600 ml-2 text-xs font-normal">— satış ekranında sekme olarak görünür</span>
+                                </label>
+                                <select
+                                    value={form.kategoriId}
+                                    onChange={(e) => setForm({ ...form, kategoriId: e.target.value })}
+                                    className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-4 py-2.5 text-sm outline-none focus:border-lime-400 transition-colors"
+                                >
+                                    <option value="">— Kategorisiz —</option>
+                                    {kategoriler.map((k) => (
+                                        <option key={k.id} value={k.id}>{k.ad}</option>
+                                    ))}
+                                </select>
+                            </div>
+
                             <div>
                                 <label className="text-zinc-400 text-sm mb-1.5 block">Satış Kodu</label>
                                 <input
@@ -289,7 +353,6 @@ export default function Receteler() {
                                                         placeholder="Miktar"
                                                         className="w-full bg-zinc-700 border border-zinc-600 text-white rounded-lg px-3 py-2 text-sm outline-none focus:border-lime-400"
                                                     />
-                                                    {/* Porsiyon başı hesaplama ipucu */}
                                                     {form.porsiyonSayisi > 0 && k.miktar > 0 && (
                                                         <p className="text-zinc-600 text-[10px] mt-0.5">
                                                             1 porsiyon ≈ {fmt3(k.miktar / form.porsiyonSayisi)} {birim}
@@ -322,7 +385,6 @@ export default function Receteler() {
                                                 </div>
                                             </div>
 
-                                            {/* Stok Takip Toggle */}
                                             <label className="flex items-center gap-2 cursor-pointer select-none pt-1">
                                                 <input
                                                     type="checkbox"
@@ -391,7 +453,6 @@ export default function Receteler() {
                             ))}
                         </div>
 
-                        {/* Kazan Maliyeti */}
                         <div className="flex justify-between items-center pt-2">
                             <span className="text-zinc-400 font-semibold">
                                 {maliyetModal.recete.porsiyonSayisi > 0 ? 'Kazan Maliyeti' : 'Toplam Maliyet'}
@@ -399,7 +460,6 @@ export default function Receteler() {
                             <span className="text-lime-400 font-bold text-lg">₺{fmt(maliyetModal.toplamMaliyet)}</span>
                         </div>
 
-                        {/* Porsiyon Maliyeti — sadece porsiyonSayisi varsa göster */}
                         {maliyetModal.recete.porsiyonSayisi > 0 && (
                             <div className="bg-zinc-800 rounded-xl p-4 space-y-3">
                                 <div className="flex justify-between items-center">
@@ -426,7 +486,6 @@ export default function Receteler() {
                             </div>
                         )}
 
-                        {/* Eski davranış: porsiyonSayisi yoksa kar marjını direkt göster */}
                         {!maliyetModal.recete.porsiyonSayisi && maliyetModal.recete.satisFiyati && (
                             <div className="flex justify-between items-center bg-zinc-800 rounded-lg p-3">
                                 <span className="text-zinc-400 text-sm">Kar Marjı</span>

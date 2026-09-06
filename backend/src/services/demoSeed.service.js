@@ -3,15 +3,28 @@ const prisma = new PrismaClient();
 
 async function demoBilgileriOlustur(tenantId, subeId) {
     try {
-        // ─── KATEGORİLER ───────────────────────────────────────
+        // ─── STOK KATEGORİLERİ (tip: STOK) ─────────────────────
         const kategoriler = await Promise.all([
-            prisma.kategori.create({ data: { ad: 'Et & Tavuk', tenantId } }),
-            prisma.kategori.create({ data: { ad: 'Sebze & Meyve', tenantId } }),
-            prisma.kategori.create({ data: { ad: 'Kuru Gıda', tenantId } }),
-            prisma.kategori.create({ data: { ad: 'Süt Ürünleri', tenantId } }),
-            prisma.kategori.create({ data: { ad: 'İçecek', tenantId } }),
+            prisma.kategori.create({ data: { ad: 'Et & Tavuk', tip: 'STOK', sira: 0, tenantId } }),
+            prisma.kategori.create({ data: { ad: 'Sebze & Meyve', tip: 'STOK', sira: 1, tenantId } }),
+            prisma.kategori.create({ data: { ad: 'Kuru Gıda', tip: 'STOK', sira: 2, tenantId } }),
+            prisma.kategori.create({ data: { ad: 'Süt Ürünleri', tip: 'STOK', sira: 3, tenantId } }),
+            prisma.kategori.create({ data: { ad: 'İçecek', tip: 'STOK', sira: 4, tenantId } }),
         ]);
         const katMap = Object.fromEntries(kategoriler.map(k => [k.ad, k.id]));
+
+        // ─── REÇETE KATEGORİLERİ (tip: RECETE) ─────────────────
+        // POS ekranında sekme olarak gösterilecek satış kategorileri.
+        // Stok kategorileriyle aynı isim taşıyabilirler (örn. "İçecek")
+        // çünkü @@unique([ad, tenantId, tip]) tip bazında ayrıştırıyor.
+        const receteKategorileri = await Promise.all([
+            prisma.kategori.create({ data: { ad: 'Çorbalar', tip: 'RECETE', sira: 0, tenantId } }),
+            prisma.kategori.create({ data: { ad: 'Ana Yemekler', tip: 'RECETE', sira: 1, tenantId } }),
+            prisma.kategori.create({ data: { ad: 'Aperatifler', tip: 'RECETE', sira: 2, tenantId } }),
+            prisma.kategori.create({ data: { ad: 'İçecekler', tip: 'RECETE', sira: 3, tenantId } }),
+            prisma.kategori.create({ data: { ad: 'Tatlılar', tip: 'RECETE', sira: 4, tenantId } }),
+        ]);
+        const receteKatMap = Object.fromEntries(receteKategorileri.map(k => [k.ad, k.id]));
 
         // ─── ÖLÇÜ BİRİMLERİ ────────────────────────────────────
         const birimler = await Promise.all([
@@ -84,9 +97,13 @@ async function demoBilgileriOlustur(tenantId, subeId) {
         }
 
         // ─── REÇETELER (örnek — kullanıcı düzenleyebilir) ──────
+        // Her reçete artık ilgili satış kategorisine de bağlanıyor,
+        // böylece kullanıcı ilk girişte POS'ta kategori sekmelerinin
+        // nasıl çalıştığını canlı örnekle görüyor.
         const receteListesi = [
             {
                 ad: 'Köfte Porsiyon', satisKodu: 'REC001', satisFiyati: 0,
+                kategoriAd: 'Ana Yemekler',
                 kalemler: [
                     { stokAd: 'Dana Kıyma', miktar: 0.200 },
                     { stokAd: 'Soğan', miktar: 0.050 },
@@ -95,6 +112,7 @@ async function demoBilgileriOlustur(tenantId, subeId) {
             },
             {
                 ad: 'Tavuk Şiş', satisKodu: 'REC002', satisFiyati: 0,
+                kategoriAd: 'Ana Yemekler',
                 kalemler: [
                     { stokAd: 'Tavuk Göğsü', miktar: 0.250 },
                     { stokAd: 'Biber', miktar: 0.050 },
@@ -104,6 +122,7 @@ async function demoBilgileriOlustur(tenantId, subeId) {
             },
             {
                 ad: 'Patates Kızartması', satisKodu: 'REC003', satisFiyati: 0,
+                kategoriAd: 'Aperatifler',
                 kalemler: [
                     { stokAd: 'Patates', miktar: 0.300 },
                     { stokAd: 'Ayçiçek Yağı', miktar: 0.100 },
@@ -112,6 +131,7 @@ async function demoBilgileriOlustur(tenantId, subeId) {
             },
             {
                 ad: 'Dana Güveç', satisKodu: 'REC004', satisFiyati: 0,
+                kategoriAd: 'Ana Yemekler',
                 kalemler: [
                     { stokAd: 'Dana Kuşbaşı', miktar: 0.200 },
                     { stokAd: 'Domates', miktar: 0.100 },
@@ -126,7 +146,11 @@ async function demoBilgileriOlustur(tenantId, subeId) {
 
         for (const r of receteListesi) {
             const recete = await prisma.recete.create({
-                data: { ad: r.ad, satisKodu: r.satisKodu, satisFiyati: r.satisFiyati, tenantId }
+                data: {
+                    ad: r.ad, satisKodu: r.satisKodu, satisFiyati: r.satisFiyati,
+                    kategoriId: receteKatMap[r.kategoriAd],
+                    tenantId
+                }
             });
             await prisma.receteKalem.createMany({
                 data: r.kalemler.map(k => ({

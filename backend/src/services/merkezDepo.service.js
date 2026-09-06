@@ -25,7 +25,11 @@ const merkezSubeGetir = async (tenantId) => {
 };
 
 const merkezDepoService = {
-    // Merkez depo tanımını oluştur/güncelle
+    // Merkez depo tanımını oluştur/güncelle.
+    // DÜZELTME: mevcut tanım PASİF (aktif: false, önceden "silinmiş") ise
+    // artık otomatik olarak yeniden aktive ediliyor — aksi hâlde kullanıcı
+    // bir tanımı sildikten sonra aynı ürün için tekrar tanım eklemeye
+    // çalıştığında sessizce pasif kalırdı.
     async tanımlaEkle({ tenantId, stokKartId, minStokSeviyesi, otomatiDagit, aciklama }) {
         const mevcut = await prisma.merkezDepo.findUnique({
             where: { stokKartId_tenantId: { stokKartId, tenantId } }
@@ -34,25 +38,27 @@ const merkezDepoService = {
         if (mevcut) {
             return await prisma.merkezDepo.update({
                 where: { id: mevcut.id },
-                data: { minStokSeviyesi, otomatiDagit, aciklama }
+                data: { minStokSeviyesi, otomatiDagit, aciklama, aktif: true }
             });
         }
 
         return await prisma.merkezDepo.create({
-            data: { tenantId, stokKartId, minStokSeviyesi, otomatiDagit, aciklama }
+            data: { tenantId, stokKartId, minStokSeviyesi, otomatiDagit, aciklama, aktif: true }
         });
     },
 
     // Tüm stok kartlarını, StokKart.minStok değerini varsayılan alarak toplu
-    // tanımla. Sadece henüz tanımı olmayan kartlar eklenir.
+    // tanımla. Sadece henüz AKTİF tanımı olmayan kartlar eklenir (pasif bir
+    // tanım varsa bu fonksiyon ona dokunmuyor — kullanıcı onu ayrı olarak
+    // "Yeni Tanım" formundan yeniden ekleyip aktive edebilir).
     async tumunuEkle(tenantId) {
         const stokKartlari = await prisma.stokKart.findMany({ where: { tenantId } });
 
-        const mevcutTanimlar = await prisma.merkezDepo.findMany({
-            where: { tenantId },
+        const mevcutAktifTanimlar = await prisma.merkezDepo.findMany({
+            where: { tenantId, aktif: true },
             select: { stokKartId: true }
         });
-        const mevcutIdSet = new Set(mevcutTanimlar.map(t => t.stokKartId));
+        const mevcutIdSet = new Set(mevcutAktifTanimlar.map(t => t.stokKartId));
 
         const eklenecekler = stokKartlari.filter(k => !mevcutIdSet.has(k.id));
 
@@ -60,22 +66,27 @@ const merkezDepoService = {
             return { eklenen: 0, mesaj: 'Tüm stok kartları zaten tanımlı' };
         }
 
+        // NOT: createMany, stokKartId+tenantId unique constraint'ine takılan
+        // (yani pasif bir tanımı zaten var olan) kartları sessizce atlar —
+        // bu bilinçli bir davranış, hata fırlatmaz.
         await prisma.merkezDepo.createMany({
             data: eklenecekler.map(k => ({
                 tenantId,
                 stokKartId: k.id,
                 minStokSeviyesi: k.minStok || 0,
                 otomatiDagit: true,
-            }))
+                aktif: true,
+            })),
+            skipDuplicates: true,
         });
 
         return { eklenen: eklenecekler.length };
     },
 
-    // Tüm merkez depo tanımlarını getir
+    // Tüm AKTİF merkez depo tanımlarını getir
     async tumTanimlarGetir(tenantId) {
         return await prisma.merkezDepo.findMany({
-            where: { tenantId },
+            where: { tenantId, aktif: true },
             include: {
                 stokKart: { include: { birim: true, kategori: true } },
                 dagitimlar: { orderBy: { tarih: 'desc' }, take: 10 }
@@ -84,15 +95,25 @@ const merkezDepoService = {
         });
     },
 
-    // Merkez depo tanımını sil
+    // Merkez depo tanımını "sil".
+    // DÜZELTME (kritik bug): Önceden gerçek `prisma.merkezDepo.delete(...)`
+    // yapılıyordu. Bir tanıma bağlı geçmiş dağıtım kaydı (MerkezDagitim)
+    // varsa bu, foreign key constraint hatasıyla çöküyordu — çünkü geçmiş
+    // kayıtlar hâlâ o tanımı referans ediyor. Artık gerçek silme yerine
+    // "pasife alma" (aktif: false) yapılıyor: tanım listede ve yeni
+    // dağıtımlarda görünmez oluyor, ama geçmiş dağıtım kayıtlarındaki ürün
+    // bilgisi (stokKart adı vb.) bozulmadan kalıyor.
     async sil(id, tenantId) {
         const mevcutTanim = await prisma.merkezDepo.findFirst({
-            where: { id, tenant: { id: tenantId } }
+            where: { id, tenantId }
         });
 
         if (!mevcutTanim) throw new Error('Merkez depo tanımı bulunamadı');
 
-        return await prisma.merkezDepo.delete({ where: { id } });
+        return await prisma.merkezDepo.update({
+            where: { id },
+            data: { aktif: false }
+        });
     },
 
     // Manual dağıtım yap (tek kalem) — YAZMA işlemi, bilerek sıralı/atomik.
@@ -102,7 +123,7 @@ const merkezDepoService = {
         }
 
         const tanim = await prisma.merkezDepo.findFirst({
-            where: { id: merkezDepoId, tenantId },
+            where: { id: merkezDepoId, tenantId, aktif: true },
             include: { stokKart: true }
         });
 
@@ -197,15 +218,11 @@ const merkezDepoService = {
     },
 
     // Otomatik dağıtım yap (Cron job tarafından çağrılır).
-    // PERFORMANS: Hangi şubelerin dağıtıma ihtiyacı olduğunu belirlemek için
-    // gereken OKUMA işlemleri (bakiye hesaplama) artık tanım × şube bazında
-    // paralel (Promise.all) yapılıyor — önceden tamamen sıralıydı. Asıl
-    // dağıtım (YAZMA) adımı ise TOCTOU riski nedeniyle bilerek sıralı kaldı.
     async otomatiDagitimYap(tenantId) {
         const merkezSube = await merkezSubeGetir(tenantId);
 
         const tanimlar = await prisma.merkezDepo.findMany({
-            where: { tenantId, otomatiDagit: true },
+            where: { tenantId, otomatiDagit: true, aktif: true },
             include: {
                 stokKart: true,
                 tenant: { include: { subeler: { where: { aktif: true } } } }
@@ -262,7 +279,8 @@ const merkezDepoService = {
         return sonuclar;
     },
 
-    // Dağıtım geçmişini getir
+    // Dağıtım geçmişini getir — tanım pasife alınmış olsa bile (silinmediği
+    // için) buradaki ürün/tarih bilgisi bozulmadan görünmeye devam eder.
     async dagitimGecmisiGetir(tenantId, merkezDepoId, limit = 50) {
         return await prisma.merkezDagitim.findMany({
             where: {
@@ -278,19 +296,12 @@ const merkezDepoService = {
         });
     },
 
-    // Merkez depo durum özeti.
-    // PERFORMANS: Bu, kullanıcının 20 saniyelik yavaşlığını bildirdiği
-    // fonksiyondu. Önceden her tanım için her şube TEK TEK, sırayla
-    // (await ile bloklayarak) sorgulanıyordu — 22 tanım × 2 şube = 44 art
-    // arda bekleyen sorgu. Artık her tanımın kendi içindeki şube bakiyeleri
-    // Promise.all ile paralel çekiliyor, tanımların kendisi de Promise.all
-    // ile paralel işleniyor. Bu salt okuma (yazma yok) olduğu için tamamen
-    // güvenli. Toplam veritabanı yükü aynı ama bekleme süresi ciddi düşer.
+    // Merkez depo durum özeti — sadece AKTİF tanımlar için hesaplanır.
     async durumuGetir(tenantId) {
         const merkezSube = await merkezSubeGetir(tenantId);
 
         const tanimlar = await prisma.merkezDepo.findMany({
-            where: { tenantId },
+            where: { tenantId, aktif: true },
             include: {
                 stokKart: true,
                 tenant: { include: { subeler: true } }

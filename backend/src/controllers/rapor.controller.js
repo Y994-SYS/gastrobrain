@@ -116,6 +116,12 @@ const stokRaporu = async (req, res) => {
 };
 
 // ─── CARİ RAPORU ───────────────────────────────────────────────
+// Not: toplamBorc/toplamAlacak, her cari kartın HAM Borç/Alacak
+// hareketlerinin toplamı üzerinden hesaplanır — net bakiyenin işaretine
+// göre filtrelenmez. Aksi halde (örn. tüm cariler net borçluyken)
+// gerçek ödeme/alacak tutarları toplamdan tamamen düşer ve "Toplam
+// Alacak" yanlışlıkla 0 görünür. Aynı ilke hesaplaMerkezMuhasebesi'nde
+// de uygulanıyor — bkz. aşağıdaki not.
 const cariRaporu = async (req, res) => {
     try {
         const { cariKartId, baslangic, bitis } = req.query;
@@ -141,25 +147,36 @@ const cariRaporu = async (req, res) => {
         });
 
         const bakiyeler = cariKartlar.map(kart => {
-            let bakiye = 0;
+            let toplamBorc = 0;
+            let toplamAlacak = 0;
             for (const h of kart.hareketler) {
-                if (h.tip === 'BORC') bakiye -= h.tutar;
-                else if (['ALACAK', 'ODEME'].includes(h.tip)) bakiye += h.tutar;
+                if (h.tip === 'BORC') toplamBorc += h.tutar;
+                else if (['ALACAK', 'ODEME'].includes(h.tip)) toplamAlacak += h.tutar;
             }
+            const bakiye = toplamAlacak - toplamBorc;
             return {
                 id: kart.id, kod: kart.kod, ad: kart.ad, telefon: kart.telefon,
+                toplamBorc: Math.round(toplamBorc * 100) / 100,
+                toplamAlacak: Math.round(toplamAlacak * 100) / 100,
                 bakiye: Math.round(bakiye * 100) / 100,
                 hareketSayisi: kart.hareketler.length,
             };
         });
 
-        const toplamBorc = bakiyeler.filter(b => b.bakiye < 0).reduce((t, b) => t + Math.abs(b.bakiye), 0);
-        const toplamAlacak = bakiyeler.filter(b => b.bakiye > 0).reduce((t, b) => t + b.bakiye, 0);
+        // Ham toplamlar: her kartın kendi Borç/Alacak alanları doğrudan
+        // toplanır. Net bakiyenin işaretine göre filtreleme YAPILMAZ —
+        // aksi halde bir tarafın gerçek tutarı sessizce kaybolur.
+        const toplamBorc = bakiyeler.reduce((t, b) => t + b.toplamBorc, 0);
+        const toplamAlacak = bakiyeler.reduce((t, b) => t + b.toplamAlacak, 0);
 
         res.json({
             hareketler,
             bakiyeler: bakiyeler.sort((a, b) => a.bakiye - b.bakiye),
-            ozet: { toplamBorc, toplamAlacak, netBakiye: toplamAlacak - toplamBorc },
+            ozet: {
+                toplamBorc: Math.round(toplamBorc * 100) / 100,
+                toplamAlacak: Math.round(toplamAlacak * 100) / 100,
+                netBakiye: Math.round((toplamAlacak - toplamBorc) * 100) / 100,
+            },
         });
     } catch (err) {
         res.status(500).json({ hata: err.message });
@@ -465,6 +482,10 @@ const hesaplaSubeKarsilastirmasi = async (tenantId) => {
 // ─── MERKEZ MUHASEBESİ — ORTAK HESAPLAMA ─────────────────────
 // merkezMuhasebesi (JSON) ve excelExport ('merkezmuhasebesi') AYNI bu
 // fonksiyonu kullanır — bkz. yukarıdaki not.
+//
+// toplamBorc/toplamAlacak ÖZET seviyesinde de her tedarikçinin HAM
+// toplamBorc/toplamAlacak alanları doğrudan toplanır — net bakiyenin
+// işaretine göre filtrelenmez (bkz. cariRaporu'ndaki aynı not).
 const hesaplaMerkezMuhasebesi = async (tenantId) => {
     const cariKartlar = await prisma.cariKart.findMany({
         where: { tenantId },
@@ -506,9 +527,15 @@ const hesaplaMerkezMuhasebesi = async (tenantId) => {
         };
     });
 
+    // Ham toplamlar: her tedarikçinin kendi toplamBorc/toplamAlacak
+    // alanları doğrudan toplanır. netBakiye işaretine göre filtreleme
+    // YAPILMAZ — aksi halde bir tarafın gerçek tutarı toplamdan
+    // tamamen kaybolur (örn. tüm tedarikçiler net borçluyken
+    // "Toplam Alacak" yanlışlıkla 0 çıkar).
     const toplamBorc = tedarikciAnaliz.reduce((t, c) => t + c.toplamBorc, 0);
     const toplamAlacak = tedarikciAnaliz.reduce((t, c) => t + c.toplamAlacak, 0);
     const netToplam = toplamAlacak - toplamBorc;
+
     return {
         tedarikciler: tedarikciAnaliz
             .filter(t => t.toplamBorc > 0 || t.toplamAlacak > 0)
@@ -583,19 +610,26 @@ const excelExport = async (req, res) => {
             XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data), 'Stok Durumu');
 
         } else if (tip === 'cari') {
+            // Ekrandaki "Cari Raporu" ile aynı ham Borç/Alacak mantığı:
+            // her kartın kendi hareketlerinden toplamBorc/toplamAlacak
+            // ayrı ayrı hesaplanır, tek bir "Bakiye" sütununa indirgenmez.
             const cariKartlar = await prisma.cariKart.findMany({
                 where: { tenantId },
                 include: { hareketler: true }
             });
             const data = cariKartlar.map(kart => {
-                let bakiye = 0;
+                let toplamBorc = 0;
+                let toplamAlacak = 0;
                 for (const h of kart.hareketler) {
-                    if (h.tip === 'BORC') bakiye -= h.tutar;
-                    else if (['ALACAK', 'ODEME'].includes(h.tip)) bakiye += h.tutar;
+                    if (h.tip === 'BORC') toplamBorc += h.tutar;
+                    else if (['ALACAK', 'ODEME'].includes(h.tip)) toplamAlacak += h.tutar;
                 }
+                const bakiye = toplamAlacak - toplamBorc;
                 return {
                     'Kod': kart.kod, 'Ad': kart.ad, 'Telefon': kart.telefon || '',
                     'Adres': kart.adres || '',
+                    'Borç': Math.round(toplamBorc * 100) / 100,
+                    'Alacak': Math.round(toplamAlacak * 100) / 100,
                     'Bakiye': Math.round(bakiye * 100) / 100,
                     'Durum': bakiye < 0 ? 'BORÇLU' : bakiye > 0 ? 'ALACAKLI' : 'SIFIR',
                 };

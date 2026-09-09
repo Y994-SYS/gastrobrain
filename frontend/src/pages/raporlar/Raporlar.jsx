@@ -299,8 +299,12 @@ export default function Raporlar() {
                                         <tr key={m.id} className="border-b border-zinc-800/50 text-zinc-300">
                                             <td className="py-2 font-medium">{m.ad}</td>
                                             <td className="text-right">₺{fmt(m.satisFiyati)}</td>
+                                            {/* Maliyet ve Kâr sütunları "satılan adede göre TOPLAM" ölçeğinde
+                                                gösterilir — Top. Ciro ile aynı ölçek. Porsiyon başına değer
+                                                istenirse reçete detayındaki "Porsiyon Maliyeti/Kârı" kullanılmalı,
+                                                bu tabloya karıştırılmamalı (önceki hata tam olarak buydu). */}
                                             <td className="text-right text-red-400">₺{fmt(m.toplamMaliyet)}</td>
-                                            <td className="text-right text-lime-400">₺{fmt(m.karMiktari)}</td>
+                                            <td className="text-right text-lime-400">₺{fmt(m.toplamKar)}</td>
                                             <td className="text-right">
                                                 <span className={`px-2 py-0.5 rounded text-xs font-medium ${esikRozet(m.karMarji, 60, 40)}`}>
                                                     %{m.karMarji}

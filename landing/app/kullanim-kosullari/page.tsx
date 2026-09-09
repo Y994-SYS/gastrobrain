@@ -20,7 +20,7 @@ export default function KullanimKosullari() {
             {/* Content */}
             <main style={{ maxWidth: '800px', margin: '0 auto', padding: '3rem 2rem' }}>
                 <h1 style={{ fontSize: '2rem', fontWeight: 700, marginBottom: '0.5rem' }}>Kullanım Koşulları</h1>
-                <p style={{ color: '#71717a', fontSize: '0.875rem', marginBottom: '3rem' }}>Son güncelleme: Haziran 2026</p>
+                <p style={{ color: '#71717a', fontSize: '0.875rem', marginBottom: '3rem' }}>Son güncelleme: Eylül 2026</p>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '2.5rem', lineHeight: 1.8, color: '#d4d4d8' }}>
 
@@ -39,6 +39,9 @@ export default function KullanimKosullari() {
                             GastroBrain; restoran, kafe ve gıda işletmelerine yönelik bulut tabanlı bir yönetim
                             yazılımıdır. Stok takibi, satış yönetimi, reçete maliyetlendirme, personel ve cari
                             hesap modüllerini kapsar. Hizmet SaaS (Software as a Service) modeliyle sunulmaktadır.
+                            Hizmet, münhasıran ticari veya mesleki amaçla faaliyet gösteren işletmelere (gerçek
+                            veya tüzel kişi tacirler ile esnaf) yöneliktir; şahsi/tüketici amaçlı kullanım için
+                            tasarlanmamıştır.
                         </p>
                     </section>
 
@@ -80,8 +83,8 @@ export default function KullanimKosullari() {
                         <p>
                             Sisteme girdiğiniz tüm iş verileri (stok, satış, personel, cari kayıtlar) size aittir.
                             GastroBrain bu verileri üçüncü taraflarla paylaşmaz veya ticari amaçla kullanmaz.
-                            Aboneliğinizi sonlandırmanız durumunda verilerinizi dışa aktarmanız için 30 günlük
-                            süre tanınır.
+                            Aboneliğinizi sonlandırmanız durumunda verilerinizi Excel formatında dışa aktarmanız
+                            için 30 günlük süre tanınır.
                         </p>
                     </section>
 

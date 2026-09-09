@@ -86,7 +86,8 @@ export default function MesafeliSatis() {
                     <section>
                         <h2 style={{ color: '#fff', fontSize: '1.25rem', fontWeight: 600, marginBottom: '0.75rem' }}>Madde 5 — Cayma Hakkı</h2>
                         <p style={{ marginBottom: '1rem' }}>
-                            6502 sayılı Kanun'un 49. maddesi uyarınca, dijital içerik ve hizmetlerde cayma hakkı
+                            6502 sayılı Kanun'un 48. maddesi ve Mesafeli Sözleşmeler Yönetmeliği uyarınca,
+                            elektronik ortamda anında ifa edilen hizmetler ve dijital içeriklerde cayma hakkı
                             istisnası uygulanabilir. Bununla birlikte müşteri memnuniyetini ön planda tutan
                             yaklaşımımız çerçevesinde:
                         </p>

@@ -20,7 +20,7 @@ export default function GizlilikPolitikasi() {
             {/* Content */}
             <main style={{ maxWidth: '800px', margin: '0 auto', padding: '3rem 2rem' }}>
                 <h1 style={{ fontSize: '2rem', fontWeight: 700, marginBottom: '0.5rem' }}>Gizlilik Politikası</h1>
-                <p style={{ color: '#71717a', fontSize: '0.875rem', marginBottom: '3rem' }}>Son güncelleme: Temmuz 2026</p>
+                <p style={{ color: '#71717a', fontSize: '0.875rem', marginBottom: '3rem' }}>Son güncelleme: Eylül 2026</p>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '2.5rem', lineHeight: 1.8, color: '#d4d4d8' }}>
 
@@ -39,7 +39,7 @@ export default function GizlilikPolitikasi() {
                         <h2 style={{ color: '#fff', fontSize: '1.25rem', fontWeight: 600, marginBottom: '0.75rem' }}>2. Toplanan Veriler</h2>
                         <p style={{ marginBottom: '1rem' }}>Hizmetimizi kullanırken aşağıdaki veriler toplanabilir:</p>
                         <ul style={{ paddingLeft: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                            <li><strong style={{ color: '#fff' }}>Hesap bilgileri:</strong> Ad, e-posta adresi, şifre (şifrelenmiş olarak saklanır)</li>
+                            <li><strong style={{ color: '#fff' }}>Hesap bilgileri:</strong> Ad, e-posta adresi, şifre (hash'lenerek saklanır)</li>
                             <li><strong style={{ color: '#fff' }}>Firma bilgileri:</strong> Firma adı, telefon, adres</li>
                             <li><strong style={{ color: '#fff' }}>Kullanım verileri:</strong> Uygulama içi işlemler (satış, stok, personel kayıtları)</li>
                             <li><strong style={{ color: '#fff' }}>Teknik veriler:</strong> IP adresi, tarayıcı bilgisi, oturum logları</li>
@@ -64,12 +64,20 @@ export default function GizlilikPolitikasi() {
                         <h2 style={{ color: '#fff', fontSize: '1.25rem', fontWeight: 600, marginBottom: '0.75rem' }}>4. Verilerin Saklanması ve Güvenliği</h2>
                         <p style={{ marginBottom: '1rem' }}>
                             Verileriniz Supabase (PostgreSQL) altyapısında güvenli biçimde saklanmaktadır.
-                            Şifreler bcrypt algoritmasıyla şifrelenerek tutulur; düz metin olarak hiçbir yerde saklanmaz.
-                            Oturum güvenliği JWT token ile sağlanmaktadır.
+                            Şifreler bcrypt algoritmasıyla hash'lenerek saklanır; düz metin olarak hiçbir yerde
+                            tutulmaz. Oturum güvenliği JWT token ile sağlanmaktadır.
+                        </p>
+                        <p style={{ marginBottom: '1rem' }}>
+                            Verileriniz ticari amaçla üçüncü taraflara satılmaz, kiralanmaz veya pazarlama
+                            amacıyla paylaşılmaz. Hizmetin sunulabilmesi için Supabase (veritabanı), Render
+                            (uygulama barındırma) ve Sentry (hata izleme) gibi altyapı sağlayıcılarını
+                            <strong style={{ color: '#fff' }}> veri işleyen</strong> sıfatıyla kullanıyoruz; bu
+                            sağlayıcılar veriye yalnızca hizmeti çalıştırmak amacıyla erişebilir ve kendi
+                            adlarına ayrıca kullanamaz. Sentry'ye hata oluştuğunda ilgili oturuma ait teknik
+                            bilgiler (ör. kullanıcı e-postası, IP adresi, hatanın oluştuğu ekran) iletilebilir.
                         </p>
                         <p>
-                            Verileriniz üçüncü taraflarla paylaşılmaz, satılmaz veya kiralanmaz.
-                            Yalnızca yasal zorunluluk halinde yetkili mercilerle paylaşılabilir.
+                            Yasal zorunluluk halinde veriler yetkili mercilerle paylaşılabilir.
                         </p>
                     </section>
 
@@ -83,11 +91,10 @@ export default function GizlilikPolitikasi() {
                         </p>
                         <p style={{ marginBottom: '1rem' }}>
                             6698 sayılı Kanun'un 9. maddesi uyarınca, kişisel verilerin yurt dışına aktarılması
-                            için ilgili kişinin açık rızası veya kanunda öngörülen diğer bir hukuki sebep
+                            için ilgili kişinin açık rızası veya Kanun'da öngörülen diğer bir hukuki sebep
                             gerekmektedir. Hizmetimize kayıt olurken onayladığınız kullanım koşulları ve bu
                             gizlilik politikası kapsamında, verilerinizin yukarıda belirtilen amaçlarla ve
-                            yukarıda belirtilen yurt dışı konumlarda işlenmesine açık rıza vermiş
-                            sayılırsınız.
+                            yukarıda belirtilen yurt dışı konumlarda işlenmesine açık rıza vermiş sayılırsınız.
                         </p>
                         <p>
                             Sağlayıcılarımız, Avrupa Birliği Genel Veri Koruma Tüzüğü (GDPR) kapsamında
@@ -131,10 +138,13 @@ export default function GizlilikPolitikasi() {
                     <section>
                         <h2 style={{ color: '#fff', fontSize: '1.25rem', fontWeight: 600, marginBottom: '0.75rem' }}>8. Veri Saklama Süresi</h2>
                         <p>
-                            Hesabınız aktif olduğu sürece verileriniz saklanır. Hesabınızı silmeniz veya aboneliğinizi
-                            sonlandırmanız durumunda verileriniz 30 gün içinde kalıcı olarak silinir.
-                            Yasal yükümlülükler kapsamında saklanması gereken veriler ilgili mevzuatta öngörülen
-                            süre boyunca tutulur.
+                            Hesabınız aktif olduğu sürece verileriniz saklanır. Hesabınızı silmeniz veya
+                            aboneliğinizi sonlandırmanız durumunda verileriniz canlı sistemden 30 gün içinde
+                            kalıcı olarak silinir. Hizmet sürekliliği ve olası veri kaybına karşı düzenli
+                            olarak alınan yedekler, canlı sistemden silme sonrasında da bir süre daha
+                            saklanabilir; bu yedekler de belirlenen saklama süresinin sonunda kalıcı olarak
+                            imha edilir. Yasal yükümlülükler kapsamında saklanması gereken veriler ilgili
+                            mevzuatta öngörülen süre boyunca tutulur.
                         </p>
                     </section>
 

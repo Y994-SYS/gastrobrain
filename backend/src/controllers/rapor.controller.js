@@ -120,8 +120,7 @@ const stokRaporu = async (req, res) => {
 // hareketlerinin toplamı üzerinden hesaplanır — net bakiyenin işaretine
 // göre filtrelenmez. Aksi halde (örn. tüm cariler net borçluyken)
 // gerçek ödeme/alacak tutarları toplamdan tamamen düşer ve "Toplam
-// Alacak" yanlışlıkla 0 görünür. Aynı ilke hesaplaMerkezMuhasebesi'nde
-// de uygulanıyor — bkz. aşağıdaki not.
+// Alacak" yanlışlıkla 0 görünür.
 const cariRaporu = async (req, res) => {
     try {
         const { cariKartId, baslangic, bitis } = req.query;
@@ -163,9 +162,6 @@ const cariRaporu = async (req, res) => {
             };
         });
 
-        // Ham toplamlar: her kartın kendi Borç/Alacak alanları doğrudan
-        // toplanır. Net bakiyenin işaretine göre filtreleme YAPILMAZ —
-        // aksi halde bir tarafın gerçek tutarı sessizce kaybolur.
         const toplamBorc = bakiyeler.reduce((t, b) => t + b.toplamBorc, 0);
         const toplamAlacak = bakiyeler.reduce((t, b) => t + b.toplamAlacak, 0);
 
@@ -183,64 +179,111 @@ const cariRaporu = async (req, res) => {
     }
 };
 
-// ─── MALİYET RAPORU ────────────────────────────────────────────
+// ─── MALİYET RAPORU — ORTAK HESAPLAMA ───────────────────────────
+// maliyetRaporu (JSON) ve excelExport ('maliyet') AYNI bu fonksiyonu
+// kullanır — bkz. hesaplaSubeKarsilastirmasi / hesaplaMerkezMuhasebesi'nde
+// uygulanan aynı ilke.
+//
+// KRİTİK BİRİM AYRIMI (önceki hatanın kaynağı):
+//   - `uretimMaliyeti`  = reçetenin TEK ÜRETİMİNİN toplam maliyeti
+//     (örn. "50 porsiyonluk Tavuksuyu partisi" ise bu partinin tamamının
+//     maliyeti). Reçetenin kalemler listesinden (carpan/bolen dahil)
+//     hesaplanır — receteService.maliyetHesapla ile birebir aynı formül.
+//   - `porsiyonMaliyeti` = uretimMaliyeti / porsiyonSayisi. Bu, SATIŞ
+//     FİYATIYLA (satisFiyati, tek porsiyonun fiyatı) karşılaştırılması
+//     gereken rakamdır. porsiyonSayisi tanımlı değilse reçete tek
+//     "satılabilir birim" üretiyor kabul edilir (efektifPorsiyon = 1).
+//   - `toplamMaliyet` (rapor satırındaki) = porsiyonMaliyeti × GERÇEKTEN
+//     SATILAN ADET. uretimMaliyeti (bir üretim partisinin toplam
+//     maliyeti) ile KARIŞTIRILMAMALI — biri "ne kadar üretim maliyeti
+//     yaptık", diğeri "sattığımız kadarının maliyeti ne oldu" sorusuna
+//     cevap verir. Önceki hata tam olarak bu ikisini birbirine
+//     karıştırmaktı (uretimMaliyeti, satisFiyati ve toplamCiro ile aynı
+//     satırda yan yana gösteriliyordu).
+const hesaplaMaliyetRaporu = async (tenantId, subeId) => {
+    const receteler = await prisma.recete.findMany({
+        where: { tenantId },
+        include: {
+            kalemler: {
+                include: {
+                    stokKart: {
+                        include: {
+                            stokHareketleri: {
+                                where: { tip: 'GIRIS_FATURA' },
+                                orderBy: { tarih: 'desc' },
+                                take: 1
+                            }
+                        }
+                    }
+                }
+            },
+            satislar: subeId ? { where: { subeId } } : true,
+        },
+    });
+
+    const maliyetler = receteler.map(recete => {
+        let uretimMaliyeti = 0;
+        const kalemDetay = recete.kalemler.map(kalem => {
+            const sonFiyat = kalem.stokKart.stokHareketleri[0]?.birimFiyat || 0;
+            // receteService.maliyetHesapla ile birebir aynı formül:
+            // carpan/bolen ile birim dönüşümü uygulanmış gerçek miktar.
+            const gercekMiktar = (kalem.miktar * kalem.carpan) / kalem.bolen;
+            const kalemMaliyet = sonFiyat * gercekMiktar;
+            uretimMaliyeti += kalemMaliyet;
+            return {
+                stokAd: kalem.stokKart.ad,
+                miktar: Math.round(gercekMiktar * 1000) / 1000,
+                birimFiyat: sonFiyat,
+                maliyet: Math.round(kalemMaliyet * 100) / 100,
+            };
+        });
+
+        const efektifPorsiyon = recete.porsiyonSayisi || 1;
+        const porsiyonMaliyeti = uretimMaliyeti / efektifPorsiyon;
+
+        const satisFiyati = recete.satisFiyati || 0;
+        const karMarji = satisFiyati > 0 ? ((satisFiyati - porsiyonMaliyeti) / satisFiyati) * 100 : 0;
+
+        const toplamSatisAdedi = recete.satislar.reduce((t, s) => t + s.adet, 0);
+        const toplamCiro = recete.satislar.reduce((t, s) => t + s.toplam, 0);
+        const satilanMaliyet = porsiyonMaliyeti * toplamSatisAdedi;
+
+        return {
+            id: recete.id,
+            ad: recete.ad,
+            satisKodu: recete.satisKodu,
+            satisFiyati,
+            porsiyonMaliyeti: Math.round(porsiyonMaliyeti * 100) / 100,
+            karMiktari: Math.round((satisFiyati - porsiyonMaliyeti) * 100) / 100,
+            karMarji: Math.round(karMarji * 100) / 100,
+            toplamSatis: toplamSatisAdedi,
+            toplamCiro: Math.round(toplamCiro * 100) / 100,
+            toplamMaliyet: Math.round(satilanMaliyet * 100) / 100,
+            toplamKar: Math.round((toplamCiro - satilanMaliyet) * 100) / 100,
+            kalemDetay,
+        };
+    });
+
+    return {
+        maliyetler: maliyetler.sort((a, b) => b.toplamCiro - a.toplamCiro),
+        ozet: {
+            receteSayisi: maliyetler.length,
+            ortalamaKarMarji: maliyetler.length
+                ? Math.round(maliyetler.reduce((t, m) => t + m.karMarji, 0) / maliyetler.length * 100) / 100
+                : 0,
+            toplamCiro: Math.round(maliyetler.reduce((t, m) => t + m.toplamCiro, 0) * 100) / 100,
+            toplamMaliyet: Math.round(maliyetler.reduce((t, m) => t + m.toplamMaliyet, 0) * 100) / 100,
+            toplamKar: Math.round(maliyetler.reduce((t, m) => t + m.toplamKar, 0) * 100) / 100,
+        },
+    };
+};
+
 const maliyetRaporu = async (req, res) => {
     try {
         const tenantId = req.kullanici.tenantId;
         const subeId = subeIdBelirle(req);
-
-        const receteler = await prisma.recete.findMany({
-            where: { tenantId },
-            include: {
-                kalemler: {
-                    include: {
-                        stokKart: {
-                            include: {
-                                stokHareketleri: {
-                                    where: { tip: 'GIRIS_FATURA' },
-                                    orderBy: { tarih: 'desc' },
-                                    take: 1
-                                }
-                            }
-                        }
-                    }
-                },
-                satislar: subeId ? { where: { subeId } } : true,
-            },
-        });
-
-        const maliyetler = receteler.map(recete => {
-            let toplamMaliyet = 0;
-            const kalemDetay = recete.kalemler.map(kalem => {
-                const sonFiyat = kalem.stokKart.stokHareketleri[0]?.birimFiyat || 0;
-                const kalemMaliyet = sonFiyat * kalem.miktar;
-                toplamMaliyet += kalemMaliyet;
-                return { stokAd: kalem.stokKart.ad, miktar: kalem.miktar, birimFiyat: sonFiyat, maliyet: kalemMaliyet };
-            });
-
-            const satisFiyati = recete.satisFiyati || 0;
-            const karMarji = satisFiyati > 0 ? ((satisFiyati - toplamMaliyet) / satisFiyati) * 100 : 0;
-
-            return {
-                id: recete.id, ad: recete.ad, satisKodu: recete.satisKodu, satisFiyati,
-                toplamMaliyet: Math.round(toplamMaliyet * 100) / 100,
-                karMiktari: Math.round((satisFiyati - toplamMaliyet) * 100) / 100,
-                karMarji: Math.round(karMarji * 100) / 100,
-                toplamSatis: recete.satislar.reduce((t, s) => t + s.adet, 0),
-                toplamCiro: recete.satislar.reduce((t, s) => t + s.toplam, 0),
-                kalemDetay,
-            };
-        });
-
-        res.json({
-            maliyetler: maliyetler.sort((a, b) => b.toplamCiro - a.toplamCiro),
-            ozet: {
-                receteSayisi: maliyetler.length,
-                ortalamaKarMarji: maliyetler.length
-                    ? Math.round(maliyetler.reduce((t, m) => t + m.karMarji, 0) / maliyetler.length * 100) / 100
-                    : 0,
-            },
-        });
+        const veri = await hesaplaMaliyetRaporu(tenantId, subeId);
+        res.json(veri);
     } catch (err) {
         res.status(500).json({ hata: err.message });
     }
@@ -374,10 +417,6 @@ const karZararRaporu = async (req, res) => {
 };
 
 // ─── ŞUBE KARŞILAŞTIRMASI — ORTAK HESAPLAMA ─────────────────────
-// subeKarsilastirmasi (JSON) ve excelExport ('sube-karsilastirmasi') AYNI
-// bu fonksiyonu kullanır — iki yerde ayrı ayrı hesaplanırsa zamanla
-// birbirinden sapabilirdi (tıpkı daha önce merkezmuhasebesi'nde yaşanan
-// ODEME/TAHSILAT tutarsızlığı gibi). Tek kaynak, iki tüketici.
 const hesaplaSubeKarsilastirmasi = async (tenantId) => {
     const subeler = await prisma.sube.findMany({
         where: { tenantId, aktif: true },
@@ -480,12 +519,6 @@ const hesaplaSubeKarsilastirmasi = async (tenantId) => {
 };
 
 // ─── MERKEZ MUHASEBESİ — ORTAK HESAPLAMA ─────────────────────
-// merkezMuhasebesi (JSON) ve excelExport ('merkezmuhasebesi') AYNI bu
-// fonksiyonu kullanır — bkz. yukarıdaki not.
-//
-// toplamBorc/toplamAlacak ÖZET seviyesinde de her tedarikçinin HAM
-// toplamBorc/toplamAlacak alanları doğrudan toplanır — net bakiyenin
-// işaretine göre filtrelenmez (bkz. cariRaporu'ndaki aynı not).
 const hesaplaMerkezMuhasebesi = async (tenantId) => {
     const cariKartlar = await prisma.cariKart.findMany({
         where: { tenantId },
@@ -527,11 +560,6 @@ const hesaplaMerkezMuhasebesi = async (tenantId) => {
         };
     });
 
-    // Ham toplamlar: her tedarikçinin kendi toplamBorc/toplamAlacak
-    // alanları doğrudan toplanır. netBakiye işaretine göre filtreleme
-    // YAPILMAZ — aksi halde bir tarafın gerçek tutarı toplamdan
-    // tamamen kaybolur (örn. tüm tedarikçiler net borçluyken
-    // "Toplam Alacak" yanlışlıkla 0 çıkar).
     const toplamBorc = tedarikciAnaliz.reduce((t, c) => t + c.toplamBorc, 0);
     const toplamAlacak = tedarikciAnaliz.reduce((t, c) => t + c.toplamAlacak, 0);
     const netToplam = toplamAlacak - toplamBorc;
@@ -610,9 +638,6 @@ const excelExport = async (req, res) => {
             XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data), 'Stok Durumu');
 
         } else if (tip === 'cari') {
-            // Ekrandaki "Cari Raporu" ile aynı ham Borç/Alacak mantığı:
-            // her kartın kendi hareketlerinden toplamBorc/toplamAlacak
-            // ayrı ayrı hesaplanır, tek bir "Bakiye" sütununa indirgenmez.
             const cariKartlar = await prisma.cariKart.findMany({
                 where: { tenantId },
                 include: { hareketler: true }
@@ -637,44 +662,38 @@ const excelExport = async (req, res) => {
             XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data), 'Cari Bakiyeler');
 
         } else if (tip === 'maliyet') {
-            const receteler = await prisma.recete.findMany({
-                where: { tenantId },
-                include: {
-                    kalemler: {
-                        include: {
-                            stokKart: {
-                                include: {
-                                    stokHareketleri: {
-                                        where: { tip: 'GIRIS_FATURA' },
-                                        orderBy: { tarih: 'desc' },
-                                        take: 1
-                                    }
-                                }
-                            }
-                        }
-                    },
-                    satislar: subeId ? { where: { subeId } } : true,
-                },
-            });
-            const data = receteler.map(r => {
-                let maliyet = 0;
-                for (const k of r.kalemler) { maliyet += (k.stokKart.stokHareketleri[0]?.birimFiyat || 0) * k.miktar; }
-                const satisFiyati = r.satisFiyati || 0;
-                return {
-                    'Reçete': r.ad, 'Satış Kodu': r.satisKodu || '',
-                    'Satış Fiyatı': satisFiyati,
-                    'Maliyet': Math.round(maliyet * 100) / 100,
-                    'Kâr': Math.round((satisFiyati - maliyet) * 100) / 100,
-                    'Kâr Marjı %': satisFiyati > 0 ? Math.round((satisFiyati - maliyet) / satisFiyati * 10000) / 100 : 0,
-                    'Toplam Satış Adedi': r.satislar.reduce((t, s) => t + s.adet, 0),
-                    'Toplam Ciro': r.satislar.reduce((t, s) => t + s.toplam, 0),
-                };
+            // Ekrandaki "Maliyet Raporu" ile BİREBİR aynı veriden üretilir
+            // (hesaplaMaliyetRaporu ortak fonksiyonu) — porsiyon maliyeti,
+            // satılan adede göre gerçek toplam maliyet ve kâr birbirine
+            // karışmadan ayrı sütunlarda gösterilir.
+            const { maliyetler, ozet } = await hesaplaMaliyetRaporu(tenantId, subeId);
+            const data = maliyetler.map(m => ({
+                'Reçete': m.ad,
+                'Satış Kodu': m.satisKodu || '',
+                'Satış Fiyatı (Porsiyon)': m.satisFiyati,
+                'Porsiyon Maliyeti': m.porsiyonMaliyeti,
+                'Porsiyon Kârı': m.karMiktari,
+                'Kâr Marjı %': m.karMarji,
+                'Satılan Adet': m.toplamSatis,
+                'Toplam Ciro': m.toplamCiro,
+                'Toplam Maliyet (Satılan)': m.toplamMaliyet,
+                'Toplam Kâr': m.toplamKar,
+            }));
+            data.push({
+                'Reçete': 'TOPLAM',
+                'Satış Kodu': '',
+                'Satış Fiyatı (Porsiyon)': '',
+                'Porsiyon Maliyeti': '',
+                'Porsiyon Kârı': '',
+                'Kâr Marjı %': ozet.ortalamaKarMarji,
+                'Satılan Adet': '',
+                'Toplam Ciro': ozet.toplamCiro,
+                'Toplam Maliyet (Satılan)': ozet.toplamMaliyet,
+                'Toplam Kâr': ozet.toplamKar,
             });
             XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data), 'Maliyet Analizi');
 
         } else if (tip === 'sube-karsilastirmasi') {
-            // Ekrandaki "Şube Karşılaştırması" tablosuyla BİREBİR aynı veriden
-            // üretilir (hesaplaSubeKarsilastirmasi ortak fonksiyonu).
             const { subeler, ozet } = await hesaplaSubeKarsilastirmasi(tenantId);
             const data = subeler.map(s => ({
                 'Şube': s.ad,
@@ -704,8 +723,6 @@ const excelExport = async (req, res) => {
             XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data), 'Şube Karşılaştırması');
 
         } else if (tip === 'merkezmuhasebesi') {
-            // Ekrandaki "Merkez Muhasebesi" tablosuyla BİREBİR aynı veriden
-            // üretilir (hesaplaMerkezMuhasebesi ortak fonksiyonu).
             const { tedarikciler, ozet } = await hesaplaMerkezMuhasebesi(tenantId);
             const data = tedarikciler.map(t => ({
                 'Kod': t.kod,

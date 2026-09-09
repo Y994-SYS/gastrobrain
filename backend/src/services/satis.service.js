@@ -54,6 +54,33 @@ const satisService = {
         return { toplam, islemSayisi: satislar.length };
     },
 
+    // Satış anındaki PORSİYON MALİYETİNİ hesaplar — receteService.maliyetHesapla
+    // ve rapor.controller.js'teki hesaplaMaliyetRaporu ile BİREBİR aynı formül
+    // (carpan/bolen dönüşümü + porsiyonSayisi'na bölme). Üç yerde formül
+    // sapması olmasın diye ayrı bir yardımcı fonksiyon olarak tutuluyor.
+    //
+    // Bu değer satış kaydı oluşturulurken DONDURULUP saklanır (Satis.birimMaliyet)
+    // — stok fiyatı sonradan değişse bile o satışın gerçek maliyeti sabit kalır.
+    async _porsiyonMaliyetiHesapla(recete, tenantId) {
+        let uretimMaliyeti = 0;
+        for (const kalem of recete.kalemler) {
+            const sonHareket = await prisma.stokHareket.findFirst({
+                where: {
+                    stokKartId: kalem.stokKartId,
+                    tip: 'GIRIS_FATURA',
+                    birimFiyat: { not: null },
+                    stokKart: { tenantId }
+                },
+                orderBy: { tarih: 'desc' }
+            });
+            const birimFiyat = sonHareket?.birimFiyat || 0;
+            const gercekMiktar = (kalem.miktar * kalem.carpan) / kalem.bolen;
+            uretimMaliyeti += birimFiyat * gercekMiktar;
+        }
+        const efektifPorsiyon = recete.porsiyonSayisi || 1;
+        return uretimMaliyeti / efektifPorsiyon;
+    },
+
     /**
      * @param {object} data - receteId, subeId, adet, birimFiyat, aciklama, tarih
      * @param {number} tenantId
@@ -76,6 +103,11 @@ const satisService = {
             where: { id: Number(subeId), tenantId }
         });
         if (!sube) throw new Error('Şube bulunamadı');
+
+        // Satış anındaki porsiyon maliyetini hesapla — bu, işlem transaction'a
+        // girmeden ÖNCE yapılır (salt okuma, yazma değil), sonra satış
+        // kaydına dondurularak yazılır.
+        const birimMaliyetSatisAni = await satisService._porsiyonMaliyetiHesapla(recete, tenantId);
 
         // KRİTİK: Reçetedeki kalem miktarları, reçetenin kendi "kazan porsiyonu"
         // için tanımlıdır (örn. adana kebap 50 porsiyonluk kazan için 10kg kıyma).
@@ -140,6 +172,7 @@ const satisService = {
                     subeId: Number(subeId),
                     adet: Number(adet),
                     birimFiyat: Number(birimFiyat),
+                    birimMaliyet: Math.round(birimMaliyetSatisAni * 100) / 100,
                     toplam: Number(adet) * Number(birimFiyat),
                     aciklama: (aciklama || '') + zorlamaNotu,
                     tarih: tarih ? new Date(tarih) : new Date(),

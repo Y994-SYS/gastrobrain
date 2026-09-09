@@ -185,21 +185,25 @@ const cariRaporu = async (req, res) => {
 // uygulanan aynı ilke.
 //
 // KRİTİK BİRİM AYRIMI (önceki hatanın kaynağı):
-//   - `uretimMaliyeti`  = reçetenin TEK ÜRETİMİNİN toplam maliyeti
-//     (örn. "50 porsiyonluk Tavuksuyu partisi" ise bu partinin tamamının
-//     maliyeti). Reçetenin kalemler listesinden (carpan/bolen dahil)
-//     hesaplanır — receteService.maliyetHesapla ile birebir aynı formül.
-//   - `porsiyonMaliyeti` = uretimMaliyeti / porsiyonSayisi. Bu, SATIŞ
-//     FİYATIYLA (satisFiyati, tek porsiyonun fiyatı) karşılaştırılması
-//     gereken rakamdır. porsiyonSayisi tanımlı değilse reçete tek
-//     "satılabilir birim" üretiyor kabul edilir (efektifPorsiyon = 1).
-//   - `toplamMaliyet` (rapor satırındaki) = porsiyonMaliyeti × GERÇEKTEN
-//     SATILAN ADET. uretimMaliyeti (bir üretim partisinin toplam
-//     maliyeti) ile KARIŞTIRILMAMALI — biri "ne kadar üretim maliyeti
-//     yaptık", diğeri "sattığımız kadarının maliyeti ne oldu" sorusuna
-//     cevap verir. Önceki hata tam olarak bu ikisini birbirine
-//     karıştırmaktı (uretimMaliyeti, satisFiyati ve toplamCiro ile aynı
-//     satırda yan yana gösteriliyordu).
+//   - `uretimMaliyeti`  = reçetenin TEK ÜRETİMİNİN, BUGÜNKÜ stok
+//     fiyatlarıyla toplam maliyeti (örn. "50 porsiyonluk Tavuksuyu
+//     partisi" ise bu partinin tamamının GÜNCEL maliyeti). Reçetenin
+//     kalemler listesinden (carpan/bolen dahil) hesaplanır —
+//     receteService.maliyetHesapla ile birebir aynı formül.
+//   - `porsiyonMaliyeti` = uretimMaliyeti / porsiyonSayisi. GÜNCEL
+//     porsiyon maliyetidir — "bugün bu reçeteyi satsam maliyetim ne
+//     olur" sorusuna cevap verir, fiyatlandırma kararları için
+//     kullanılır. porsiyonSayisi tanımlı değilse reçete tek "satılabilir
+//     birim" üretiyor kabul edilir (efektifPorsiyon = 1).
+//   - `toplamMaliyet` (rapor satırındaki) = TARİHSEL/GERÇEK maliyettir —
+//     her satışın KENDİ satış anında dondurulmuş maliyetine (Satis.
+//     birimMaliyet) göre hesaplanır, güncel fiyatla YENİDEN
+//     hesaplanmaz. Stok fiyatı satıştan sonra değişmiş olsa bile o
+//     satışın gerçek kârı böylece sabit kalır. Önceki hata, güncel
+//     üretim maliyetini (uretimMaliyeti) satış fiyatı/ciro ile aynı
+//     satırda karıştırmaktı; şimdiki ayrım ise "bugünkü maliyet"
+//     (porsiyonMaliyeti — fiyatlandırma için) ile "geçmişteki gerçek
+//     maliyet" (toplamMaliyet — kârlılık raporlaması için) arasındadır.
 const hesaplaMaliyetRaporu = async (tenantId, subeId) => {
     const receteler = await prisma.recete.findMany({
         where: { tenantId },
@@ -246,7 +250,20 @@ const hesaplaMaliyetRaporu = async (tenantId, subeId) => {
 
         const toplamSatisAdedi = recete.satislar.reduce((t, s) => t + s.adet, 0);
         const toplamCiro = recete.satislar.reduce((t, s) => t + s.toplam, 0);
-        const satilanMaliyet = porsiyonMaliyeti * toplamSatisAdedi;
+
+        // GERÇEK TARİHSEL maliyet: her satışın KENDİ satış anındaki
+        // dondurulmuş maliyeti (Satis.birimMaliyet) × o satışın adedi.
+        // porsiyonMaliyeti (yukarıda) her zaman BUGÜNKÜ stok fiyatlarını
+        // yansıtır — geçmiş bir satışın gerçek kârını hesaplamak için
+        // kullanılırsa yanlış olur (stok fiyatı satıştan sonra değiştiyse).
+        // birimMaliyet alanı bu değişiklik ÖNCESİNDE yapılmış eski
+        // satışlarda boş (null) olabilir — o durumda tek çare olarak
+        // güncel porsiyonMaliyeti'ne düşülür; bu YAKLAŞIK bir değerdir,
+        // tam tarihsel doğruluk taşımaz.
+        const satilanMaliyet = recete.satislar.reduce((t, s) => {
+            const satisBirimMaliyeti = s.birimMaliyet ?? porsiyonMaliyeti;
+            return t + (satisBirimMaliyeti * s.adet);
+        }, 0);
 
         return {
             id: recete.id,

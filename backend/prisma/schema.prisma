@@ -276,13 +276,17 @@ model ReceteKalem {
 // ─────────────────────────────────────────
 
 model Satis {
-  id         Int      @id @default(autoincrement())
-  adet       Float
-  birimFiyat Float
-  toplam     Float
-  tarih      DateTime @default(now())
-  aciklama   String?
-  createdAt  DateTime @default(now())
+  id           Int      @id @default(autoincrement())
+  adet         Float
+  birimFiyat   Float
+  birimMaliyet Float?   // Satış anındaki porsiyon maliyeti — o anki stok
+                         // fiyatlarıyla hesaplanıp DONDURULUR, bir daha
+                         // değişmez. Stok fiyatı daha sonra artsa/azalsa
+                         // bile bu satışın gerçek kârı sabit kalır.
+  toplam       Float
+  tarih        DateTime @default(now())
+  aciklama     String?
+  createdAt    DateTime @default(now())
 
   recete   Recete @relation(fields: [receteId], references: [id])
   receteId Int

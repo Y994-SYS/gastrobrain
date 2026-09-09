@@ -71,6 +71,12 @@ const receteService = {
         const recete = await this.biriniGetir(receteId, tenantId);
         const kalemMaliyetleri = await Promise.all(
             recete.kalemler.map(async (kalem) => {
+                // NOT: tarih tek başına yeterli bir sıralama anahtarı değil —
+                // aynı gün girilen iki fatura aynı tarihe sahip olabilir, bu
+                // durumda 'tarih desc' hangisinin gerçekte SONRA girildiğini
+                // garanti edemez. id otomatik artan olduğu için ikinci
+                // sıralama kriteri (tie-breaker) olarak eklendi: eşit
+                // tarihlerde en yüksek id (en son oluşturulan kayıt) kazanır.
                 const sonHareket = await prisma.stokHareket.findFirst({
                     where: {
                         stokKartId: kalem.stokKartId,
@@ -78,7 +84,7 @@ const receteService = {
                         birimFiyat: { not: null },
                         stokKart: { tenantId }
                     },
-                    orderBy: { tarih: 'desc' }
+                    orderBy: [{ tarih: 'desc' }, { id: 'desc' }]
                 });
                 const birimFiyat = sonHareket?.birimFiyat || 0;
                 const gercekMiktar = (kalem.miktar * kalem.carpan) / kalem.bolen;

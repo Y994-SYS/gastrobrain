@@ -71,7 +71,7 @@ const satisService = {
                     birimFiyat: { not: null },
                     stokKart: { tenantId }
                 },
-                orderBy: { tarih: 'desc' }
+                orderBy: [{ tarih: 'desc' }, { id: 'desc' }]
             });
             const birimFiyat = sonHareket?.birimFiyat || 0;
             const gercekMiktar = (kalem.miktar * kalem.carpan) / kalem.bolen;

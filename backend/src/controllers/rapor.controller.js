@@ -84,7 +84,7 @@ const stokRaporu = async (req, res) => {
                 kategori: true, birim: true,
                 stokHareketleri: {
                     where: subeId ? { subeId } : {},
-                    orderBy: { tarih: 'desc' }
+                    orderBy: [{ tarih: 'desc' }, { id: 'desc' }]
                 },
             },
         });
@@ -214,7 +214,7 @@ const hesaplaMaliyetRaporu = async (tenantId, subeId) => {
                         include: {
                             stokHareketleri: {
                                 where: { tip: 'GIRIS_FATURA' },
-                                orderBy: { tarih: 'desc' },
+                                orderBy: [{ tarih: 'desc' }, { id: 'desc' }],
                                 take: 1
                             }
                         }
@@ -337,7 +337,7 @@ const karZararRaporu = async (req, res) => {
                                     include: {
                                         stokHareketleri: {
                                             where: { tip: 'GIRIS_FATURA' },
-                                            orderBy: { tarih: 'desc' },
+                                            orderBy: [{ tarih: 'desc' }, { id: 'desc' }],
                                             take: 1
                                         }
                                     }
@@ -388,7 +388,7 @@ const karZararRaporu = async (req, res) => {
             include: {
                 stokKart: {
                     include: {
-                        stokHareketleri: { where: { tip: 'GIRIS_FATURA' }, orderBy: { tarih: 'desc' }, take: 1 }
+                        stokHareketleri: { where: { tip: 'GIRIS_FATURA' }, orderBy: [{ tarih: 'desc' }, { id: 'desc' }], take: 1 }
                     }
                 }
             }
@@ -448,7 +448,7 @@ const hesaplaSubeKarsilastirmasi = async (tenantId) => {
                                         include: {
                                             stokHareketleri: {
                                                 where: { tip: 'GIRIS_FATURA' },
-                                                orderBy: { tarih: 'desc' },
+                                                orderBy: [{ tarih: 'desc' }, { id: 'desc' }],
                                                 take: 1
                                             }
                                         }
@@ -459,7 +459,7 @@ const hesaplaSubeKarsilastirmasi = async (tenantId) => {
                     }
                 }
             },
-            stokHareketleri: true,
+            stokHareketleri: { orderBy: [{ tarih: 'desc' }, { id: 'desc' }] },
             personeller: { where: { aktif: true } }
         }
     });
@@ -635,7 +635,7 @@ const excelExport = async (req, res) => {
                     kategori: true, birim: true,
                     stokHareketleri: {
                         where: subeId ? { subeId } : {},
-                        orderBy: { tarih: 'desc' }
+                        orderBy: [{ tarih: 'desc' }, { id: 'desc' }]
                     }
                 },
             });

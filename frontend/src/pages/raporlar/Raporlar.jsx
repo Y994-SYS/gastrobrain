@@ -247,8 +247,8 @@ export default function Raporlar() {
             {aktifTab === 'cari' && veri && (
                 <div className="space-y-4">
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                        <OzetKart baslik="Toplam Borç" deger={`₺${fmt(veri.ozet?.toplamBorc)}`} renk="red" />
-                        <OzetKart baslik="Toplam Alacak" deger={`₺${fmt(veri.ozet?.toplamAlacak)}`} renk="lime" />
+                        <OzetKart baslik="Toplam Borç Bakiyesi" deger={`₺${fmt(veri.ozet?.toplamBorc)}`} renk="red" />
+                        <OzetKart baslik="Toplam Alacak Bakiyesi" deger={`₺${fmt(veri.ozet?.toplamAlacak)}`} renk="lime" />
                         <OzetKart baslik="Net Bakiye" deger={`₺${fmt(veri.ozet?.netBakiye)}`} renk="lime" />
                     </div>
                     <div className="bg-zinc-900 rounded-xl p-4">
@@ -290,7 +290,7 @@ export default function Raporlar() {
                             <table className="w-full text-sm">
                                 <thead><tr className="text-zinc-400 border-b border-zinc-800">
                                     <th className="text-left py-2">Reçete</th><th className="text-right py-2">Satış Fiyatı</th>
-                                    <th className="text-right py-2">Maliyet</th><th className="text-right py-2">Kâr</th>
+                                    <th className="text-right py-2">Top. Maliyet</th><th className="text-right py-2">Kâr</th>
                                     <th className="text-right py-2">Kâr %</th><th className="text-right py-2">Top. Satış</th>
                                     <th className="text-right py-2">Top. Ciro</th>
                                 </tr></thead>

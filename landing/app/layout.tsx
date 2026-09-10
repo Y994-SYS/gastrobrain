@@ -16,8 +16,12 @@ const syne = Syne({
 })
 
 export const metadata = {
+  metadataBase: new URL('https://www.gastrobrain.com.tr'),
   title: 'GastroBrain — Restoran Yönetim Sistemi',
   description: 'Stok, reçete, satış, personel ve raporlamayı tek platformda yönetin. Türkiye\'nin restoranlarına özel SaaS çözümü.',
+  alternates: {
+    canonical: '/',
+  },
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

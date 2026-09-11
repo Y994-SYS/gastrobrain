@@ -21,13 +21,13 @@ export const metadata: Metadata = {
     title: 'GastroBrain — Restoranınızı Akıllıca Yönetin',
     description:
       'Stok takibinden reçete maliyetine, satışlardan personel yönetimine — her şey tek platformda.',
-    url: 'https://gastrobrain.com.tr',
+    url: 'https://www.gastrobrain.com.tr',
     siteName: 'GastroBrain',
     locale: 'tr_TR',
     type: 'website',
   },
   alternates: {
-    canonical: 'https://gastrobrain.com.tr',
+    canonical: 'https://www.gastrobrain.com.tr',
   },
 };
 

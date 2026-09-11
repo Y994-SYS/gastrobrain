@@ -431,7 +431,7 @@ export default function Receteler() {
             {/* Maliyet Modal */}
             {maliyetModal && (
                 <Modal baslik="Reçete Maliyet Analizi" onKapat={() => setMaliyetModal(null)}>
-                    <div className="space-y-3">
+                    <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-1">
                         <div className="flex items-center justify-between">
                             <h3 className="text-white font-bold">{maliyetModal.recete.ad}</h3>
                             {maliyetModal.recete.porsiyonSayisi > 0 && (

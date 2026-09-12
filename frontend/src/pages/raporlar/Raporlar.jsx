@@ -227,8 +227,14 @@ export default function Raporlar() {
                                         <tr key={s.id} className="border-b border-zinc-800/50 text-zinc-300">
                                             <td className="py-2 text-zinc-500">{s.kod}</td><td>{s.ad}</td>
                                             <td className="text-zinc-400">{s.kategori}</td>
-                                            <td className="text-right">{s.mevcutStok} {s.birim}</td>
-                                            <td className="text-right text-zinc-500">{s.minStok}</td>
+                                            {/* DÜZELTME: önceden ham {s.mevcutStok} basılıyordu — backend'in
+                                                yuvarladığı değer (örn. 38.395) hiç formatlanmadan JS'in
+                                                varsayılan sayı->string dönüşümüyle 3 basamak göstermeye devam
+                                                ediyordu. Stok Durumu sayfası aynı veriyi fmt() ile (her zaman
+                                                2 ondalık) gösterdiğinden iki ekran arasında görünüşte fark
+                                                oluşuyordu — veri aynıydı, sadece gösterim tutarsızdı. */}
+                                            <td className="text-right">{fmt(s.mevcutStok)} {s.birim}</td>
+                                            <td className="text-right text-zinc-500">{fmt(s.minStok)}</td>
                                             <td className="text-right">
                                                 <span className={`px-2 py-0.5 rounded text-xs font-medium ${s.kritikMi ? 'bg-red-900/50 text-red-400' : 'bg-lime-900/50 text-lime-400'}`}>
                                                     {s.kritikMi ? 'KRİTİK' : 'NORMAL'}

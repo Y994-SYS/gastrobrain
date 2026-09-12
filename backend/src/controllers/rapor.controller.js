@@ -199,11 +199,18 @@ const cariRaporu = async (req, res) => {
 //     her satışın KENDİ satış anında dondurulmuş maliyetine (Satis.
 //     birimMaliyet) göre hesaplanır, güncel fiyatla YENİDEN
 //     hesaplanmaz. Stok fiyatı satıştan sonra değişmiş olsa bile o
-//     satışın gerçek kârı böylece sabit kalır. Önceki hata, güncel
-//     üretim maliyetini (uretimMaliyeti) satış fiyatı/ciro ile aynı
-//     satırda karıştırmaktı; şimdiki ayrım ise "bugünkü maliyet"
-//     (porsiyonMaliyeti — fiyatlandırma için) ile "geçmişteki gerçek
-//     maliyet" (toplamMaliyet — kârlılık raporlaması için) arasındadır.
+//     satışın gerçek kârı böylece sabit kalır.
+//
+// KÂR MARJI AYRIMI (2. düzeltme — önceki hatanın kaynağı):
+//   `karMarji`, satışı olan reçetelerde artık GERÇEK veriden
+//   (toplamKar / toplamCiro) hesaplanıyor — reçetenin güncel
+//   satisFiyati'ndan DEĞİL. Satış fiyatı sonradan değiştiyse (örn.
+//   Köfte Porsiyon: geçmiş satışlar ₺400'den, güncel fiyat ₺350)
+//   bu iki değer birbirinden farklı çıkar; karışmamaları için hangi
+//   veriden geldiği burada net ayrılmış durumda. Hiç satışı olmayan
+//   reçetelerde (toplamCiro = 0) tek elde bilgi güncel fiyat/maliyet
+//   olduğundan TEORİK marja düşülüyor — bu durum kalıcı, veri eksikliği
+//   değil.
 const hesaplaMaliyetRaporu = async (tenantId, subeId) => {
     const receteler = await prisma.recete.findMany({
         where: { tenantId },
@@ -244,9 +251,7 @@ const hesaplaMaliyetRaporu = async (tenantId, subeId) => {
 
         const efektifPorsiyon = recete.porsiyonSayisi || 1;
         const porsiyonMaliyeti = uretimMaliyeti / efektifPorsiyon;
-
         const satisFiyati = recete.satisFiyati || 0;
-        const karMarji = satisFiyati > 0 ? ((satisFiyati - porsiyonMaliyeti) / satisFiyati) * 100 : 0;
 
         const toplamSatisAdedi = recete.satislar.reduce((t, s) => t + s.adet, 0);
         const toplamCiro = recete.satislar.reduce((t, s) => t + s.toplam, 0);
@@ -265,6 +270,15 @@ const hesaplaMaliyetRaporu = async (tenantId, subeId) => {
             return t + (satisBirimMaliyeti * s.adet);
         }, 0);
 
+        const toplamKar = toplamCiro - satilanMaliyet;
+
+        // Satışı olan reçetede GERÇEK marj (toplamKar/toplamCiro).
+        // Hiç satışı olmayan reçetede tek elde veri güncel fiyat/maliyet
+        // olduğundan TEORİK marja düşülür.
+        const karMarji = toplamCiro > 0
+            ? (toplamKar / toplamCiro) * 100
+            : (satisFiyati > 0 ? ((satisFiyati - porsiyonMaliyeti) / satisFiyati) * 100 : 0);
+
         return {
             id: recete.id,
             ad: recete.ad,
@@ -276,21 +290,28 @@ const hesaplaMaliyetRaporu = async (tenantId, subeId) => {
             toplamSatis: toplamSatisAdedi,
             toplamCiro: Math.round(toplamCiro * 100) / 100,
             toplamMaliyet: Math.round(satilanMaliyet * 100) / 100,
-            toplamKar: Math.round((toplamCiro - satilanMaliyet) * 100) / 100,
+            toplamKar: Math.round(toplamKar * 100) / 100,
             kalemDetay,
         };
     });
+
+    const toplamCiroGenel = maliyetler.reduce((t, m) => t + m.toplamCiro, 0);
+    const toplamKarGenel = maliyetler.reduce((t, m) => t + m.toplamKar, 0);
 
     return {
         maliyetler: maliyetler.sort((a, b) => b.toplamCiro - a.toplamCiro),
         ozet: {
             receteSayisi: maliyetler.length,
-            ortalamaKarMarji: maliyetler.length
-                ? Math.round(maliyetler.reduce((t, m) => t + m.karMarji, 0) / maliyetler.length * 100) / 100
+            // Ciro ağırlıklı GERÇEK ortalama marj — hiç satılmamış
+            // reçetelerin teorik marjı (ciroları 0 olduğundan) bu
+            // ortalamayı artık şişirmiyor. İşletmenin fiili kârlılığını
+            // yansıtır; basit (reçete başı) ortalamadan farklı olabilir.
+            ortalamaKarMarji: toplamCiroGenel > 0
+                ? Math.round((toplamKarGenel / toplamCiroGenel) * 10000) / 100
                 : 0,
-            toplamCiro: Math.round(maliyetler.reduce((t, m) => t + m.toplamCiro, 0) * 100) / 100,
+            toplamCiro: Math.round(toplamCiroGenel * 100) / 100,
             toplamMaliyet: Math.round(maliyetler.reduce((t, m) => t + m.toplamMaliyet, 0) * 100) / 100,
-            toplamKar: Math.round(maliyetler.reduce((t, m) => t + m.toplamKar, 0) * 100) / 100,
+            toplamKar: Math.round(toplamKarGenel * 100) / 100,
         },
     };
 };

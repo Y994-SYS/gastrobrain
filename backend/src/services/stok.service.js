@@ -116,7 +116,17 @@ const stokService = {
 
         return stokKartlari.map(kart => {
             const kartHareketleri = kartHareketMap.get(kart.id) || [];
-            const miktar = bakiyeHesapla(kartHareketleri);
+            // DÜZELTME: rapor.controller.js'deki stokRaporu ile AYNI
+            // yuvarlama uygulanıyor. Önceden burada ham (yuvarlanmamış)
+            // float döndürülüyordu — örn. 38.395 gibi bir değer kayan
+            // noktada 38.394999999999996... olarak saklandığından,
+            // frontend'in toFixed(2) ile gösterimi 38.40 değil 38.39
+            // çıkıyordu; aynı stok kartı Raporlar > Stok Raporu sayfasında
+            // (orada backend zaten yuvarlıyordu) 38.395 görünüyordu. İki uç
+            // nokta artık aynı yuvarlanmış sayıyı döndürüyor; kalan fark
+            // salt gösterim basamağı (2 vs 3 ondalık) olur — bu da
+            // frontend'de standardize edilmeli.
+            const miktar = Math.round(bakiyeHesapla(kartHareketleri) * 1000) / 1000;
             return { ...kart, mevcutStok: miktar, kritik: miktar <= kart.minStok };
         });
     },

@@ -98,12 +98,23 @@ const stokRaporu = async (req, res) => {
                 mevcutStok: Math.round(mevcutStok * 1000) / 1000,
                 minStok: kart.minStok, kritikMi: mevcutStok <= kart.minStok,
                 sonBirimFiyat: sonGiris?.birimFiyat || 0,
-                stokDegeri: (sonGiris?.birimFiyat || 0) * Math.max(mevcutStok, 0),
+                // DÜZELTME: satır bazında kuruşa yuvarlanıyor. Önceden ham
+                // (yuvarlanmamış) değer saklanıp toplam bu ham değerlerden
+                // hesaplanıyordu; ekrandaki her satır ise fmt() ile 2
+                // ondalığa yuvarlanmış gösteriliyordu. Bu da "gösterilen
+                // satırları elle toplarsan görünen toplamla 1 kuruş fark
+                // çıkar" durumuna yol açıyordu — 39 kalemde küçük yuvarlama
+                // sapmaları birikip toplamı ~1 kuruş kaydırabiliyordu.
+                // Artık satır değeri ekranda görünenle birebir aynı sayı;
+                // toplam da bu sayıların toplamı olduğu için tutarlı.
+                stokDegeri: Math.round((sonGiris?.birimFiyat || 0) * Math.max(mevcutStok, 0) * 100) / 100,
             };
         });
 
         const filtrelenmis = sadecekritik === 'true' ? stokDurumlari.filter(s => s.kritikMi) : stokDurumlari;
-        const toplamDeger = filtrelenmis.reduce((t, s) => t + s.stokDegeri, 0);
+        // Zaten kuruşa yuvarlanmış satır değerlerinin toplamı — ekrandaki
+        // satırları elle toplasan bulacağın rakamla birebir eşleşir.
+        const toplamDeger = Math.round(filtrelenmis.reduce((t, s) => t + s.stokDegeri, 0) * 100) / 100;
         const kritikSayisi = stokDurumlari.filter(s => s.kritikMi).length;
 
         res.json({

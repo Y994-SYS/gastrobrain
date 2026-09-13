@@ -113,7 +113,8 @@ const receteService = {
 
         return prisma.recete.create({
             data: {
-                ad, aciklama, satisKodu,
+                ad, aciklama,
+                satisKodu: satisKodu ? satisKodu.toUpperCase() : satisKodu,
                 satisFiyati: satisFiyati ? Number(satisFiyati) : null,
                 porsiyonSayisi: porsiyonSayisi ? Number(porsiyonSayisi) : null,
                 kategoriId: dogrulanmisKategoriId,
@@ -146,7 +147,8 @@ const receteService = {
             return tx.recete.update({
                 where: { id },
                 data: {
-                    ad, aciklama, satisKodu,
+                    ad, aciklama,
+                    satisKodu: satisKodu ? satisKodu.toUpperCase() : satisKodu,
                     satisFiyati: satisFiyati ? Number(satisFiyati) : null,
                     porsiyonSayisi: porsiyonSayisi ? Number(porsiyonSayisi) : null,
                     kategoriId: dogrulanmisKategoriId,

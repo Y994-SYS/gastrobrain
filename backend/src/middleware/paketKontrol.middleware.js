@@ -3,6 +3,15 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
+// DÜZELTME: 'personel' ve 'cari' anahtarları hiçbir planda tanımlı
+// değildi. Route'larda paketKontrol('personel') / paketKontrol('cari')
+// çağrıldığında PAKET_OZELLIKLERI[plan]?.['personel'] her zaman undefined
+// dönüyordu — bu da deneme süresi biten HER tenant'ta, plan seviyesi ne
+// olursa olsun (Profesyonel ve Kurumsal dahil), personel maaş/avans/devam/
+// izin ve cari ödeme/manuel hareket yazma işlemlerini kalıcı olarak 403
+// ile kilitliyordu. Personel ve cari hesap takibi, şube transferi/merkez
+// depo gibi üst-plan satış özellikleri değil — temel işlevler; bu yüzden
+// üç planda da true olarak eklendi.
 const PAKET_OZELLIKLERI = {
     BASLANGIC: {
         maxSube: 1,
@@ -10,6 +19,8 @@ const PAKET_OZELLIKLERI = {
         merkezDepo: false,
         subeKarsilastirmasi: false,
         planliTransfer: false,
+        personel: true,
+        cari: true,
     },
     PROFESYONEL: {
         maxSube: 5,
@@ -17,6 +28,8 @@ const PAKET_OZELLIKLERI = {
         merkezDepo: true,
         subeKarsilastirmasi: true,
         planliTransfer: true,
+        personel: true,
+        cari: true,
     },
     KURUMSAL: {
         maxSube: 999,
@@ -24,6 +37,8 @@ const PAKET_OZELLIKLERI = {
         merkezDepo: true,
         subeKarsilastirmasi: true,
         planliTransfer: true,
+        personel: true,
+        cari: true,
     },
 };
 
@@ -31,7 +46,7 @@ const PAKET_OZELLIKLERI = {
 // 'PROFESYONEL' yerine, ileride yeni bir ara plan eklenirse otomatik doğru
 // cevap versin diye.
 const gerekliPlaniBul = (ozellik) => {
-    const siralama = ['PROFESYONEL', 'KURUMSAL'];
+    const siralama = ['BASLANGIC', 'PROFESYONEL', 'KURUMSAL'];
     return siralama.find(p => PAKET_OZELLIKLERI[p]?.[ozellik]) || 'PROFESYONEL';
 };
 
@@ -57,6 +72,11 @@ const denemedeMi = (tenant) => {
  *   daha önce bu middleware'de hiç yoktu — sube.controller.js'deki
  *   `olustur` fonksiyonunda ayrıca yapılıyordu. Artık tüm paket kontrollü
  *   route'larda tutarlı şekilde burada da uygulanıyor.
+ * - 'personel' ve 'cari' gibi TEMEL özellikler her üç planda da true —
+ *   bunlar için paketKontrol pratikte sadece "tenant var mı / deneme mi"
+ *   kontrolü yapar, plan seviyesine göre engellemez. Gerçek üst-plan
+ *   kısıtlaması sadece subeTransferi/merkezDepo/subeKarsilastirmasi/
+ *   planliTransfer gibi anahtarlar için geçerlidir.
  */
 const paketKontrol = (ozellik) => async (req, res, next) => {
     try {

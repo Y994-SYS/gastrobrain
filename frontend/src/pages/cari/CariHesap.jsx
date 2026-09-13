@@ -37,6 +37,22 @@ export default function CariHesap() {
         setHareketler(res.data.data);
     };
 
+    // DÜZELTME: Kullanıcılar ekrandaki "₺102.045,60" gibi Türkçe formatlı
+    // bakiyeyi elle kopyalayıp bu alana yazmaya çalışıyordu. type="number"
+    // input'u SADECE nokta'yı ondalık ayıracı sayar, virgülü tamamen
+    // reddeder — bu yüzden "102.045,60" yazılınca "102.04560" (~₺102)
+    // olarak kaydediliyordu; borç neredeyse hiç kapanmıyordu ama kullanıcı
+    // bunu fark edemiyordu çünkü işlem "başarılı" dönüyordu. Bu buton,
+    // bakiyeyi doğrudan sayısal değerinden dolduruyor — elle yazma/format
+    // hatası ihtimalini tamamen ortadan kaldırıyor.
+    const tamaminiDoldur = () => {
+        if (!seciliCari) return;
+        const tutar = Math.abs(seciliCari.bakiye);
+        // toFixed ile üretilen string her zaman nokta ondalık ayıracı
+        // kullanır — number input'un beklediği format budur.
+        setOdemeForm(prev => ({ ...prev, tutar: tutar.toFixed(2) }));
+    };
+
     const odemeKaydet = async () => {
         if (!odemeForm.tutar) return toast.error('Tutar zorunlu');
         setYukleniyor(true);
@@ -203,7 +219,23 @@ export default function CariHesap() {
                             <span className="text-zinc-500">Cari: </span>{seciliCari?.ad}
                         </div>
                         <div>
-                            <label className="text-zinc-400 text-sm mb-1.5 block">Tutar (₺) *</label>
+                            <div className="flex items-center justify-between mb-1.5">
+                                <label className="text-zinc-400 text-sm">Tutar (₺) *</label>
+                                {/* DÜZELTME: bakiyeyi doğrudan doldurur — elle
+                                    "102.045,60" gibi Türkçe formatlı bir sayı
+                                    yazma girişimini (ve number input'un bunu
+                                    sessizce ~₺102'ye indirgemesini) tamamen
+                                    ortadan kaldırır. */}
+                                {seciliCari && (
+                                    <button
+                                        type="button"
+                                        onClick={tamaminiDoldur}
+                                        className="text-lime-400 hover:text-lime-300 text-xs font-semibold"
+                                    >
+                                        Bakiyenin tamamını doldur (₺{fmt(Math.abs(seciliCari.bakiye))})
+                                    </button>
+                                )}
+                            </div>
                             <input
                                 type="number"
                                 value={odemeForm.tutar}
@@ -211,6 +243,13 @@ export default function CariHesap() {
                                 placeholder="0.00"
                                 className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-4 py-2.5 text-sm outline-none focus:border-lime-400 transition-colors"
                             />
+                            {/* Format uyarısı: bu alan yalnızca NOKTA ondalık
+                                ayıracını kabul eder — ekrandaki "₺102.045,60"
+                                yazısı doğrudan buraya yapıştırılırsa yanlış
+                                (çok küçük) bir tutar kaydedilir. */}
+                            <p className="text-zinc-600 text-xs mt-1.5">
+                                Ondalık için nokta kullanın (ör. 1500.50) — ekrandaki virgüllü/noktalı tutarı doğrudan kopyalamayın, yukarıdaki butonu kullanın.
+                            </p>
                         </div>
                         <div className="grid grid-cols-2 gap-3">
                             <div>

@@ -37,27 +37,43 @@ export default function CariHesap() {
         setHareketler(res.data.data);
     };
 
-    // DÜZELTME: Kullanıcılar ekrandaki "₺102.045,60" gibi Türkçe formatlı
-    // bakiyeyi elle kopyalayıp bu alana yazmaya çalışıyordu. type="number"
-    // input'u SADECE nokta'yı ondalık ayıracı sayar, virgülü tamamen
-    // reddeder — bu yüzden "102.045,60" yazılınca "102.04560" (~₺102)
-    // olarak kaydediliyordu; borç neredeyse hiç kapanmıyordu ama kullanıcı
-    // bunu fark edemiyordu çünkü işlem "başarılı" dönüyordu. Bu buton,
-    // bakiyeyi doğrudan sayısal değerinden dolduruyor — elle yazma/format
-    // hatası ihtimalini tamamen ortadan kaldırıyor.
+    // DÜZELTME 2: "Tamamını doldur" butonu sadece TAM ödeme senaryosunu
+    // çözüyordu. Kısmi bir tutar (örn. 10.245,60 TL'nin sadece 10.245,60'ı
+    // değil, 10245,60 gibi bir kısmı) elle yazılmak istendiğinde kullanıcı
+    // yine aynı tuzağa düşüyordu — çünkü input type="number" olduğu
+    // sürece SADECE nokta ondalık ayıracı kabul edilir, virgül tamamen
+    // reddedilir. Türkçe klavyede insanlar doğal olarak virgülle yazar
+    // ("10245,60"); bu yüzden number input'u tamamen bırakıp virgülü
+    // ondalık ayıracı sayan bir metin alanına geçildi. Nokta karakteri
+    // burada hiç kabul edilmiyor (binlik ayıracına gerek yok, kafa
+    // karıştırmasın diye) — kullanıcı yalnızca rakam ve tek bir virgül
+    // yazabilir. Gönderirken virgül noktaya çevrilip sayıya dönüştürülür.
+    const tutarDegisti = (e) => {
+        let deger = e.target.value;
+        // Sadece rakam ve virgül — nokta girilirse yok sayılır.
+        deger = deger.replace(/[^0-9,]/g, '');
+        // Birden fazla virgül girilirse ilkinden sonrakileri at.
+        const ilkVirgul = deger.indexOf(',');
+        if (ilkVirgul !== -1) {
+            deger = deger.slice(0, ilkVirgul + 1) + deger.slice(ilkVirgul + 1).replace(/,/g, '');
+        }
+        setOdemeForm(prev => ({ ...prev, tutar: deger }));
+    };
+
+    const tutarSayiyaCevir = (deger) => Number(String(deger).replace(',', '.'));
+
     const tamaminiDoldur = () => {
         if (!seciliCari) return;
         const tutar = Math.abs(seciliCari.bakiye);
-        // toFixed ile üretilen string her zaman nokta ondalık ayıracı
-        // kullanır — number input'un beklediği format budur.
-        setOdemeForm(prev => ({ ...prev, tutar: tutar.toFixed(2) }));
+        // Bu alan artık virgül ondalık ayıracı bekliyor — nokta değil.
+        setOdemeForm(prev => ({ ...prev, tutar: tutar.toFixed(2).replace('.', ',') }));
     };
 
     const odemeKaydet = async () => {
         if (!odemeForm.tutar) return toast.error('Tutar zorunlu');
         setYukleniyor(true);
 
-        const tutar = Number(odemeForm.tutar);
+        const tutar = tutarSayiyaCevir(odemeForm.tutar);
 
         // Optimistic: anında güncelle
         const yeniHareket = {
@@ -80,6 +96,7 @@ export default function CariHesap() {
         try {
             const res = await api.post('/api/cari-hareketler/odeme', {
                 ...odemeForm,
+                tutar,
                 cariKartId: seciliCari.id
             });
             // Geçici kaydı gerçek veriyle değiştir
@@ -237,18 +254,20 @@ export default function CariHesap() {
                                 )}
                             </div>
                             <input
-                                type="number"
+                                type="text"
+                                inputMode="decimal"
                                 value={odemeForm.tutar}
-                                onChange={(e) => setOdemeForm({ ...odemeForm, tutar: e.target.value })}
-                                placeholder="0.00"
+                                onChange={tutarDegisti}
+                                placeholder="0,00"
                                 className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-4 py-2.5 text-sm outline-none focus:border-lime-400 transition-colors"
                             />
-                            {/* Format uyarısı: bu alan yalnızca NOKTA ondalık
-                                ayıracını kabul eder — ekrandaki "₺102.045,60"
-                                yazısı doğrudan buraya yapıştırılırsa yanlış
-                                (çok küçük) bir tutar kaydedilir. */}
+                            {/* Bu alan artık SADECE virgülü ondalık ayıracı
+                                olarak kabul ediyor (nokta karakteri hiç
+                                girilemiyor) — Türkçe klavyede doğal yazım
+                                şekliyle birebir örtüşüyor, kısmi ödemelerde
+                                bile yanlış tutar girme riski kalmıyor. */}
                             <p className="text-zinc-600 text-xs mt-1.5">
-                                Ondalık için nokta kullanın (ör. 1500.50) — ekrandaki virgüllü/noktalı tutarı doğrudan kopyalamayın, yukarıdaki butonu kullanın.
+                                Ondalık için virgül kullanın (ör. 1500,50). Tamamını ödemek için yukarıdaki butonu kullanabilirsiniz.
                             </p>
                         </div>
                         <div className="grid grid-cols-2 gap-3">

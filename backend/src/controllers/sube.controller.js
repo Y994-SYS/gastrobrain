@@ -1,4 +1,5 @@
 const { PrismaClient } = require('@prisma/client');
+const stokService = require('../services/stok.service');
 const prisma = new PrismaClient();
 
 const bugunBaslangicTR = () => {
@@ -10,8 +11,6 @@ const bugunBaslangicTR = () => {
     ));
     return new Date(trBaslangic.getTime() - trOffset);
 };
-
-const GIRIS_TIPLER = new Set(['GIRIS_FATURA', 'IADE_FATURA', 'SUBE_TRANSFER_IN']);
 
 const PLAN_LIMITLERI = {
     BASLANGIC: { maxSube: 1 },
@@ -62,24 +61,39 @@ const hepsiniGetir = async (req, res) => {
             const kartIdler = stokKartlari.map(k => k.id);
             const minStokMap = new Map(stokKartlari.map(k => [k.id, k.minStok]));
 
-            const hareketler = await prisma.stokHareket.groupBy({
-                by: ['subeId', 'stokKartId', 'tip'],
+            // DÜZELTME: Önceden burada groupBy + kendi (HATALI) GIRIS_TIPLER
+            // listesiyle özet toplamlar üzerinden bakiye hesaplanıyordu.
+            // Sorunlar: (1) IADE_FATURA yanlışlıkla GİRİŞ sayılıyordu —
+            // oysa tedarikçiye iade stoku AZALTIR; (2) AY_SONU_SAYIM hiç
+            // tanınmıyordu, bu yüzden sayım düzeltmesinin yönüne
+            // bakılmaksızın her zaman ÇIKIŞ gibi işleniyordu. Bu ikisi
+            // birlikte, özellikle çok sayım/iade geçmişi olan kartlarda
+            // (Dana Kuşbaşı, Soğan gibi) devasa negatif/yanlış bakiyelere
+            // yol açıyordu. groupBy ile özetlenmiş toplamlar üzerinden bu
+            // düzeltilemez — AY_SONU_SAYIM'ın yönü her kaydın kendi
+            // açıklamasında ("fark: ±X") saklı, tek bir SUM'a indirgenince
+            // bu bilgi kayboluyor. Bu yüzden artık HAM hareket kayıtlarını
+            // çekip stok.service.js'deki TEK doğru fonksiyonu
+            // (bakiyeHesapla) kullanıyoruz — stokRaporu ve tumStokDurumu
+            // ile birebir aynı sonucu verir.
+            const hareketler = await prisma.stokHareket.findMany({
                 where: { subeId: { in: subeIdler }, stokKartId: { in: kartIdler } },
-                _sum: { miktar: true },
+                select: { subeId: true, stokKartId: true, tip: true, miktar: true, aciklama: true },
             });
 
-            const bakiyeMap = new Map();
+            const bakiyeMap = new Map(); // subeId -> stokKartId -> hareket[]
             for (const h of hareketler) {
                 if (!bakiyeMap.has(h.subeId)) bakiyeMap.set(h.subeId, new Map());
                 const kartMap = bakiyeMap.get(h.subeId);
-                const mevcut = kartMap.get(h.stokKartId) || 0;
-                kartMap.set(h.stokKartId, mevcut + (GIRIS_TIPLER.has(h.tip) ? h._sum.miktar : -h._sum.miktar));
+                if (!kartMap.has(h.stokKartId)) kartMap.set(h.stokKartId, []);
+                kartMap.get(h.stokKartId).push(h);
             }
 
             for (const [subeId, kartMap] of bakiyeMap.entries()) {
                 let kritik = 0;
-                for (const [kartId, bakiye] of kartMap.entries()) {
+                for (const [kartId, kartHareketleri] of kartMap.entries()) {
                     const min = minStokMap.get(kartId);
+                    const bakiye = stokService.bakiyeHesapla(kartHareketleri);
                     if (min !== undefined && bakiye <= min) kritik++;
                 }
                 kritikMap.set(subeId, kritik);
@@ -156,24 +170,31 @@ const detayGetir = async (req, res) => {
             orderBy: { ad: 'asc' },
         });
 
-        const stokHareketleri = await prisma.stokHareket.groupBy({
-            by: ['stokKartId', 'tip'],
+        // DÜZELTME: Aynı hata burada da vardı (bkz. hepsiniGetir yorumu).
+        // groupBy özet toplamı + hatalı GIRIS_TIPLER yerine, ham hareket
+        // kayıtlarını çekip stok.service.js'deki TEK doğru fonksiyonu
+        // (bakiyeHesapla) kullanıyoruz. Bu, Stok Durumu sayfasıyla
+        // (stokRaporu/tumStokDurumu) birebir aynı sonucu garanti eder.
+        const stokHareketleri = await prisma.stokHareket.findMany({
             where: { subeId },
-            _sum: { miktar: true },
+            select: { stokKartId: true, tip: true, miktar: true, aciklama: true },
         });
 
-        const bakiyeMap = new Map();
+        const kartHareketMap = new Map();
         for (const h of stokHareketleri) {
-            const mevcut = bakiyeMap.get(h.stokKartId) || 0;
-            bakiyeMap.set(h.stokKartId, mevcut + (GIRIS_TIPLER.has(h.tip) ? h._sum.miktar : -h._sum.miktar));
+            if (!kartHareketMap.has(h.stokKartId)) kartHareketMap.set(h.stokKartId, []);
+            kartHareketMap.get(h.stokKartId).push(h);
         }
 
         const stokDurumu = stokKartlari
-            .map(k => ({
-                ...k,
-                mevcutStok: Math.round((bakiyeMap.get(k.id) || 0) * 1000) / 1000,
-                kritik: (bakiyeMap.get(k.id) || 0) <= k.minStok && k.minStok > 0,
-            }))
+            .map(k => {
+                const bakiye = stokService.bakiyeHesapla(kartHareketMap.get(k.id) || []);
+                return {
+                    ...k,
+                    mevcutStok: Math.round(bakiye * 1000) / 1000,
+                    kritik: bakiye <= k.minStok && k.minStok > 0,
+                };
+            })
             .filter(k => k.mevcutStok > 0 || k.minStok > 0);
 
         const personeller = await prisma.personel.findMany({

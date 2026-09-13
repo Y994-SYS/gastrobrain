@@ -272,7 +272,7 @@ export default function Receteler() {
                                 <label className="text-zinc-400 text-sm mb-1.5 block">Satış Kodu</label>
                                 <input
                                     value={form.satisKodu}
-                                    onChange={(e) => setForm({ ...form, satisKodu: e.target.value })}
+                                    onChange={(e) => setForm({ ...form, satisKodu: e.target.value.toUpperCase() })}
                                     placeholder="örn. AK001"
                                     className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-3 py-2.5 text-sm outline-none focus:border-lime-400 transition-colors"
                                 />

@@ -267,23 +267,39 @@ new CronJob('*/14 * * * *', async () => {
     }
 }, null, true, 'Europe/Istanbul');
 
-// ── MERKEZ DEPO OTOMATİK DAĞITIM (Pazartesi & Cuma saat 06:00) ──
+// ── MERKEZ DEPO OTOMATİK DAĞITIM (Pazartesi & Cuma saat 06:00, İstanbul saati) ──
 const merkezDepoService = require('./services/merkezDepo.service');
 const cron = require('node-cron');
+
+// DÜZELTME 1 (kritik bug): Önceden tüm tenant döngüsü TEK bir try/catch
+// içindeydi — bir tenant'ta hata olursa (ör. "Merkez Depo" olarak
+// işaretlenmiş şube yoktu), döngü tamamen duruyordu ve listede o
+// tenant'tan SONRA gelen hiçbir tenant o gün işlenmiyordu, sessizce
+// atlanıyordu. Artık her tenant kendi try/catch'i içinde — biri hata
+// verse bile diğerleri etkilenmiyor.
+//
+// DÜZELTME 2 (zamanlama): `{ timezone: 'Europe/Istanbul' }` eksikti,
+// node-cron sunucunun sistem saatini (muhtemelen UTC) kullanıyordu.
+// UTC 06:00 = İstanbul 09:00 — yani cron "sabah erken" yerine mesai
+// saatinde çalışıyordu. Şimdi diğer cron'larla (CronJob paketiyle
+// yazılanlar) tutarlı hale getirildi.
 cron.schedule('0 6 * * 1,5', async () => {
     console.log('[CRON] Merkez depo otomatik dağıtım başladı...');
-    try {
-        const tenantlar = await prisma.tenant.findMany({ where: { aktif: true } });
-        for (const tenant of tenantlar) {
+    const tenantlar = await prisma.tenant.findMany({ where: { aktif: true } });
+
+    for (const tenant of tenantlar) {
+        try {
             const sonuclar = await merkezDepoService.otomatiDagitimYap(tenant.id);
             if (sonuclar.length > 0) {
                 console.log(`[MERKEZ DEPO] ${tenant.ad}: ${sonuclar.length} dağıtım yapıldı`);
             }
+        } catch (err) {
+            // Bu tenant'ta hata olsa bile döngü devam eder — diğer
+            // tenant'lar etkilenmez.
+            console.error(`[MERKEZ DEPO HATA] ${tenant.ad}:`, err.message);
         }
-    } catch (err) {
-        console.error('[MERKEZ DEPO HATA]', err);
     }
-});
+}, { timezone: 'Europe/Istanbul' });
 
 // ── PLANLI TRANSFER CRON (Her dakika kontrol) ──
 const planliTransferService = require('./services/planliTransfer.service');

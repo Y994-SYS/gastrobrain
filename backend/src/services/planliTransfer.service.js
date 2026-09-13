@@ -262,6 +262,18 @@ const planliTransferService = {
             if (plan.saat !== simdikiSaat) continue;
             if (Math.abs(plan.dakika - simdikiDakika) > 2) continue;
 
+            // DÜZELTME (kritik bug): ±2 dakikalık tolerans penceresi + her
+            // dakika çalışan cron, koşulun 5 ardışık dakika boyunca doğru
+            // kalmasına yol açıyordu — plan aynı gün içinde art arda 5 kez
+            // tetikleniyordu (aynı transfer 5 kez yapılıyor, audit log'da
+            // 5 kez PLANLI_TRANSFER_OTOMATIK görünüyordu). Artık plan bugün
+            // zaten çalıştıysa tekrar çalıştırılmıyor.
+            if (plan.sonCalisma) {
+                const bugunTarihi = new Date().toDateString();
+                const sonCalismaTarihi = new Date(plan.sonCalisma).toDateString();
+                if (sonCalismaTarihi === bugunTarihi) continue;
+            }
+
             try {
                 const sonuc = await this.hemenCalistir(plan.id, plan.tenantId);
                 sonuclar.push({ basarili: true, ...sonuc });

@@ -19,6 +19,24 @@ export default function sitemap(): MetadataRoute.Sitemap {
             priority: 0.8,
         },
         {
+            url: `${baseUrl}/rehber/recete-maliyeti-nasil-hesaplanir`,
+            lastModified: new Date(),
+            changeFrequency: 'monthly',
+            priority: 0.7,
+        },
+        {
+            url: `${baseUrl}/rehber/restoranda-fire-orani-nasil-azaltilir`,
+            lastModified: new Date(),
+            changeFrequency: 'monthly',
+            priority: 0.7,
+        },
+        {
+            url: `${baseUrl}/rehber/excelden-restoran-yonetim-yazilimina-gecis-rehberi`,
+            lastModified: new Date(),
+            changeFrequency: 'monthly',
+            priority: 0.7,
+        },
+        {
             url: `${baseUrl}/gizlilik`,
             lastModified: new Date(),
             changeFrequency: 'yearly',

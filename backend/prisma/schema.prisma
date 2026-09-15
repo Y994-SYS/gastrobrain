@@ -36,8 +36,9 @@ model Tenant {
   auditLoglar   AuditLog[]
   odemeBildirimleri OdemeBildirimi[]
   merkezDepolar MerkezDepo[]
-  planliTransferler PlanliTransfer[] 
-  
+  planliTransferler PlanliTransfer[]
+  sabitGiderler SabitGider[]
+
 
 }
 
@@ -119,6 +120,7 @@ model Sube {
   merkezDagitimlar MerkezDagitim[] @relation("merkezDagitim")
   kalemKaynaklar PlanliTransferKalem[] @relation("kalemKaynak")
   kalemHedefler  PlanliTransferKalem[] @relation("kalemHedef")
+  sabitGiderler  SabitGider[]
 
   @@index([tenantId])
 }
@@ -588,4 +590,49 @@ model PlanliTransferKalem {
   hedefSubeId  Int
 
   @@index([planliTransferId])
+}
+
+// ─────────────────────────────────────────────────────
+// SABİT GİDERLER (Kira, elektrik, su, doğalgaz vb.)
+// ─────────────────────────────────────────────────────
+// PersonelMaas ile aynı desen: yıl/ay bazlı tekrarlayan kayıt, odendi
+// işaretlenebilir. subeId NULL ise gider tüm işletme geneli sayılır
+// (örn. tek bir merkez kira sözleşmesi) — Kâr-Zarar raporunda bu tür
+// kayıtlar tedarikçi ödemeleri gibi şubeye bölünmeden işletme geneline
+// yazılır. subeId dolu ise sadece o şubenin gideri olarak sayılır (örn.
+// her şubenin kendi elektrik faturası).
+
+enum SabitGiderKategori {
+  KIRA
+  ELEKTRIK
+  SU
+  DOGALGAZ
+  INTERNET
+  TELEFON
+  SIGORTA
+  DIGER
+}
+
+model SabitGider {
+  id          Int                @id @default(autoincrement())
+  kategori    SabitGiderKategori
+  ad          String?            // opsiyonel özel isim, örn. "Merkez ofis kira"
+  yil         Int
+  ay          Int
+  tutar       Float
+  odendi      Boolean            @default(false)
+  odemeTarihi DateTime?
+  aciklama    String?
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+  tenantId Int
+
+  sube     Sube?  @relation(fields: [subeId], references: [id])
+  subeId   Int?   // NULL = tüm işletme geneli (bkz. yukarıdaki not)
+
+  @@index([tenantId])
+  @@index([subeId])
+  @@index([yil, ay])
 }

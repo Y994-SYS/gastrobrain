@@ -23,6 +23,7 @@ import Personel from './pages/personel/Personel';
 import Dashboard from './pages/Dashboard';
 import Raporlar from './pages/raporlar/Raporlar';
 import KarZarar from './pages/raporlar/KarZarar';
+import SabitGiderler from './pages/finans/SabitGiderler';
 import Subeler from './pages/tanimlamalar/Subeler';
 import Kullanicilar from './pages/personel/Kullanicilar';
 import SuperAdmin from './pages/SuperAdmin';
@@ -167,6 +168,13 @@ export default function App() {
         {/* ── Raporlar — temel hepse açık, gelişmiş Profesyonel+ ──────── */}
         <Route path="/raporlar" element={<PrivateRoute roller={R.YONETIM}><Raporlar /></PrivateRoute>} />
         <Route path="/raporlar/kar-zarar" element={<PrivateRoute roller={R.YONETIM}><KarZarar /></PrivateRoute>} />
+
+        {/* ── Sabit Giderler — personel/cari ile aynı ilke: temel özellik,
+             paketKontrol('sabitGider') her üç planda da true, yani
+             planOzellik burada pratikte sadece PaketProvider context'ini
+             (tamErisim/SaltOkunurUyari) besliyor, gerçek bir kısıtlama
+             oluşturmuyor. ────────────────────────────────────────────── */}
+        <Route path="/sabit-giderler" element={<PrivateRoute roller={R.YONETIM} planOzellik="sabitGider"><SabitGiderler /></PrivateRoute>} />
 
         {/* ── Personel — Profesyonel+ (deneme bitince salt okunur) ─────── */}
         <Route path="/personel" element={<PrivateRoute roller={R.PERSONEL} planOzellik="personel"><Personel /></PrivateRoute>} />

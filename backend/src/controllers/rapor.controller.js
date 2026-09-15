@@ -1,6 +1,7 @@
 const { PrismaClient } = require('@prisma/client');
 const XLSX = require('xlsx');
 const stokService = require('../services/stok.service');
+const sabitGiderService = require('../services/sabitGider.service');
 const prisma = new PrismaClient();
 
 // Şube ID'sini belirle
@@ -432,7 +433,19 @@ const karZararRaporu = async (req, res) => {
         }
 
         const brutKar = toplamGelir - toplamMaliyet;
-        const toplamGider = toplamMaliyet + toplamMaas + toplamTedarikciOdeme + toplamZayiGideri;
+
+        // Sabit giderler (kira, elektrik, su, doğalgaz vb.) — tedarikçi
+        // ödemeleri gibi, subeId verilmeyen (subeId: null) kayıtlar "tüm
+        // işletme geneli" sayılır ve şube seçili olsa da toplama dahil
+        // edilir; bu nedenle notlar.cariTumIsletmeGeneli ile aynı mantıkla
+        // aşağıda ayrı bir not eklendi.
+        const toplamSabitGider = await sabitGiderService.toplamGetir(tenantId, {
+            subeId,
+            baslangicTarihi,
+            bitisTarihi,
+        });
+
+        const toplamGider = toplamMaliyet + toplamMaas + toplamTedarikciOdeme + toplamZayiGideri + toplamSabitGider;
         const netKar = toplamGelir - toplamGider;
 
         res.json({
@@ -446,6 +459,7 @@ const karZararRaporu = async (req, res) => {
                 personelMaas: Math.round(toplamMaas * 100) / 100,
                 tedarikciOdemeleri: Math.round(toplamTedarikciOdeme * 100) / 100,
                 zayiGideri: Math.round(toplamZayiGideri * 100) / 100,
+                sabitGiderler: Math.round(toplamSabitGider * 100) / 100,
             },
             ozet: {
                 toplamGelir: Math.round(toplamGelir * 100) / 100,
@@ -457,6 +471,7 @@ const karZararRaporu = async (req, res) => {
             },
             notlar: {
                 cariTumIsletmeGeneli: true,
+                sabitGiderSubesizOlanlarTumIsletmeGeneli: true,
                 avansDahilDegil: true,
             },
         });

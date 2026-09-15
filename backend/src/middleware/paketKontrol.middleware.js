@@ -21,6 +21,7 @@ const PAKET_OZELLIKLERI = {
         planliTransfer: false,
         personel: true,
         cari: true,
+        sabitGider: true,
     },
     PROFESYONEL: {
         maxSube: 5,
@@ -30,6 +31,7 @@ const PAKET_OZELLIKLERI = {
         planliTransfer: true,
         personel: true,
         cari: true,
+        sabitGider: true,
     },
     KURUMSAL: {
         maxSube: 999,
@@ -39,6 +41,7 @@ const PAKET_OZELLIKLERI = {
         planliTransfer: true,
         personel: true,
         cari: true,
+        sabitGider: true,
     },
 };
 

@@ -176,6 +176,11 @@ export default function KarZarar() {
                                 ikon="🗑️" etiket="Zayi Gideri"
                                 tutar={rapor.giderler.zayiGideri} toplamGider={rapor.ozet.toplamGider}
                             />
+                            <GiderSatiri
+                                ikon="🏠" etiket="Sabit Giderler (kira, elektrik, su, doğalgaz vb.)"
+                                tutar={rapor.giderler.sabitGiderler} toplamGider={rapor.ozet.toplamGider}
+                                not={rapor.notlar?.sabitGiderSubesizOlanlarTumIsletmeGeneli ? '(şubesiz kayıtlar tüm işletme geneli)' : ''}
+                            />
                         </div>
                     </div>
 
@@ -183,6 +188,9 @@ export default function KarZarar() {
                     <div className="bg-zinc-900/60 border border-zinc-800 rounded-xl p-4 space-y-1.5 text-xs text-zinc-500">
                         {rapor.notlar?.cariTumIsletmeGeneli && (
                             <p>ℹ️ Tedarikçi ödemeleri şubeye bölünemez — tedarikçiler tüm işletme ile çalışır, bu kalem her zaman tüm işletme genelini gösterir.</p>
+                        )}
+                        {rapor.notlar?.sabitGiderSubesizOlanlarTumIsletmeGeneli && (
+                            <p>ℹ️ Belirli bir şubeye bağlanmadan girilen sabit giderler (örn. tek bir merkez kira) tüm işletme geneli sayılır ve her şube görünümünde toplama dahil edilir.</p>
                         )}
                         {rapor.notlar?.avansDahilDegil && (
                             <p>ℹ️ Personel avansları bu hesaba dahil edilmemiştir (avans daha sonra maaştan kesiliyorsa çifte sayım riskini önlemek için).</p>

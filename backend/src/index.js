@@ -37,6 +37,8 @@ const odemeRoutes = require('./routes/odeme.routes');
 const exportRoutes = require('./routes/export.routes');
 const merkezDepoRoutes = require('./routes/merkezDepo.route');
 const planliTransferRoutes = require('./routes/planliTransfer.route');
+const sabitGiderRoutes = require('./routes/sabitGider.routes');
+
 // YENİ: Landing page iletişim formu — bilerek authMiddleware'siz, herkese
 // açık bir route dosyası (iletisim.routes.js). Giriş yapmamış ziyaretçiler
 // tarafından çağrılacağı için diğer route'lardan farklı, dikkatli mount et.
@@ -202,6 +204,7 @@ app.use('/api/export', exportRoutes);
 app.use('/api/merkezdepo', merkezDepoRoutes);
 app.use('/api/planli-transfer', planliTransferRoutes);
 app.use('/api/iletisim', iletisimRoutes);
+app.use('/api/sabit-gider', sabitGiderRoutes);
 
 // ── 404 ───────────────────────────────────────────────────────────────────────
 app.use((req, res) => {

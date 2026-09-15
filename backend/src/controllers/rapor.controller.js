@@ -384,12 +384,39 @@ const karZararRaporu = async (req, res) => {
 
         const toplamGelir = satislar.reduce((t, s) => t + s.toplam, 0);
 
+        // DÜZELTME (kritik hata): Önceden burada `kalem.miktar × satis.adet`
+        // çarpılıyordu — ama kalem.miktar, reçetenin porsiyonSayisi kadar
+        // PORSİYON ÜRETEN bir "parti" için tanımlı miktardır (örn. TAVUKSUYU
+        // "50 porsiyon" için 5 kg tavuk göğsü, ADANA KEBAP "10 porsiyon"
+        // için 2 kg kıyma). Bunu doğrudan satılan PORSİYON adediyle
+        // çarpmak, çok porsiyonlu reçetelerde maliyeti porsiyonSayisi katı
+        // kadar şişiriyordu (TAVUKSUYU için 50x, Mercimek Çorbası/
+        // Tereyağlı Pilav için 30x, ADANA KEBAP için 10x, Fırın Tavuk için
+        // 3x) — "Ürün Maliyeti" gerçekte olması gerekenin onlarca katı
+        // (₺1,2M gibi) görünüyor, Net Kâr da saçma derecede negatif
+        // (%-419 gibi) çıkıyordu.
+        //
+        // Düzeltme: hesaplaMaliyetRaporu'ndaki (Maliyet Raporu sayfası) ile
+        // AYNI mantık kullanılıyor — önce satış anında dondurulmuş gerçek
+        // maliyet (Satis.birimMaliyet) tercih edilir; bu alan eski
+        // satışlarda boşsa (satış özelliği eklenmeden önce girilmiş),
+        // güncel porsiyon maliyeti (carpan/bolen uygulanmış gerçek miktar,
+        // porsiyonSayisi'ye bölünmüş) hesaplanıp YEDEK olarak kullanılır.
         let toplamMaliyet = 0;
         for (const satis of satislar) {
+            if (satis.birimMaliyet != null) {
+                toplamMaliyet += satis.birimMaliyet * satis.adet;
+                continue;
+            }
+            let uretimMaliyeti = 0;
             for (const kalem of satis.recete.kalemler) {
                 const birimFiyat = kalem.stokKart.stokHareketleri[0]?.birimFiyat || 0;
-                toplamMaliyet += birimFiyat * kalem.miktar * satis.adet;
+                const gercekMiktar = (kalem.miktar * kalem.carpan) / kalem.bolen;
+                uretimMaliyeti += birimFiyat * gercekMiktar;
             }
+            const efektifPorsiyon = satis.recete.porsiyonSayisi || 1;
+            const porsiyonMaliyeti = uretimMaliyeti / efektifPorsiyon;
+            toplamMaliyet += porsiyonMaliyeti * satis.adet;
         }
 
         const maaslar = await prisma.personelMaas.findMany({
@@ -515,12 +542,25 @@ const hesaplaSubeKarsilastirmasi = async (tenantId) => {
         const toplamSatis = sube.satislar.reduce((t, s) => t + s.toplam, 0);
         const toplamAdet = sube.satislar.reduce((t, s) => t + s.adet, 0);
 
+        // DÜZELTME: karZararRaporu'ndaki AYNI hata burada da vardı — bkz.
+        // oradaki ayrıntılı açıklama. Aynı düzeltme (önce Satis.birimMaliyet,
+        // yoksa porsiyonSayisi'ne bölünmüş güncel porsiyon maliyeti) burada
+        // da uygulandı.
         let toplamMaliyet = 0;
         for (const satis of sube.satislar) {
+            if (satis.birimMaliyet != null) {
+                toplamMaliyet += satis.birimMaliyet * satis.adet;
+                continue;
+            }
+            let uretimMaliyeti = 0;
             for (const kalem of satis.recete.kalemler) {
                 const birimFiyat = kalem.stokKart.stokHareketleri[0]?.birimFiyat || 0;
-                toplamMaliyet += birimFiyat * kalem.miktar * satis.adet;
+                const gercekMiktar = (kalem.miktar * kalem.carpan) / kalem.bolen;
+                uretimMaliyeti += birimFiyat * gercekMiktar;
             }
+            const efektifPorsiyon = satis.recete.porsiyonSayisi || 1;
+            const porsiyonMaliyeti = uretimMaliyeti / efektifPorsiyon;
+            toplamMaliyet += porsiyonMaliyeti * satis.adet;
         }
 
         const kar = toplamSatis - toplamMaliyet;

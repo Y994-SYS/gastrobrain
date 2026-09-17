@@ -1,4 +1,4 @@
-const { PrismaClient } = require('@prisma/client');
+const { PrismaClient, Prisma } = require('@prisma/client');
 const stokService = require('../services/stok.service');
 const auditLog = require('../services/auditLog.service');
 const prisma = new PrismaClient();
@@ -136,6 +136,23 @@ const stokController = {
         }
     },
 
+    // DÜZELTME (güvenlik — TOCTOU): Önceden stok yeterlilik kontrolü
+    // (mevcutStokGetir) HAM prisma istemcisiyle yapılıyor, ardından yazma
+    // AYRI bir $transaction (dizi formunda, kilit garantisi olmayan) ile
+    // yapılıyordu. Bu iki adım arasında zaman farkı var — aynı reçeteyi
+    // (veya aynı malzemeyi paylaşan farklı reçeteleri) aynı anda üreten
+    // iki istek, ikisi de "stok yeterli" görüp ikisi de yazabiliyordu;
+    // toplamda stok negatife düşebiliyordu. Bu, zayiEkle/tuketimEkle'de
+    // (aynı dosya) ÇOK ÖNCEDEN düzeltilmiş olan AYNI hata sınıfıydı —
+    // tuketimRecete bu düzeltmeyi almamıştı. Artık kontrol ve yazma TEK
+    // bir serializable transaction (tx) içinde yapılıyor; eşzamanlı
+    // çakışmada Prisma P2034 fırlatır, bunu diğer fonksiyonlarla aynı
+    // şekilde 409 olarak yakalıyoruz.
+    //
+    // Ayrıca: subeId (TENANT_ADMIN için req.kullanici.subeId boş olabilir)
+    // artık işleme başlamadan önce doğrulanıyor — boşsa Number(undefined)
+    // = NaN ile devam edip belirsiz bir 500/FK hatası almak yerine, net
+    // bir 400 dönülüyor.
     async tuketimRecete(req, res) {
         try {
             const { receteId, porsiyonSayisi, aciklama, tarih, zorla } = req.body;
@@ -145,6 +162,9 @@ const stokController = {
 
             if (!receteId || !porsiyonSayisi || Number(porsiyonSayisi) <= 0) {
                 return res.status(400).json({ basarili: false, mesaj: 'Reçete ve porsiyon sayısı zorunlu' });
+            }
+            if (!subeId) {
+                return res.status(400).json({ basarili: false, mesaj: 'Şube seçimi zorunlu' });
             }
 
             const recete = await prisma.recete.findFirst({
@@ -165,39 +185,53 @@ const stokController = {
             const oran = Number(porsiyonSayisi) / receteninKendiPorsiyonu;
 
             const zorlamaYetkisiVar = zorla === true && ZORLA_IZINLI_ROLLER.includes(rol);
-            const eksikKalemler = [];
 
-            for (const kalem of recete.kalemler) {
-                if (kalem.stokTakipZorunlu === false) continue;
+            const sonuc = await prisma.$transaction(async (tx) => {
+                const eksikKalemler = [];
 
-                const gercekMiktar = ((kalem.miktar * (kalem.carpan || 1)) / (kalem.bolen || 1)) * oran;
-                const mevcutStok = await stokService.mevcutStokGetir(kalem.stokKartId, subeId, tenantId);
+                for (const kalem of recete.kalemler) {
+                    if (kalem.stokTakipZorunlu === false) continue;
 
-                if (mevcutStok < gercekMiktar) {
-                    if (zorlamaYetkisiVar) {
-                        eksikKalemler.push({
-                            ad: kalem.stokKart.ad,
-                            mevcut: mevcutStok,
-                            gereken: gercekMiktar
-                        });
-                        continue;
-                    }
-                    return res.status(400).json({
-                        basarili: false,
-                        mesaj: `Yetersiz stok: ${kalem.stokKart.ad} (mevcut: ${mevcutStok.toFixed(2)}, gereken: ${gercekMiktar.toFixed(2)})`
-                    });
-                }
-            }
-
-            const zorlamaNotu = eksikKalemler.length
-                ? ` [ZORLA KAYDEDİLDİ — yetersiz: ${eksikKalemler.map(k => k.ad).join(', ')}]`
-                : '';
-            const varsayilanAciklama = `MUTFAK ÜRETİMİ (satış değildir) — ${recete.ad} x${porsiyonSayisi} porsiyon${zorlamaNotu}`;
-
-            const kaydedilenler = await prisma.$transaction(
-                recete.kalemler.map(kalem => {
                     const gercekMiktar = ((kalem.miktar * (kalem.carpan || 1)) / (kalem.bolen || 1)) * oran;
-                    return prisma.stokHareket.create({
+                    const hareketler = await tx.stokHareket.findMany({
+                        where: {
+                            stokKartId: kalem.stokKartId,
+                            stokKart: { tenantId },
+                            subeId: Number(subeId),
+                        }
+                    });
+                    const mevcutStok = stokService.bakiyeHesapla(hareketler);
+
+                    if (mevcutStok < gercekMiktar) {
+                        if (zorlamaYetkisiVar) {
+                            eksikKalemler.push({
+                                ad: kalem.stokKart.ad,
+                                mevcut: mevcutStok,
+                                gereken: gercekMiktar
+                            });
+                            continue;
+                        }
+                        // Transaction'ı iptal etmek için hata fırlat —
+                        // catch bloğunda mesaj/kod ayrıştırılıp anlamlı
+                        // bir 400 dönülecek.
+                        const hata = new Error(
+                            `Yetersiz stok: ${kalem.stokKart.ad} (mevcut: ${mevcutStok.toFixed(2)}, gereken: ${gercekMiktar.toFixed(2)})`
+                        );
+                        hata.yetersizStok = true;
+                        throw hata;
+                    }
+                }
+
+                const zorlamaNotu = eksikKalemler.length
+                    ? ` [ZORLA KAYDEDİLDİ — yetersiz: ${eksikKalemler.map(k => k.ad).join(', ')}]`
+                    : '';
+                const varsayilanAciklama = `MUTFAK ÜRETİMİ (satış değildir) — ${recete.ad} x${porsiyonSayisi} porsiyon${zorlamaNotu}`;
+
+                const kaydedilenler = [];
+                for (const kalem of recete.kalemler) {
+                    if (kalem.stokTakipZorunlu === false) continue;
+                    const gercekMiktar = ((kalem.miktar * (kalem.carpan || 1)) / (kalem.bolen || 1)) * oran;
+                    const hareket = await tx.stokHareket.create({
                         data: {
                             tip: 'TUKETIM',
                             miktar: Math.round(gercekMiktar * 1000) / 1000,
@@ -207,8 +241,17 @@ const stokController = {
                             subeId: Number(subeId),
                         }
                     });
-                })
-            );
+                    kaydedilenler.push(hareket);
+                }
+
+                return { kaydedilenler, eksikKalemler };
+            }, {
+                isolation: Prisma.TransactionIsolationLevel.Serializable,
+                maxWait: 5000,
+                timeout: 10000,
+            });
+
+            const { kaydedilenler, eksikKalemler } = sonuc;
 
             await auditLog.kaydet({
                 eylem: eksikKalemler.length ? 'STOK_TUKETIM_RECETE_ZORLA' : 'STOK_TUKETIM_RECETE',
@@ -229,6 +272,15 @@ const stokController = {
                 eksikKalemler,
             });
         } catch (error) {
+            if (error.code === 'P2034') {
+                return res.status(409).json({
+                    basarili: false,
+                    mesaj: 'Bu reçete üzerinde eşzamanlı bir işlem tespit edildi. Lütfen tekrar deneyin.'
+                });
+            }
+            if (error.yetersizStok) {
+                return res.status(400).json({ basarili: false, mesaj: error.message });
+            }
             res.status(500).json({ basarili: false, mesaj: error.message });
         }
     },
